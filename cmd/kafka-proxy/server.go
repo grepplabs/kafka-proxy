@@ -19,7 +19,7 @@ var (
 	bootstrapServersMapping = make([]string, 0)
 )
 
-var Command = &cobra.Command{
+var Server = &cobra.Command{
 	Use:   "server",
 	Short: "Run the kafka-proxy server",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -38,10 +38,10 @@ var Command = &cobra.Command{
 }
 
 func init() {
-	Command.Flags().StringVar(&defaultListenIP, "default-listen-ip", "127.0.0.1", "Default listen IP")
-	Command.Flags().IntVar(&inFlightRequests, "in-flight-requests", 256, "Number of in-flight requests pro tcp connection")
-	Command.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port)")
-	Command.MarkFlagRequired("bootstrap-server-mapping")
+	Server.Flags().StringVar(&defaultListenIP, "default-listen-ip", "127.0.0.1", "Default listen IP")
+	Server.Flags().IntVar(&inFlightRequests, "in-flight-requests", 256, "Number of in-flight requests pro tcp connection")
+	Server.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port)")
+	Server.MarkFlagRequired("bootstrap-server-mapping")
 }
 
 func RunE(_ *cobra.Command, _ []string) error {

@@ -3,10 +3,11 @@
 .PHONY: clean build build.local build.linux build.osx build.docker build.docker-build.linux build.docker-build.osx
 
 BINARY        ?= kafka-proxy
-SOURCES       = $(shell find . -name '*.go' | grep -v /vendor/)
-GOPKGS        = $(shell go list ./... | grep -v /vendor/)
+SOURCES        = $(shell find . -name '*.go' | grep -v /vendor/)
+VERSION       ?= $(shell git describe --tags --always --dirty)
+GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
-LDFLAGS       ?= -w -s
+LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
 
 PLATFORM      ?= $(shell uname -s)
 ifeq ($(PLATFORM), Darwin)
