@@ -1,6 +1,12 @@
 package proxy
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/pkg/errors"
+	"io/ioutil"
 	"log"
 	"net"
 	"time"
@@ -52,7 +58,7 @@ STOP:
 
 func (c *Client) handleConn(conn Conn) {
 	//TODO: add NaxConnections ?
-	server, err := c.DialNoSSL(conn.BrokerAddress)
+	server, err := c.DialNoTLS(conn.BrokerAddress)
 	if err != nil {
 		log.Printf("couldn't connect to %q: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
@@ -67,14 +73,14 @@ func (c *Client) handleConn(conn Conn) {
 }
 
 // tryConnect
-func (c *Client) DialNoSSL(instance string) (net.Conn, error) {
+func (c *Client) DialNoTLS(brokerAddress string) (net.Conn, error) {
 	//TODO: if TLS provided configure keepAlive and timeouts
 
 	d := c.Dialer
 	if d == nil {
 		d = net.Dial
 	}
-	conn, err := d("tcp", instance)
+	conn, err := d("tcp", brokerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -94,4 +100,114 @@ func (c *Client) DialNoSSL(instance string) (net.Conn, error) {
 	}
 
 	return conn, nil
+}
+
+func (c *Client) DialTLS(brokerAddress string) (net.Conn, error) {
+	//TODO:
+	conf := config.NewConfig()
+	conf.Kafka.TLS.Enable = true
+	conf.Kafka.SASL.Enable = true
+	conf.Kafka.SASL.Username = ""
+	conf.Kafka.SASL.Password = ""
+	conf.Kafka.TLS.InsecureSkipVerify = true
+
+	dialer := net.Dialer{
+		Timeout:   conf.Kafka.DialTimeout,
+		KeepAlive: conf.Kafka.KeepAlive,
+	}
+	if conf.Kafka.TLS.Enable {
+		tlsConfig, err := newTLSConfig(conf)
+		if err != nil {
+			panic(err)
+		}
+		conn, connErr := tls.DialWithDialer(&dialer, "tcp", brokerAddress, tlsConfig)
+		if connErr != nil {
+			return nil, connErr
+		}
+		if conf.Kafka.SASL.Enable {
+			// http://kafka.apache.org/protocol.html#sasl_handshake
+			saslPlainAuth := SASLPlainAuth{
+				conn:         conn,
+				writeTimeout: conf.Kafka.WriteTimeout,
+				readTimeout:  conf.Kafka.ReadTimeout,
+				username:     conf.Kafka.SASL.Username,
+				password:     conf.Kafka.SASL.Password,
+			}
+			err = saslPlainAuth.sendAndReceiveSASLPlainAuth()
+			if err != nil {
+				conn.Close()
+				return nil, err
+			}
+			// reset deadlines
+			conn.SetWriteDeadline(time.Time{})
+			conn.SetReadDeadline(time.Time{})
+		}
+		return conn, connErr
+	} else {
+		return dialer.Dial("tcp", brokerAddress)
+	}
+	//
+	return nil, nil
+}
+
+func newTLSConfig(conf *config.Config) (*tls.Config, error) {
+	opts := conf.Kafka.TLS
+
+	cfg := &tls.Config{InsecureSkipVerify: opts.InsecureSkipVerify}
+
+	if opts.ClientCertFile != "" && opts.ClientKeyFile != "" {
+		certPEMBlock, err := ioutil.ReadFile(opts.ClientCertFile)
+		if err != nil {
+			return nil, err
+		}
+		keyPEMBlock, err := ioutil.ReadFile(opts.ClientKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		keyPEMBlock, err = decryptPEM(keyPEMBlock, opts.ClientKeyPassword)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Certificates = []tls.Certificate{cert}
+		cfg.BuildNameToCertificate()
+	}
+
+	if opts.CAChainCertFile != "" {
+		caCert, err := ioutil.ReadFile(opts.CAChainCertFile)
+		if err != nil {
+			return nil, err
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+
+		cfg.RootCAs = caCertPool
+	}
+	return cfg, nil
+}
+
+func decryptPEM(pemData []byte, password string) ([]byte, error) {
+
+	keyBlock, _ := pem.Decode(pemData)
+	if keyBlock == nil {
+		return nil, errors.New("Failed to parse PEM")
+	}
+	if x509.IsEncryptedPEMBlock(keyBlock) {
+		if password == "" {
+			return nil, errors.New("PEM is encrypted, but password is empty")
+		}
+		key, err := x509.DecryptPEMBlock(keyBlock, []byte(password))
+		if err != nil {
+			return nil, err
+		}
+		block := &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: key,
+		}
+		return pem.EncodeToMemory(block), nil
+	}
+	return pemData, nil
 }

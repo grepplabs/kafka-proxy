@@ -3,7 +3,9 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
+
 	"github.com/spf13/cobra"
 	"log"
 	"net"
@@ -12,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 )
+
+var c = new(config.Config)
 
 var (
 	defaultListenIP         string
@@ -73,7 +77,7 @@ func RunE(_ *cobra.Command, _ []string) error {
 	//stopChan <-chan struct{}
 
 	stopChan := make(chan struct{}, 1)
-	go handleSigterm(stopChan)
+	go handleStop(stopChan)
 
 	(&proxy.Client{
 		Conns:           connset,
@@ -107,10 +111,10 @@ func getListenConfigs(bootstrapServersMapping []string) ([]proxy.ListenConfig, e
 	return listenConfigs, nil
 }
 
-func handleSigterm(stopChan chan struct{}) {
+func handleStop(stopChan chan struct{}) {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	<-signals
-	log.Print("Received terminating signal ...")
+	log.Print("Received stop signal ...")
 	close(stopChan)
 }
