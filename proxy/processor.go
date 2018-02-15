@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"io"
 	"time"
@@ -14,35 +15,35 @@ const (
 )
 
 type ProcessorConfig struct {
-	InFlightRequests      int
-	NetAddressMappingFunc protocol.NetAddressMappingFunc
+	MaxOpenRequests       int
+	NetAddressMappingFunc config.NetAddressMappingFunc
 }
 
 type processor struct {
-	inFlightRequestsChannel chan protocol.RequestKeyVersion
-	netAddressMappingFunc   protocol.NetAddressMappingFunc
+	openRequestsChannel   chan protocol.RequestKeyVersion
+	netAddressMappingFunc config.NetAddressMappingFunc
 }
 
 func newProcessor(cfg ProcessorConfig) *processor {
-	inFlightRequests := cfg.InFlightRequests
-	if inFlightRequests < 1 {
-		inFlightRequests = 1
+	maxOpenRequests := cfg.MaxOpenRequests
+	if maxOpenRequests < 1 {
+		maxOpenRequests = 1
 	}
 	return &processor{
-		inFlightRequestsChannel: make(chan protocol.RequestKeyVersion, inFlightRequests),
-		netAddressMappingFunc:   cfg.NetAddressMappingFunc,
+		openRequestsChannel:   make(chan protocol.RequestKeyVersion, maxOpenRequests),
+		netAddressMappingFunc: cfg.NetAddressMappingFunc,
 	}
 }
 
 func (p *processor) RequestsLoop(dst io.Writer, src io.Reader) (readErr bool, err error) {
-	return requestsLoop(dst, src, p.inFlightRequestsChannel)
+	return requestsLoop(dst, src, p.openRequestsChannel)
 }
 
 func (p *processor) ResponsesLoop(dst io.Writer, src io.Reader) (readErr bool, err error) {
-	return responsesLoop(dst, src, p.inFlightRequestsChannel, p.netAddressMappingFunc)
+	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc)
 }
 
-func requestsLoop(dst io.Writer, src io.Reader, inFlightRequests chan<- protocol.RequestKeyVersion) (readErr bool, err error) {
+func requestsLoop(dst io.Writer, src io.Reader, openRequestsChannel chan<- protocol.RequestKeyVersion) (readErr bool, err error) {
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
 	buf := make([]byte, 4096)
@@ -61,7 +62,7 @@ func requestsLoop(dst io.Writer, src io.Reader, inFlightRequests chan<- protocol
 		// log.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
-		if err = sendRequestKeyVersion(inFlightRequests, inFlightRequestSendTimeout, requestKeyVersion); err != nil {
+		if err = sendRequestKeyVersion(openRequestsChannel, inFlightRequestSendTimeout, requestKeyVersion); err != nil {
 			return true, err
 		}
 
@@ -76,7 +77,7 @@ func requestsLoop(dst io.Writer, src io.Reader, inFlightRequests chan<- protocol
 	}
 }
 
-func responsesLoop(dst io.Writer, src io.Reader, inFlightRequests <-chan protocol.RequestKeyVersion, netAddressMappingFunc protocol.NetAddressMappingFunc) (readErr bool, err error) {
+func responsesLoop(dst io.Writer, src io.Reader, openRequestsChannel <-chan protocol.RequestKeyVersion, netAddressMappingFunc config.NetAddressMappingFunc) (readErr bool, err error) {
 	responseHeaderBuf := make([]byte, 8) // Size => int32, CorrelationId => int32
 
 	buf := make([]byte, 4096)
@@ -94,7 +95,7 @@ func responsesLoop(dst io.Writer, src io.Reader, inFlightRequests <-chan protoco
 		}
 
 		// Read the inFlightRequests channel after header is read. Otherwise the channel would block and socket EOF from remote would not be received.
-		requestKeyVersion, err := receiveRequestKeyVersion(inFlightRequests, inFlightRequestReceiveTimeout)
+		requestKeyVersion, err := receiveRequestKeyVersion(openRequestsChannel, inFlightRequestReceiveTimeout)
 		if err != nil {
 			return true, err
 		}
@@ -140,36 +141,36 @@ func responsesLoop(dst io.Writer, src io.Reader, inFlightRequests <-chan protoco
 	}
 }
 
-func sendRequestKeyVersion(inFlightRequests chan<- protocol.RequestKeyVersion, timeout time.Duration, request *protocol.RequestKeyVersion) error {
+func sendRequestKeyVersion(openRequestsChannel chan<- protocol.RequestKeyVersion, timeout time.Duration, request *protocol.RequestKeyVersion) error {
 	select {
-	case inFlightRequests <- *request:
+	case openRequestsChannel <- *request:
 	default:
 		// timer.Stop() will be invoked only after sendRequestKeyVersion is finished (not after select default) !
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 
 		select {
-		case inFlightRequests <- *request:
+		case openRequestsChannel <- *request:
 		case <-timer.C:
-			return errors.New("in flight request buffer is full")
+			return errors.New("open requests buffer is full")
 		}
 	}
 	return nil
 }
 
-func receiveRequestKeyVersion(inFlightRequests <-chan protocol.RequestKeyVersion, timeout time.Duration) (*protocol.RequestKeyVersion, error) {
+func receiveRequestKeyVersion(openRequestsChannel <-chan protocol.RequestKeyVersion, timeout time.Duration) (*protocol.RequestKeyVersion, error) {
 	var request protocol.RequestKeyVersion
 	select {
-	case request = <-inFlightRequests:
+	case request = <-openRequestsChannel:
 	default:
 		// timer.Stop() will be invoked only after receiveRequestKeyVersion is finished (not after select default) !
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 
 		select {
-		case request = <-inFlightRequests:
+		case request = <-openRequestsChannel:
 		case <-timer.C:
-			return nil, errors.New("in flight request is missing")
+			return nil, errors.New("open request is missing")
 		}
 	}
 	return &request, nil

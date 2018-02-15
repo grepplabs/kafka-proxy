@@ -14,6 +14,8 @@ import (
 type SASLPlainAuth struct {
 	conn net.Conn
 
+	clientID string
+
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 
@@ -49,11 +51,16 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth() error {
 
 	err := b.conn.SetWriteDeadline(time.Now().Add(b.writeTimeout))
 	if err != nil {
-		return errors.Wrap(err, "Failed to set write deadline when doing SASL auth")
+		return err
 	}
 	_, err = b.conn.Write(authBytes)
 	if err != nil {
 		return errors.Wrap(err, "Failed to write SASL auth header")
+	}
+
+	err = b.conn.SetReadDeadline(time.Now().Add(b.readTimeout))
+	if err != nil {
+		return err
 	}
 
 	header := make([]byte, 4)
@@ -72,7 +79,8 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth() error {
 func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake() error {
 
 	req := &protocol.Request{
-		Body: &protocol.SaslHandshakeRequestV0{Mechanism: "PLAIN"},
+		ClientID: b.clientID,
+		Body:     &protocol.SaslHandshakeRequestV0{Mechanism: "PLAIN"},
 	}
 	reqBuf, err := protocol.Encode(req)
 	if err != nil {
@@ -90,6 +98,12 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to send SASL handshake")
 	}
+
+	err = b.conn.SetReadDeadline(time.Now().Add(b.readTimeout))
+	if err != nil {
+		return err
+	}
+
 	//wait for the response
 	header := make([]byte, 8) // response header
 	_, err = io.ReadFull(b.conn, header)

@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-const (
-	keepAlivePeriod = time.Minute
-)
-
 // Conn represents a connection from a client to a specific instance.
 type Conn struct {
 	BrokerAddress   string
@@ -25,13 +21,23 @@ type Conn struct {
 // Client is a type to handle connecting to a Server. All fields are required
 // unless otherwise specified.
 type Client struct {
-	Conns *ConnSet
-	// Dialer should return a new connection to the provided address. It is
-	// called on each new connection to an instance. net.Dial will be used if
-	// left nil.
-	Dialer func(net, addr string) (net.Conn, error)
+	conns *ConnSet
+
+	// Kafka Net configuration
+	config *config.Config
+
 	// Config of Proxy request-response processor (instance p)
-	ProcessorConfig ProcessorConfig
+	processorConfig ProcessorConfig
+
+	tlsConfig *tls.Config
+}
+
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc) (*Client, error) {
+	tlsConfig, err := newTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, processorConfig: ProcessorConfig{MaxOpenRequests: c.Kafka.MaxOpenRequests, NetAddressMappingFunc: netAddressMappingFunc}}, nil
 }
 
 // Run causes the client to start waiting for new connections to connSrc and
@@ -49,7 +55,7 @@ STOP:
 
 	log.Print("Closing connections")
 
-	if err := c.Conns.Close(); err != nil {
+	if err := c.conns.Close(); err != nil {
 		log.Printf("closing client had error: %v", err)
 	}
 
@@ -58,96 +64,54 @@ STOP:
 
 func (c *Client) handleConn(conn Conn) {
 	//TODO: add NaxConnections ?
-	server, err := c.DialNoTLS(conn.BrokerAddress)
+	server, err := c.Dial(conn.BrokerAddress, c.tlsConfig)
 	if err != nil {
 		log.Printf("couldn't connect to %q: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
 		return
 	}
 
-	c.Conns.Add(conn.BrokerAddress, conn.LocalConnection)
-	copyThenClose(c.ProcessorConfig, server, conn.LocalConnection, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
-	if err := c.Conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
+	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
+	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
+	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		log.Print(err)
 	}
 }
 
-// tryConnect
-func (c *Client) DialNoTLS(brokerAddress string) (net.Conn, error) {
-	//TODO: if TLS provided configure keepAlive and timeouts
-
-	d := c.Dialer
-	if d == nil {
-		d = net.Dial
-	}
-	conn, err := d("tcp", brokerAddress)
-	if err != nil {
-		return nil, err
-	}
-	type setKeepAliver interface {
-		SetKeepAlive(keepalive bool) error
-		SetKeepAlivePeriod(d time.Duration) error
-	}
-
-	if s, ok := conn.(setKeepAliver); ok {
-		if err := s.SetKeepAlive(true); err != nil {
-			log.Printf("Couldn't set KeepAlive to true: %v", err)
-		} else if err := s.SetKeepAlivePeriod(keepAlivePeriod); err != nil {
-			log.Printf("Couldn't set KeepAlivePeriod to %v", keepAlivePeriod)
-		}
-	} else {
-		log.Printf("KeepAlive not supported: long-running tcp connections may be killed by the OS.")
-	}
-
-	return conn, nil
-}
-
-func (c *Client) DialTLS(brokerAddress string) (net.Conn, error) {
-	//TODO:
-	conf := config.NewConfig()
-	conf.Kafka.TLS.Enable = true
-	conf.Kafka.SASL.Enable = true
-	conf.Kafka.SASL.Username = ""
-	conf.Kafka.SASL.Password = ""
-	conf.Kafka.TLS.InsecureSkipVerify = true
-
+func (c *Client) Dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
 	dialer := net.Dialer{
-		Timeout:   conf.Kafka.DialTimeout,
-		KeepAlive: conf.Kafka.KeepAlive,
+		Timeout:   c.config.Kafka.DialTimeout,
+		KeepAlive: c.config.Kafka.KeepAlive,
 	}
-	if conf.Kafka.TLS.Enable {
-		tlsConfig, err := newTLSConfig(conf)
-		if err != nil {
-			panic(err)
+	if c.config.Kafka.TLS.Enable {
+		if tlsConfig == nil {
+			return nil, errors.New("tlsConfig must not be nil")
 		}
 		conn, connErr := tls.DialWithDialer(&dialer, "tcp", brokerAddress, tlsConfig)
 		if connErr != nil {
 			return nil, connErr
 		}
-		if conf.Kafka.SASL.Enable {
+		if c.config.Kafka.SASL.Enable {
 			// http://kafka.apache.org/protocol.html#sasl_handshake
 			saslPlainAuth := SASLPlainAuth{
 				conn:         conn,
-				writeTimeout: conf.Kafka.WriteTimeout,
-				readTimeout:  conf.Kafka.ReadTimeout,
-				username:     conf.Kafka.SASL.Username,
-				password:     conf.Kafka.SASL.Password,
+				clientID:     c.config.Kafka.ClientID,
+				writeTimeout: c.config.Kafka.WriteTimeout,
+				readTimeout:  c.config.Kafka.ReadTimeout,
+				username:     c.config.Kafka.SASL.Username,
+				password:     c.config.Kafka.SASL.Password,
 			}
-			err = saslPlainAuth.sendAndReceiveSASLPlainAuth()
+			err := saslPlainAuth.sendAndReceiveSASLPlainAuth()
 			if err != nil {
 				conn.Close()
 				return nil, err
 			}
 			// reset deadlines
-			conn.SetWriteDeadline(time.Time{})
-			conn.SetReadDeadline(time.Time{})
+			conn.SetDeadline(time.Time{})
 		}
 		return conn, connErr
-	} else {
-		return dialer.Dial("tcp", brokerAddress)
 	}
-	//
-	return nil, nil
+	return dialer.Dial("tcp", brokerAddress)
 }
 
 func newTLSConfig(conf *config.Config) (*tls.Config, error) {

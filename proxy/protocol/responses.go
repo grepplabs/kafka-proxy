@@ -3,6 +3,7 @@ package protocol
 import (
 	"errors"
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/config"
 )
 
 const (
@@ -133,9 +134,7 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1}
 }
 
-type NetAddressMappingFunc func(brokerHost string, brokerPort int32) (listenHost string, listenPort int32, err error)
-
-func modifyMetadataResponse(decodedStruct *Struct, fn NetAddressMappingFunc) error {
+func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
 	if decodedStruct == nil {
 		return errors.New("decoded struct must not be nil")
 	}
@@ -176,7 +175,7 @@ func modifyMetadataResponse(decodedStruct *Struct, fn NetAddressMappingFunc) err
 	return nil
 }
 
-func modifyFindCoordinatorResponse(decodedStruct *Struct, fn NetAddressMappingFunc) error {
+func modifyFindCoordinatorResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
 	if decodedStruct == nil {
 		return errors.New("decoded struct must not be nil")
 	}
@@ -218,12 +217,12 @@ type ResponseModifier interface {
 	Apply(resp []byte) ([]byte, error)
 }
 
-type modifyResponseFunc func(decodedStruct *Struct, fn NetAddressMappingFunc) error
+type modifyResponseFunc func(decodedStruct *Struct, fn config.NetAddressMappingFunc) error
 
 type responseModifier struct {
 	schema                Schema
 	modifyResponseFunc    modifyResponseFunc
-	netAddressMappingFunc NetAddressMappingFunc
+	netAddressMappingFunc config.NetAddressMappingFunc
 }
 
 func (f *responseModifier) Apply(resp []byte) ([]byte, error) {
@@ -238,7 +237,7 @@ func (f *responseModifier) Apply(resp []byte) ([]byte, error) {
 	return EncodeSchema(decodedStruct, f.schema)
 }
 
-func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc NetAddressMappingFunc) (ResponseModifier, error) {
+func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc config.NetAddressMappingFunc) (ResponseModifier, error) {
 	switch apiKey {
 	case apiKeyMetadata:
 		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, metadataResponseSchemaVersions, modifyMetadataResponse)
@@ -249,7 +248,7 @@ func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc NetA
 	}
 }
 
-func newResponseModifier(apiKey int16, apiVersion int16, netAddressMappingFunc NetAddressMappingFunc, schemas []Schema, modifyResponseFunc modifyResponseFunc) (ResponseModifier, error) {
+func newResponseModifier(apiKey int16, apiVersion int16, netAddressMappingFunc config.NetAddressMappingFunc, schemas []Schema, modifyResponseFunc modifyResponseFunc) (ResponseModifier, error) {
 	schema, err := getResponseSchema(apiKey, apiVersion, schemas)
 	if err != nil {
 		return nil, err
