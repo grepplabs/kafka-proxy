@@ -24,14 +24,22 @@ See:
 ### Usage example
 	
 	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399"
-	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401"
+	
+	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
+	                         --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401" \
+	                         --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402"
+    
+    build/kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
+                             --tls-enable true --tls-insecure-skip-verify true \
+                             --sasl-enable true --sasl-username myuser --sasl-password mysecret
 
 ### What should be done
 
 * [x] Metadata response versions V0,V1,V2,V3,V4 and V5
 * [x] Find coordinator response versions V0 and V1
-* [ ] TLS
-* [ ] PLAIN/SASL
+* [X] TLS
+* [X] PLAIN/SASL
+* [ ] Request / reponse deadlines - socket reads/writes  
 * [ ] Json logging
 * [ ] Panic handler
 * [ ] Health check endpoint

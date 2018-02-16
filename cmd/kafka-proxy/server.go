@@ -1,21 +1,19 @@
 package server
 
 import (
-	"errors"
-	"fmt"
+	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
 	"github.com/spf13/cobra"
 	"log"
-	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
+	"time"
 )
 
 var (
-	defaultListenIP         string
-	inFlightRequests        int
+	c = new(config.Config)
+
 	bootstrapServersMapping = make([]string, 0)
 )
 
@@ -23,14 +21,14 @@ var Server = &cobra.Command{
 	Use:   "server",
 	Short: "Run the kafka-proxy server",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if inFlightRequests < 1 {
-			return fmt.Errorf("in-flight-requests must be positiv")
+		if err := c.InitSASLCredentials(); err != nil {
+			return err
 		}
-		if defaultListenIP == "" {
-			return fmt.Errorf("default-listen-ip must not be empty")
+		if err := c.InitBootstrapServers(bootstrapServersMapping); err != nil {
+			return err
 		}
-		if net.ParseIP(defaultListenIP) == nil {
-			return fmt.Errorf("default-listen-ip is not a valid IP")
+		if err := c.Validate(); err != nil {
+			return err
 		}
 		return nil
 	},
@@ -38,79 +36,71 @@ var Server = &cobra.Command{
 }
 
 func init() {
-	Server.Flags().StringVar(&defaultListenIP, "default-listen-ip", "127.0.0.1", "Default listen IP")
-	Server.Flags().IntVar(&inFlightRequests, "in-flight-requests", 256, "Number of in-flight requests pro tcp connection")
+	// proxy
+	Server.Flags().StringVar(&c.Proxy.DefaultListenerIP, "default-listener-ip", "127.0.0.1", "Default listener IP")
 	Server.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port)")
 	Server.MarkFlagRequired("bootstrap-server-mapping")
+
+	// kafka
+	Server.Flags().StringVar(&c.Kafka.ClientID, "kafka-client-id", "kafka-proxy", "An optional identifier to track the source of requests")
+	Server.Flags().IntVar(&c.Kafka.MaxOpenRequests, "kafka-max-open-requests", 256, "Maximal number of open requests pro tcp connection before sending on it blocks")
+	Server.Flags().DurationVar(&c.Kafka.DialTimeout, "kafka-dial-timeout", 30*time.Second, "How long to wait for the initial connection")
+	Server.Flags().DurationVar(&c.Kafka.WriteTimeout, "kafka-write-timeout", 30*time.Second, "How long to wait for a transmit")
+	Server.Flags().DurationVar(&c.Kafka.ReadTimeout, "kafka-read-timeout", 30*time.Second, "How long to wait for a response")
+	Server.Flags().DurationVar(&c.Kafka.KeepAlive, "kafka-keep-alive", 60*time.Second, "Keep alive period for an active network connection. If zero, keep-alives are disabled")
+
+	// TLS
+	Server.Flags().BoolVar(&c.Kafka.TLS.Enable, "tls-enable", false, "Whether or not to use TLS when connecting to the broker")
+	Server.Flags().BoolVar(&c.Kafka.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", false, "It controls whether a client verifies the server's certificate chain and host name")
+	Server.Flags().StringVar(&c.Kafka.TLS.ClientCertFile, "tls-client-cert-file", "", "PEM encoded file with client certificate")
+	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyFile, "tls-client-key-file", "", "PEM encoded file with private key for the client certificate")
+	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", "", "Password to decrypt rsa private key")
+	Server.Flags().StringVar(&c.Kafka.TLS.CAChainCertFile, "tls-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
+
+	// SASL
+	Server.Flags().BoolVar(&c.Kafka.SASL.Enable, "sasl-enable", false, "Connect using SASL/PLAIN")
+	Server.Flags().StringVar(&c.Kafka.SASL.Username, "sasl-username", "", "SASL user name")
+	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", "", "SASL user password")
+	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
+
+	// Web
+	Server.Flags().BoolVar(&c.Web.Disable, "web-disable", false, "Disable HTTP endpoints")
+	Server.Flags().StringVar(&c.Web.ListenAddress, "web-listen-address", "0.0.0.0:9080", "Address that kafka-proxy is listening on")
+	Server.Flags().StringVar(&c.Web.MetricsPath, "web-metrics-path", "/metrics", "Path on which to expose metrics")
+	Server.Flags().StringVar(&c.Web.HealthPath, "web-health-path", "/health", "Path on which to health endpoint")
 }
 
 func RunE(_ *cobra.Command, _ []string) error {
+	log.Printf("Starting kafka-proxy version %s", config.Version)
+
 	// All active connections are stored in this variable.
 	connset := proxy.NewConnSet()
 
-	// build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399" \
-	//  --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
-	//  --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401" \
-	//  --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402"
-
-	bootstrapCfg, err := getListenConfigs(bootstrapServersMapping)
+	listeners := proxy.NewListeners(c.Proxy.DefaultListenerIP)
+	connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
 	if err != nil {
 		return err
 	}
 
-	listeners := proxy.NewListeners(defaultListenIP)
-	connSrc, err := listeners.ListenInstances(bootstrapCfg)
+	proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	processorConfig := proxy.ProcessorConfig{
-		InFlightRequests:      inFlightRequests,
-		NetAddressMappingFunc: listeners.GetNetAddressMapping,
-	}
 	log.Print("Ready for new connections")
 
-	//stopChan <-chan struct{}
-
 	stopChan := make(chan struct{}, 1)
-	go handleSigterm(stopChan)
+	go handleStop(stopChan)
 
-	(&proxy.Client{
-		Conns:           connset,
-		ProcessorConfig: processorConfig,
-	}).Run(stopChan, connSrc)
+	proxyClient.Run(stopChan, connSrc)
 
 	return nil
 }
 
-func getListenConfigs(bootstrapServersMapping []string) ([]proxy.ListenConfig, error) {
-	if len(bootstrapServersMapping) == 0 {
-		return nil, errors.New("list of bootstrap-server-mapping must not be empty")
-	}
-	listenConfigs := make([]proxy.ListenConfig, 0)
-	for _, v := range bootstrapServersMapping {
-		pair := strings.Split(v, ",")
-		if len(pair) != 2 {
-			return nil, errors.New("bootstrap-server-mapping must be in form 'remotehost:remoteport,localhost:localport'")
-		}
-		remotehost, remoteport, err := proxy.SplitHostPort(pair[0])
-		if err != nil {
-			return nil, err
-		}
-		localhost, localport, err := proxy.SplitHostPort(pair[1])
-		if err != nil {
-			return nil, err
-		}
-		listenConfig := proxy.ListenConfig{BrokerAddress: net.JoinHostPort(remotehost, fmt.Sprint(remoteport)), ListenAddress: net.JoinHostPort(localhost, fmt.Sprint(localport))}
-		listenConfigs = append(listenConfigs, listenConfig)
-	}
-	return listenConfigs, nil
-}
-
-func handleSigterm(stopChan chan struct{}) {
+func handleStop(stopChan chan struct{}) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
 	<-signals
-	log.Print("Received terminating signal ...")
+	log.Print("Received stop signal ...")
 	close(stopChan)
 }
