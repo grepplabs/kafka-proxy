@@ -1,10 +1,16 @@
 package server
 
 import (
+	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
+	"github.com/oklog/oklog/pkg/group"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"log"
+	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,7 +38,7 @@ var Server = &cobra.Command{
 		}
 		return nil
 	},
-	RunE: RunE,
+	Run: Run,
 }
 
 func init() {
@@ -64,43 +70,103 @@ func init() {
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
 
 	// Web
-	Server.Flags().BoolVar(&c.Web.Disable, "web-disable", false, "Disable HTTP endpoints")
-	Server.Flags().StringVar(&c.Web.ListenAddress, "web-listen-address", "0.0.0.0:9080", "Address that kafka-proxy is listening on")
-	Server.Flags().StringVar(&c.Web.MetricsPath, "web-metrics-path", "/metrics", "Path on which to expose metrics")
-	Server.Flags().StringVar(&c.Web.HealthPath, "web-health-path", "/health", "Path on which to health endpoint")
+	Server.Flags().BoolVar(&c.Http.Disable, "http-disable", false, "Disable HTTP endpoints")
+	Server.Flags().StringVar(&c.Http.ListenAddress, "http-listen-address", "0.0.0.0:9080", "Address that kafka-proxy is listening on")
+	Server.Flags().StringVar(&c.Http.MetricsPath, "http-metrics-path", "/metrics", "Path on which to expose metrics")
+	Server.Flags().StringVar(&c.Http.HealthPath, "http-health-path", "/health", "Path on which to health endpoint")
+
+	// Debug
+	Server.Flags().BoolVar(&c.Debug.Enabled, "debug-enable", false, "Enable Debug endpoint")
+	Server.Flags().StringVar(&c.Debug.ListenAddress, "debug-listen-address", "0.0.0.0:6060", "Debug listen address")
+
 }
 
-func RunE(_ *cobra.Command, _ []string) error {
+func Run(_ *cobra.Command, _ []string) {
 	log.Printf("Starting kafka-proxy version %s", config.Version)
 
-	// All active connections are stored in this variable.
-	connset := proxy.NewConnSet()
+	var g group.Group
+	{
+		// All active connections are stored in this variable.
+		connset := proxy.NewConnSet()
 
-	listeners := proxy.NewListeners(c.Proxy.DefaultListenerIP)
-	connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
-	if err != nil {
-		return err
+		listeners := proxy.NewListeners(c.Proxy.DefaultListenerIP)
+		connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
+		if err != nil {
+			log.Fatal(err)
+		}
+		g.Add(func() error {
+			log.Print("Ready for new connections")
+			return proxyClient.Run(connSrc)
+		}, func(error) {
+			proxyClient.Close()
+		})
 	}
-
-	proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
-	if err != nil {
-		return err
+	{
+		cancelInterrupt := make(chan struct{})
+		g.Add(func() error {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			select {
+			case sig := <-c:
+				return fmt.Errorf("received signal %s", sig)
+			case <-cancelInterrupt:
+				return nil
+			}
+		}, func(error) {
+			close(cancelInterrupt)
+		})
 	}
-
-	log.Print("Ready for new connections")
-
-	stopChan := make(chan struct{}, 1)
-	go handleStop(stopChan)
-
-	proxyClient.Run(stopChan, connSrc)
-
-	return nil
+	if !c.Http.Disable {
+		httpListener, err := net.Listen("tcp", c.Http.ListenAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		g.Add(func() error {
+			return http.Serve(httpListener, NewHTTPHandler())
+		}, func(error) {
+			httpListener.Close()
+		})
+	}
+	if c.Debug.Enabled {
+		// https://golang.org/pkg/net/http/pprof/
+		// https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
+		debugListener, err := net.Listen("tcp", c.Debug.ListenAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		g.Add(func() error {
+			return http.Serve(debugListener, http.DefaultServeMux)
+		}, func(error) {
+			debugListener.Close()
+		})
+	}
+	err := g.Run()
+	log.Println("Exit", err)
 }
 
-func handleStop(stopChan chan struct{}) {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
-	<-signals
-	log.Print("Received stop signal ...")
-	close(stopChan)
+func NewHTTPHandler() http.Handler {
+	m := http.NewServeMux()
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(
+			`<html>
+				<head>
+					<title>kafka-proxy service</title>
+				</head>
+				<body>
+					<h1>Kafka Proxy</h1>
+					<p><a href='` + c.Http.MetricsPath + `'>Metrics</a></p>
+				</body>
+	        </html>`))
+	})
+	m.HandleFunc(c.Http.HealthPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`OK`))
+	})
+	m.Handle(c.Http.MetricsPath, promhttp.Handler())
+
+	return m
 }

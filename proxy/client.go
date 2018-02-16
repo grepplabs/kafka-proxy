@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,9 @@ type Client struct {
 	processorConfig ProcessorConfig
 
 	tlsConfig *tls.Config
+
+	stopRun  chan struct{}
+	stopOnce sync.Once
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc) (*Client, error) {
@@ -37,18 +41,19 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, processorConfig: ProcessorConfig{MaxOpenRequests: c.Kafka.MaxOpenRequests, NetAddressMappingFunc: netAddressMappingFunc}}, nil
+	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, stopRun: make(chan struct{}, 1),
+		processorConfig: ProcessorConfig{MaxOpenRequests: c.Kafka.MaxOpenRequests, NetAddressMappingFunc: netAddressMappingFunc}}, nil
 }
 
 // Run causes the client to start waiting for new connections to connSrc and
 // proxy them to the destination instance. It blocks until connSrc is closed.
-func (c *Client) Run(stopChan <-chan struct{}, connSrc <-chan Conn) {
+func (c *Client) Run(connSrc <-chan Conn) error {
 STOP:
 	for {
 		select {
 		case conn := <-connSrc:
 			go c.handleConn(conn)
-		case <-stopChan:
+		case <-c.stopRun:
 			break STOP
 		}
 	}
@@ -60,6 +65,13 @@ STOP:
 	}
 
 	log.Print("Proxy is stopped")
+	return nil
+}
+
+func (c *Client) Close() {
+	c.stopOnce.Do(func() {
+		close(c.stopRun)
+	})
 }
 
 func (c *Client) handleConn(conn Conn) {

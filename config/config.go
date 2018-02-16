@@ -23,11 +23,16 @@ type ListenerConfig struct {
 }
 
 type Config struct {
-	Web struct {
+	Http struct {
 		ListenAddress string
 		MetricsPath   string
 		HealthPath    string
 		Disable       bool
+	}
+	Debug struct {
+		ListenAddress string
+		DebugPath     string
+		Enabled       bool
 	}
 	Proxy struct {
 		DefaultListenerIP string
@@ -111,8 +116,8 @@ func NewConfig() *Config {
 	c.Kafka.WriteTimeout = 30 * time.Second
 	c.Kafka.KeepAlive = 60 * time.Second
 
-	c.Web.MetricsPath = "/metrics"
-	c.Web.HealthPath = "/health"
+	c.Http.MetricsPath = "/metrics"
+	c.Http.HealthPath = "/health"
 
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
 

@@ -42,7 +42,7 @@ See:
 * [ ] Request / reponse deadlines - socket reads/writes  
 * [ ] Json logging
 * [ ] Panic handler
-* [ ] Health check endpoint
+* [X] Health endpoint
 * [ ] Prometheus metrics
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
