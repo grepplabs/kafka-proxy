@@ -10,46 +10,83 @@ import (
 )
 
 const (
-	inFlightRequestSendTimeout    = 5 * time.Second
-	inFlightRequestReceiveTimeout = 5 * time.Second
+	openRequestSendTimeout    = 5 * time.Second
+	openRequestReceiveTimeout = 5 * time.Second
+	defaultRequestBufferSize  = 4096
+	defaultResponseBufferSize = 4096
+	defaultWriteTimeout       = 30 * time.Second
+	defaultReadTimeout        = 30 * time.Second
+	minOpenRequests           = 1
 )
 
 type ProcessorConfig struct {
 	MaxOpenRequests       int
 	NetAddressMappingFunc config.NetAddressMappingFunc
+	RequestBufferSize     int
+	ResponseBufferSize    int
+	WriteTimeout          time.Duration
+	ReadTimeout           time.Duration
 }
 
 type processor struct {
 	openRequestsChannel   chan protocol.RequestKeyVersion
 	netAddressMappingFunc config.NetAddressMappingFunc
+	requestBufferSize     int
+	responseBufferSize    int
+	writeTimeout          time.Duration
+	readTimeout           time.Duration
 }
 
 func newProcessor(cfg ProcessorConfig) *processor {
 	maxOpenRequests := cfg.MaxOpenRequests
-	if maxOpenRequests < 1 {
-		maxOpenRequests = 1
+	if maxOpenRequests < minOpenRequests {
+		maxOpenRequests = minOpenRequests
+	}
+	requestBufferSize := cfg.RequestBufferSize
+	if requestBufferSize <= 0 {
+		requestBufferSize = defaultRequestBufferSize
+	}
+	responseBufferSize := cfg.ResponseBufferSize
+	if responseBufferSize <= 0 {
+		responseBufferSize = defaultResponseBufferSize
+	}
+	writeTimeout := cfg.WriteTimeout
+	if writeTimeout <= 0 {
+		writeTimeout = defaultWriteTimeout
+	}
+	readTimeout := cfg.ReadTimeout
+	if readTimeout <= 0 {
+		readTimeout = defaultReadTimeout
 	}
 	return &processor{
 		openRequestsChannel:   make(chan protocol.RequestKeyVersion, maxOpenRequests),
 		netAddressMappingFunc: cfg.NetAddressMappingFunc,
+		requestBufferSize:     requestBufferSize,
+		responseBufferSize:    responseBufferSize,
+		readTimeout:           readTimeout,
+		writeTimeout:          writeTimeout,
 	}
 }
 
-func (p *processor) RequestsLoop(dst io.Writer, src io.Reader) (readErr bool, err error) {
-	return requestsLoop(dst, src, p.openRequestsChannel)
+func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
+	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout)
 }
 
-func (p *processor) ResponsesLoop(dst io.Writer, src io.Reader) (readErr bool, err error) {
-	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc)
+func (p *processor) ResponsesLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
+	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc, p.responseBufferSize, p.readTimeout)
 }
 
-func requestsLoop(dst io.Writer, src io.Reader, openRequestsChannel chan<- protocol.RequestKeyVersion) (readErr bool, err error) {
+func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel chan<- protocol.RequestKeyVersion, bufSize int, timeout time.Duration) (readErr bool, err error) {
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
-	buf := make([]byte, 4096)
+	buf := make([]byte, bufSize)
 
 	for {
 		// log.Println("Await Kafka request")
+
+		// waiting for first bytes or EOF - reset deadlines
+		src.SetReadDeadline(time.Time{})
+		dst.SetWriteDeadline(time.Time{})
 
 		if _, err = io.ReadFull(src, keyVersionBuf); err != nil {
 			return true, err
@@ -62,7 +99,17 @@ func requestsLoop(dst io.Writer, src io.Reader, openRequestsChannel chan<- proto
 		// log.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
-		if err = sendRequestKeyVersion(openRequestsChannel, inFlightRequestSendTimeout, requestKeyVersion); err != nil {
+		if err = sendRequestKeyVersion(openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
+			return true, err
+		}
+
+		requestDeadline := time.Now().Add(timeout)
+		err := dst.SetWriteDeadline(requestDeadline)
+		if err != nil {
+			return false, err
+		}
+		err = src.SetReadDeadline(requestDeadline)
+		if err != nil {
 			return true, err
 		}
 
@@ -77,13 +124,17 @@ func requestsLoop(dst io.Writer, src io.Reader, openRequestsChannel chan<- proto
 	}
 }
 
-func responsesLoop(dst io.Writer, src io.Reader, openRequestsChannel <-chan protocol.RequestKeyVersion, netAddressMappingFunc config.NetAddressMappingFunc) (readErr bool, err error) {
+func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <-chan protocol.RequestKeyVersion, netAddressMappingFunc config.NetAddressMappingFunc, bufSize int, timeout time.Duration) (readErr bool, err error) {
 	responseHeaderBuf := make([]byte, 8) // Size => int32, CorrelationId => int32
 
-	buf := make([]byte, 4096)
+	buf := make([]byte, bufSize)
 
 	for {
 		// log.Println("Await Kafka response")
+
+		// waiting for first bytes or EOF - reset deadlines
+		src.SetReadDeadline(time.Time{})
+		dst.SetWriteDeadline(time.Time{})
 
 		if _, err = io.ReadFull(src, responseHeaderBuf); err != nil {
 			return true, err
@@ -95,11 +146,21 @@ func responsesLoop(dst io.Writer, src io.Reader, openRequestsChannel <-chan prot
 		}
 
 		// Read the inFlightRequests channel after header is read. Otherwise the channel would block and socket EOF from remote would not be received.
-		requestKeyVersion, err := receiveRequestKeyVersion(openRequestsChannel, inFlightRequestReceiveTimeout)
+		requestKeyVersion, err := receiveRequestKeyVersion(openRequestsChannel, openRequestReceiveTimeout)
 		if err != nil {
 			return true, err
 		}
 		// log.Printf("Kafka response lenght %v for key %v, version %v", responseHeader.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+
+		responseDeadline := time.Now().Add(timeout)
+		err = dst.SetWriteDeadline(responseDeadline)
+		if err != nil {
+			return false, err
+		}
+		err = src.SetReadDeadline(responseDeadline)
+		if err != nil {
+			return true, err
+		}
 
 		responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, netAddressMappingFunc)
 		if err != nil {

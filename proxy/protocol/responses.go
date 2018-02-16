@@ -155,6 +155,11 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 		if !ok {
 			return errors.New("broker.port not found")
 		}
+
+		if host == "" && port <= 0 {
+			continue
+		}
+
 		newHost, newPort, err := fn(host, port)
 		if err != nil {
 			return err
@@ -194,6 +199,11 @@ func modifyFindCoordinatorResponse(decodedStruct *Struct, fn config.NetAddressMa
 	if !ok {
 		return errors.New("coordinator.port not found")
 	}
+
+	if host == "" && port <= 0 {
+		return nil
+	}
+
 	newHost, newPort, err := fn(host, port)
 	if err != nil {
 		return err

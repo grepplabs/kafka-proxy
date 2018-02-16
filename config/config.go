@@ -35,8 +35,10 @@ type Config struct {
 		Enabled       bool
 	}
 	Proxy struct {
-		DefaultListenerIP string
-		BootstrapServers  []ListenerConfig
+		DefaultListenerIP  string
+		BootstrapServers   []ListenerConfig
+		RequestBufferSize  int
+		ResponseBufferSize int
 	}
 	Kafka struct {
 		ClientID string
@@ -111,7 +113,7 @@ func NewConfig() *Config {
 
 	c.Kafka.ClientID = defaultClientID
 	c.Kafka.MaxOpenRequests = 256
-	c.Kafka.DialTimeout = 30 * time.Second
+	c.Kafka.DialTimeout = 15 * time.Second
 	c.Kafka.ReadTimeout = 30 * time.Second
 	c.Kafka.WriteTimeout = 30 * time.Second
 	c.Kafka.KeepAlive = 60 * time.Second
@@ -120,6 +122,8 @@ func NewConfig() *Config {
 	c.Http.HealthPath = "/health"
 
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
+	c.Proxy.RequestBufferSize = 4096
+	c.Proxy.ResponseBufferSize = 4096
 
 	return c
 }
@@ -157,6 +161,12 @@ func (c *Config) Validate() error {
 	}
 	if net.ParseIP(c.Proxy.DefaultListenerIP) == nil {
 		return errors.New("DefaultListerIP is not a valid IP")
+	}
+	if c.Proxy.RequestBufferSize < 1 {
+		return errors.New("RequestBufferSize must be greater than 0")
+	}
+	if c.Proxy.ResponseBufferSize < 1 {
+		return errors.New("ResponseBufferSize must be greater than 0")
 	}
 	return nil
 }

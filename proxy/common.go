@@ -8,7 +8,24 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 )
+
+type DeadlineReadWriteCloser interface {
+	io.ReadWriteCloser
+	SetWriteDeadline(t time.Time) error
+	SetReadDeadline(t time.Time) error
+}
+
+type DeadlineWriter interface {
+	io.Writer
+	SetWriteDeadline(t time.Time) error
+}
+
+type DeadlineReader interface {
+	io.Reader
+	SetReadDeadline(t time.Time) error
+}
 
 // myCopy is similar to io.Copy, but reports whether the returned error was due
 // to a bad read or write. The returned error will never be nil
@@ -87,7 +104,7 @@ func copyError(readDesc, writeDesc string, readErr bool, err error) {
 	log.Printf("%v had error: %v", desc, err)
 }
 
-func copyThenClose(cfg ProcessorConfig, remote, local io.ReadWriteCloser, remoteDesc, localDesc string) {
+func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, remoteDesc, localDesc string) {
 
 	processor := newProcessor(cfg)
 

@@ -39,11 +39,14 @@ See:
 * [x] Find coordinator response versions V0 and V1
 * [X] TLS
 * [X] PLAIN/SASL
-* [ ] Request / reponse deadlines - socket reads/writes  
+* [X] Request / reponse deadlines - socket reads/writes
 * [ ] Json logging
 * [ ] Panic handler
 * [X] Health endpoint
 * [ ] Prometheus metrics
+  1. gauge: proxy_opened_connections {broker}
+  2. counter: proxy_server_requests_total {broker, api_key, api_version}
+  3. counter: proxy_connections_total {broker}
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
@@ -51,6 +54,7 @@ See:
 * [ ] Unit and integration tests
 * [ ] Deploying Kafka Proxy as a sidecar container
 * [ ] Graceful shutdown
+* [ ] Rolling upgrade test
 
 ### Embedded third-party source code 
 

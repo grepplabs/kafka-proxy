@@ -42,7 +42,14 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		return nil, err
 	}
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, stopRun: make(chan struct{}, 1),
-		processorConfig: ProcessorConfig{MaxOpenRequests: c.Kafka.MaxOpenRequests, NetAddressMappingFunc: netAddressMappingFunc}}, nil
+		processorConfig: ProcessorConfig{
+			MaxOpenRequests:       c.Kafka.MaxOpenRequests,
+			NetAddressMappingFunc: netAddressMappingFunc,
+			RequestBufferSize:     c.Proxy.RequestBufferSize,
+			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
+			ReadTimeout:           c.Kafka.ReadTimeout,
+			WriteTimeout:          c.Kafka.WriteTimeout,
+		}}, nil
 }
 
 // Run causes the client to start waiting for new connections to connSrc and
