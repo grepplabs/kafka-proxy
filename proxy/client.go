@@ -30,7 +30,8 @@ type Client struct {
 	// Config of Proxy request-response processor (instance p)
 	processorConfig ProcessorConfig
 
-	tlsConfig *tls.Config
+	tlsConfig      *tls.Config
+	tcpConnOptions TCPConnOptions
 
 	stopRun  chan struct{}
 	stopOnce sync.Once
@@ -41,7 +42,13 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, stopRun: make(chan struct{}, 1),
+	tcpConnOptions := TCPConnOptions{
+		KeepAlive:       c.Kafka.KeepAlive,
+		WriteBufferSize: c.Kafka.ConnectionWriteBufferSize,
+		ReadBufferSize:  c.Kafka.ConnectionReadBufferSize,
+	}
+
+	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
 		processorConfig: ProcessorConfig{
 			MaxOpenRequests:       c.Kafka.MaxOpenRequests,
 			NetAddressMappingFunc: netAddressMappingFunc,
@@ -89,7 +96,11 @@ func (c *Client) handleConn(conn Conn) {
 		conn.LocalConnection.Close()
 		return
 	}
-
+	if tcpConn, ok := server.(*net.TCPConn); ok {
+		if err := c.tcpConnOptions.setTCPConnOptions(tcpConn); err != nil {
+			log.Printf("WARNING: Error while setting TCP options for kafka connection %q on %v: %v", conn.BrokerAddress, server.LocalAddr(), err)
+		}
+	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
 	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {

@@ -35,20 +35,25 @@ type Config struct {
 		Enabled       bool
 	}
 	Proxy struct {
-		DefaultListenerIP  string
-		BootstrapServers   []ListenerConfig
-		RequestBufferSize  int
-		ResponseBufferSize int
+		DefaultListenerIP       string
+		BootstrapServers        []ListenerConfig
+		RequestBufferSize       int
+		ResponseBufferSize      int
+		ListenerReadBufferSize  int // SO_RCVBUF
+		ListenerWriteBufferSize int // SO_SNDBUF
+		ListenerKeepAlive       time.Duration
 	}
 	Kafka struct {
 		ClientID string
 
 		MaxOpenRequests int
 
-		DialTimeout  time.Duration // How long to wait for the initial connection.
-		WriteTimeout time.Duration // How long to wait for a request.
-		ReadTimeout  time.Duration // How long to wait for a response.
-		KeepAlive    time.Duration
+		DialTimeout               time.Duration // How long to wait for the initial connection.
+		WriteTimeout              time.Duration // How long to wait for a request.
+		ReadTimeout               time.Duration // How long to wait for a response.
+		KeepAlive                 time.Duration
+		ConnectionReadBufferSize  int // SO_RCVBUF
+		ConnectionWriteBufferSize int // SO_SNDBUF
 
 		TLS struct {
 			Enable             bool
@@ -124,6 +129,7 @@ func NewConfig() *Config {
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
 	c.Proxy.RequestBufferSize = 4096
 	c.Proxy.ResponseBufferSize = 4096
+	c.Proxy.ListenerKeepAlive = 60 * time.Second
 
 	return c
 }
@@ -167,6 +173,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Proxy.ResponseBufferSize < 1 {
 		return errors.New("ResponseBufferSize must be greater than 0")
+	}
+	if c.Proxy.ListenerKeepAlive < 0 {
+		return errors.New("ListenerKeepAlive must be greater or equal 0")
 	}
 	return nil
 }
