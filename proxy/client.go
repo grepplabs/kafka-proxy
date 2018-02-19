@@ -89,7 +89,8 @@ func (c *Client) Close() {
 }
 
 func (c *Client) handleConn(conn Conn) {
-	//TODO: add NaxConnections ?
+	proxyConnectionsTotal.WithLabelValues(conn.BrokerAddress).Inc()
+
 	server, err := c.Dial(conn.BrokerAddress, c.tlsConfig)
 	if err != nil {
 		log.Printf("couldn't connect to %q: %v", conn.BrokerAddress, err)
@@ -102,7 +103,7 @@ func (c *Client) handleConn(conn Conn) {
 		}
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
-	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
+	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		log.Print(err)
 	}
