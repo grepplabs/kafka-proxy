@@ -104,9 +104,9 @@ func copyError(readDesc, writeDesc string, readErr bool, err error) {
 	log.Printf("%v had error: %v", desc, err)
 }
 
-func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, remoteDesc, localDesc string) {
+func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, brokerAddress string, remoteDesc, localDesc string) {
 
-	processor := newProcessor(cfg)
+	processor := newProcessor(cfg, brokerAddress)
 
 	firstErr := make(chan error, 1)
 
@@ -201,6 +201,21 @@ func (c *ConnSet) Conns(ids ...string) []net.Conn {
 
 	return ret
 }
+
+// Count returns number of connection pro identifier
+func (c *ConnSet) Count() map[string]int {
+	ret := make(map[string]int)
+
+	c.RLock()
+	for k, v := range c.m {
+		ret[k] = len(v)
+	}
+	c.RUnlock()
+
+	return ret
+}
+
+// brokerToCount := make(map[string]int)
 
 // Remove undoes an Add operation to have the set forget about a conn. Do not
 // Remove an id/conn pair more than it has been Added.

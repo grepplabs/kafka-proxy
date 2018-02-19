@@ -5,6 +5,7 @@ import (
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
 	"github.com/oklog/oklog/pkg/group"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"log"
@@ -96,7 +97,7 @@ func Run(_ *cobra.Command, _ []string) {
 	{
 		// All active connections are stored in this variable.
 		connset := proxy.NewConnSet()
-
+		prometheus.MustRegister(proxy.NewCollector(connset))
 		listenerTCPConnOptions := proxy.TCPConnOptions{
 			KeepAlive:       c.Proxy.ListenerKeepAlive,
 			ReadBufferSize:  c.Proxy.ListenerReadBufferSize,

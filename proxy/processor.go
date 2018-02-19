@@ -6,6 +6,7 @@ import (
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"io"
+	"strconv"
 	"time"
 )
 
@@ -35,9 +36,12 @@ type processor struct {
 	responseBufferSize    int
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
+
+	// metrics
+	brokerAddress string
 }
 
-func newProcessor(cfg ProcessorConfig) *processor {
+func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 	maxOpenRequests := cfg.MaxOpenRequests
 	if maxOpenRequests < minOpenRequests {
 		maxOpenRequests = minOpenRequests
@@ -65,18 +69,19 @@ func newProcessor(cfg ProcessorConfig) *processor {
 		responseBufferSize:    responseBufferSize,
 		readTimeout:           readTimeout,
 		writeTimeout:          writeTimeout,
+		brokerAddress:         brokerAddress,
 	}
 }
 
 func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
-	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout)
+	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout, p.brokerAddress)
 }
 
 func (p *processor) ResponsesLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
-	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc, p.responseBufferSize, p.readTimeout)
+	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc, p.responseBufferSize, p.readTimeout, p.brokerAddress)
 }
 
-func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel chan<- protocol.RequestKeyVersion, bufSize int, timeout time.Duration) (readErr bool, err error) {
+func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel chan<- protocol.RequestKeyVersion, bufSize int, timeout time.Duration, brokerAddress string) (readErr bool, err error) {
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
 	buf := make([]byte, bufSize)
@@ -97,6 +102,9 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 			return true, err
 		}
 		// log.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+
+		proxyRequestsTotal.WithLabelValues(brokerAddress, strconv.Itoa(int(requestKeyVersion.ApiKey)), strconv.Itoa(int(requestKeyVersion.ApiVersion))).Inc()
+		proxyRequestsBytes.WithLabelValues(brokerAddress).Add(float64(requestKeyVersion.Length + 4))
 
 		// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
 		if err = sendRequestKeyVersion(openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
@@ -124,7 +132,7 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 	}
 }
 
-func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <-chan protocol.RequestKeyVersion, netAddressMappingFunc config.NetAddressMappingFunc, bufSize int, timeout time.Duration) (readErr bool, err error) {
+func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <-chan protocol.RequestKeyVersion, netAddressMappingFunc config.NetAddressMappingFunc, bufSize int, timeout time.Duration, brokerAddress string) (readErr bool, err error) {
 	responseHeaderBuf := make([]byte, 8) // Size => int32, CorrelationId => int32
 
 	buf := make([]byte, bufSize)
@@ -150,6 +158,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 		if err != nil {
 			return true, err
 		}
+		proxyResponsesBytes.WithLabelValues(brokerAddress).Add(float64(responseHeader.Length))
 		// log.Printf("Kafka response lenght %v for key %v, version %v", responseHeader.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		responseDeadline := time.Now().Add(timeout)
