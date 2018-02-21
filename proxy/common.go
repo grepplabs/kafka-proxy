@@ -101,7 +101,7 @@ func copyError(readDesc, writeDesc string, readErr bool, err error) {
 	} else {
 		desc = "Writing data to " + writeDesc
 	}
-	logrus.Infof("%v had error: %v", desc, err)
+	logrus.Infof("%v had error: %s", desc, err.Error())
 }
 
 func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, brokerAddress string, remoteDesc, localDesc string) {
@@ -110,7 +110,7 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 
 	firstErr := make(chan error, 1)
 
-	go func() {
+	go withRecover(func() {
 		readErr, err := processor.RequestsLoop(remote, local)
 		select {
 		case firstErr <- err:
@@ -123,7 +123,7 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 			local.Close()
 		default:
 		}
-	}()
+	})
 
 	readErr, err := processor.ResponsesLoop(local, remote)
 	select {
@@ -264,4 +264,13 @@ func (c *ConnSet) Close() error {
 	}
 
 	return errors.New(errs.String())
+}
+
+func withRecover(fn func()) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Errorf("Recovered from %v", err)
+		}
+	}()
+	fn()
 }

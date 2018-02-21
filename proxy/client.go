@@ -66,7 +66,7 @@ STOP:
 	for {
 		select {
 		case conn := <-connSrc:
-			go c.handleConn(conn)
+			go withRecover(func() { c.handleConn(conn) })
 		case <-c.stopRun:
 			break STOP
 		}
@@ -93,13 +93,13 @@ func (c *Client) handleConn(conn Conn) {
 
 	server, err := c.Dial(conn.BrokerAddress, c.tlsConfig)
 	if err != nil {
-		logrus.Infof("couldn't connect to %q: %v", conn.BrokerAddress, err)
+		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
 		return
 	}
 	if tcpConn, ok := server.(*net.TCPConn); ok {
 		if err := c.tcpConnOptions.setTCPConnOptions(tcpConn); err != nil {
-			logrus.Infof("WARNING: Error while setting TCP options for kafka connection %q on %v: %v", conn.BrokerAddress, server.LocalAddr(), err)
+			logrus.Infof("WARNING: Error while setting TCP options for kafka connection %s on %v: %v", conn.BrokerAddress, server.LocalAddr(), err)
 		}
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)

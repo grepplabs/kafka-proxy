@@ -240,7 +240,7 @@ func (s *Struct) Replace(name string, value interface{}) error {
 	oldKind := reflect.TypeOf(v).Kind()
 	newKind := reflect.TypeOf(value).Kind()
 	if oldKind != newKind {
-		return fmt.Errorf("field %s value in struct %s : kinds differ %v -> %v", name, s.schema.name, oldKind, newKind)
+		return fmt.Errorf("field %s value in struct %s : kinds differ %v to %v", name, s.schema.name, oldKind, newKind)
 	}
 	s.values[bf.index] = value
 	return nil

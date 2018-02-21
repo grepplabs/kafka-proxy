@@ -86,7 +86,7 @@ func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOpti
 	if err != nil {
 		return nil, err
 	}
-	go func() {
+	go withRecover(func() {
 		for {
 			c, err := l.Accept()
 			if err != nil {
@@ -99,10 +99,10 @@ func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOpti
 					logrus.Infof("WARNING: Error while setting TCP options for accepted connection %q on %v: %v", cfg, l.Addr().String(), err)
 				}
 			}
-			logrus.Infof("New connection for %q", cfg.BrokerAddress)
+			logrus.Infof("New connection for %s", cfg.BrokerAddress)
 			dst <- Conn{BrokerAddress: cfg.BrokerAddress, LocalConnection: c}
 		}
-	}()
+	})
 
 	logrus.Infof("Listening on %s (%s) for %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress)
 	return l, nil

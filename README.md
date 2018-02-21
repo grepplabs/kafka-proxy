@@ -41,7 +41,7 @@ See:
 * [X] PLAIN/SASL
 * [X] Request / reponse deadlines - socket reads/writes
 * [X] Json logging
-* [ ] Panic handler
+* [X] Panic handler
 * [X] Health endpoint
 * [X] Prometheus metrics
   1. gauge: proxy_opened_connections {broker}
