@@ -193,6 +193,8 @@ func NewHTTPHandler() http.Handler {
 func SetLogger() {
 	if c.Log.Format == "json" {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 	}
 	level, err := logrus.ParseLevel(c.Log.Level)
 	if err != nil {
