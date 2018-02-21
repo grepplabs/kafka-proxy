@@ -34,6 +34,10 @@ type Config struct {
 		DebugPath     string
 		Enabled       bool
 	}
+	Log struct {
+		Format string
+		Level  string
+	}
 	Proxy struct {
 		DefaultListenerIP       string
 		BootstrapServers        []ListenerConfig

@@ -3,7 +3,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
-	"log"
+	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
 )
@@ -90,20 +90,20 @@ func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOpti
 		for {
 			c, err := l.Accept()
 			if err != nil {
-				log.Printf("Error in accept for %q on %v: %v", cfg, cfg.ListenerAddress, err)
+				logrus.Infof("Error in accept for %q on %v: %v", cfg, cfg.ListenerAddress, err)
 				l.Close()
 				return
 			}
 			if tcpConn, ok := c.(*net.TCPConn); ok {
 				if err := opts.setTCPConnOptions(tcpConn); err != nil {
-					log.Printf("WARNING: Error while setting TCP options for accepted connection %q on %v: %v", cfg, l.Addr().String(), err)
+					logrus.Infof("WARNING: Error while setting TCP options for accepted connection %q on %v: %v", cfg, l.Addr().String(), err)
 				}
 			}
-			log.Printf("New connection for %q", cfg.BrokerAddress)
+			logrus.Infof("New connection for %q", cfg.BrokerAddress)
 			dst <- Conn{BrokerAddress: cfg.BrokerAddress, LocalConnection: c}
 		}
 	}()
 
-	log.Printf("Listening on %s (%s) for %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress)
+	logrus.Infof("Listening on %s (%s) for %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress)
 	return l, nil
 }

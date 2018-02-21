@@ -6,8 +6,8 @@ import (
 	"encoding/pem"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -72,13 +72,13 @@ STOP:
 		}
 	}
 
-	log.Print("Closing connections")
+	logrus.Info("Closing connections")
 
 	if err := c.conns.Close(); err != nil {
-		log.Printf("closing client had error: %v", err)
+		logrus.Infof("closing client had error: %v", err)
 	}
 
-	log.Print("Proxy is stopped")
+	logrus.Info("Proxy is stopped")
 	return nil
 }
 
@@ -93,19 +93,19 @@ func (c *Client) handleConn(conn Conn) {
 
 	server, err := c.Dial(conn.BrokerAddress, c.tlsConfig)
 	if err != nil {
-		log.Printf("couldn't connect to %q: %v", conn.BrokerAddress, err)
+		logrus.Infof("couldn't connect to %q: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
 		return
 	}
 	if tcpConn, ok := server.(*net.TCPConn); ok {
 		if err := c.tcpConnOptions.setTCPConnOptions(tcpConn); err != nil {
-			log.Printf("WARNING: Error while setting TCP options for kafka connection %q on %v: %v", conn.BrokerAddress, server.LocalAddr(), err)
+			logrus.Infof("WARNING: Error while setting TCP options for kafka connection %q on %v: %v", conn.BrokerAddress, server.LocalAddr(), err)
 		}
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
 	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
-		log.Print(err)
+		logrus.Info(err)
 	}
 }
 

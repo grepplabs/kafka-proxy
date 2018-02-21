@@ -40,7 +40,7 @@ See:
 * [X] TLS
 * [X] PLAIN/SASL
 * [X] Request / reponse deadlines - socket reads/writes
-* [ ] Json logging
+* [X] Json logging
 * [ ] Panic handler
 * [X] Health endpoint
 * [X] Prometheus metrics

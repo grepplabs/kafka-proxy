@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -101,7 +101,7 @@ func copyError(readDesc, writeDesc string, readErr bool, err error) {
 	} else {
 		desc = "Writing data to " + writeDesc
 	}
-	log.Printf("%v had error: %v", desc, err)
+	logrus.Infof("%v had error: %v", desc, err)
 }
 
 func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, brokerAddress string, remoteDesc, localDesc string) {
@@ -115,7 +115,7 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 		select {
 		case firstErr <- err:
 			if readErr && err == io.EOF {
-				log.Printf("Client closed %v", localDesc)
+				logrus.Infof("Client closed %v", localDesc)
 			} else {
 				copyError(localDesc, remoteDesc, readErr, err)
 			}
@@ -129,7 +129,7 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 	select {
 	case firstErr <- err:
 		if readErr && err == io.EOF {
-			log.Printf("Server %v closed connection", remoteDesc)
+			logrus.Infof("Server %v closed connection", remoteDesc)
 		} else {
 			copyError(remoteDesc, localDesc, readErr, err)
 		}

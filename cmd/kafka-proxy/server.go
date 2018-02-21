@@ -7,8 +7,8 @@ import (
 	"github.com/oklog/oklog/pkg/group"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -28,6 +28,8 @@ var Server = &cobra.Command{
 	Use:   "server",
 	Short: "Run the kafka-proxy server",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+		SetLogger()
+
 		if err := c.InitSASLCredentials(); err != nil {
 			return err
 		}
@@ -88,10 +90,13 @@ func init() {
 	Server.Flags().BoolVar(&c.Debug.Enabled, "debug-enable", false, "Enable Debug endpoint")
 	Server.Flags().StringVar(&c.Debug.ListenAddress, "debug-listen-address", "0.0.0.0:6060", "Debug listen address")
 
+	// Logging
+	Server.Flags().StringVar(&c.Log.Format, "log-format", "text", "Log format text or json")
+	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level debug, info, warning, error, fatal or panic")
 }
 
 func Run(_ *cobra.Command, _ []string) {
-	log.Printf("Starting kafka-proxy version %s", config.Version)
+	logrus.Infof("Starting kafka-proxy version %s", config.Version)
 
 	var g group.Group
 	{
@@ -106,15 +111,15 @@ func Run(_ *cobra.Command, _ []string) {
 		listeners := proxy.NewListeners(c.Proxy.DefaultListenerIP, listenerTCPConnOptions)
 		connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 
 		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		g.Add(func() error {
-			log.Print("Ready for new connections")
+			logrus.Print("Ready for new connections")
 			return proxyClient.Run(connSrc)
 		}, func(error) {
 			proxyClient.Close()
@@ -138,7 +143,7 @@ func Run(_ *cobra.Command, _ []string) {
 	if !c.Http.Disable {
 		httpListener, err := net.Listen("tcp", c.Http.ListenAddress)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		g.Add(func() error {
 			return http.Serve(httpListener, NewHTTPHandler())
@@ -151,7 +156,7 @@ func Run(_ *cobra.Command, _ []string) {
 		// https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
 		debugListener, err := net.Listen("tcp", c.Debug.ListenAddress)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		g.Add(func() error {
 			return http.Serve(debugListener, http.DefaultServeMux)
@@ -160,7 +165,7 @@ func Run(_ *cobra.Command, _ []string) {
 		})
 	}
 	err := g.Run()
-	log.Println("Exit", err)
+	logrus.Info("Exit", err)
 }
 
 func NewHTTPHandler() http.Handler {
@@ -183,4 +188,16 @@ func NewHTTPHandler() http.Handler {
 	m.Handle(c.Http.MetricsPath, promhttp.Handler())
 
 	return m
+}
+
+func SetLogger() {
+	if c.Log.Format == "json" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	}
+	level, err := logrus.ParseLevel(c.Log.Level)
+	if err != nil {
+		logrus.Errorf("Couldn't parse log level: %s", c.Log.Level)
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
 }
