@@ -2,12 +2,9 @@ package proxy
 
 import (
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net"
 	"sync"
 	"time"
@@ -38,7 +35,7 @@ type Client struct {
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc) (*Client, error) {
-	tlsConfig, err := newTLSConfig(c)
+	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +43,14 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		KeepAlive:       c.Kafka.KeepAlive,
 		WriteBufferSize: c.Kafka.ConnectionWriteBufferSize,
 		ReadBufferSize:  c.Kafka.ConnectionReadBufferSize,
+	}
+
+	forbiddenApiKeys := make(map[int16]struct{})
+	if len(c.Kafka.ForbiddenApiKeys) != 0 {
+		logrus.Warnf("Kafka operations for Api Keys %v will be forbidden.", c.Kafka.ForbiddenApiKeys)
+		for _, apiKey := range c.Kafka.ForbiddenApiKeys {
+			forbiddenApiKeys[int16(apiKey)] = struct{}{}
+		}
 	}
 
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
@@ -56,6 +61,8 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
+			ListenerAuth:          c.Proxy.Auth.Enable,
+			ForbiddenApiKeys:      forbiddenApiKeys,
 		}}, nil
 }
 
@@ -143,66 +150,4 @@ func (c *Client) Dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, er
 		return conn, connErr
 	}
 	return dialer.Dial("tcp", brokerAddress)
-}
-
-func newTLSConfig(conf *config.Config) (*tls.Config, error) {
-	opts := conf.Kafka.TLS
-
-	cfg := &tls.Config{InsecureSkipVerify: opts.InsecureSkipVerify}
-
-	if opts.ClientCertFile != "" && opts.ClientKeyFile != "" {
-		certPEMBlock, err := ioutil.ReadFile(opts.ClientCertFile)
-		if err != nil {
-			return nil, err
-		}
-		keyPEMBlock, err := ioutil.ReadFile(opts.ClientKeyFile)
-		if err != nil {
-			return nil, err
-		}
-		keyPEMBlock, err = decryptPEM(keyPEMBlock, opts.ClientKeyPassword)
-		if err != nil {
-			return nil, err
-		}
-		cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
-		if err != nil {
-			return nil, err
-		}
-		cfg.Certificates = []tls.Certificate{cert}
-		cfg.BuildNameToCertificate()
-	}
-
-	if opts.CAChainCertFile != "" {
-		caCert, err := ioutil.ReadFile(opts.CAChainCertFile)
-		if err != nil {
-			return nil, err
-		}
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-
-		cfg.RootCAs = caCertPool
-	}
-	return cfg, nil
-}
-
-func decryptPEM(pemData []byte, password string) ([]byte, error) {
-
-	keyBlock, _ := pem.Decode(pemData)
-	if keyBlock == nil {
-		return nil, errors.New("Failed to parse PEM")
-	}
-	if x509.IsEncryptedPEMBlock(keyBlock) {
-		if password == "" {
-			return nil, errors.New("PEM is encrypted, but password is empty")
-		}
-		key, err := x509.DecryptPEMBlock(keyBlock, []byte(password))
-		if err != nil {
-			return nil, err
-		}
-		block := &pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: key,
-		}
-		return pem.EncodeToMemory(block), nil
-	}
-	return pemData, nil
 }

@@ -22,6 +22,7 @@ var (
 	c = new(config.Config)
 
 	bootstrapServersMapping = make([]string, 0)
+	externalServersMapping  = make([]string, 0)
 )
 
 var Server = &cobra.Command{
@@ -34,6 +35,9 @@ var Server = &cobra.Command{
 			return err
 		}
 		if err := c.InitBootstrapServers(bootstrapServersMapping); err != nil {
+			return err
+		}
+		if err := c.InitExternalServers(externalServersMapping); err != nil {
 			return err
 		}
 		if err := c.Validate(); err != nil {
@@ -49,12 +53,23 @@ func init() {
 	Server.Flags().StringVar(&c.Proxy.DefaultListenerIP, "default-listener-ip", "127.0.0.1", "Default listener IP")
 	Server.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port)")
 	Server.MarkFlagRequired("bootstrap-server-mapping")
+	Server.Flags().StringArrayVar(&externalServersMapping, "external-server-mapping", []string{}, "Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started")
+	Server.Flags().BoolVar(&c.Proxy.DisableDynamicListeners, "dynamic-listeners-disable", false, "Disable dynamic listeners.")
+
 	Server.Flags().IntVar(&c.Proxy.RequestBufferSize, "proxy-request-buffer-size", 4096, "Request buffer size pro tcp connection")
 	Server.Flags().IntVar(&c.Proxy.ResponseBufferSize, "proxy-response-buffer-size", 4096, "Response buffer size pro tcp connection")
 
 	Server.Flags().IntVar(&c.Proxy.ListenerReadBufferSize, "proxy-listener-read-buffer-size", 0, "Size of the operating system's receive buffer associated with the connection. If zero, system default is used")
 	Server.Flags().IntVar(&c.Proxy.ListenerWriteBufferSize, "proxy-listener-write-buffer-size", 0, "Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used")
 	Server.Flags().DurationVar(&c.Proxy.ListenerKeepAlive, "proxy-listener-keep-alive", 60*time.Second, "Keep alive period for an active network connection. If zero, keep-alives are disabled")
+
+	Server.Flags().BoolVar(&c.Proxy.TLS.Enable, "proxy-listener-tls-enable", false, "Whether or not to use TLS listener")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerCertFile, "proxy-listener-cert-file", "", "PEM encoded file with server certificate")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyFile, "proxy-listener-key-file", "", "PEM encoded file with private key for the server certificate")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", "", "Password to decrypt rsa private key")
+	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
+
+	Server.Flags().BoolVar(&c.Proxy.Auth.Enable, "proxy-listener-auth-enable", false, "Enable SASL/PLAIN listener authentication")
 
 	// kafka
 	Server.Flags().StringVar(&c.Kafka.ClientID, "kafka-client-id", "kafka-proxy", "An optional identifier to track the source of requests")
@@ -65,6 +80,9 @@ func init() {
 	Server.Flags().DurationVar(&c.Kafka.KeepAlive, "kafka-keep-alive", 60*time.Second, "Keep alive period for an active network connection. If zero, keep-alives are disabled")
 	Server.Flags().IntVar(&c.Kafka.ConnectionReadBufferSize, "kafka-connection-read-buffer-size", 0, "Size of the operating system's receive buffer associated with the connection. If zero, system default is used")
 	Server.Flags().IntVar(&c.Kafka.ConnectionWriteBufferSize, "kafka-connection-write-buffer-size", 0, "Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used")
+
+	// http://kafka.apache.org/protocol.html#protocol_api_keys
+	Server.Flags().IntSliceVar(&c.Kafka.ForbiddenApiKeys, "forbidden-api-keys", []int{}, "Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics")
 
 	// TLS
 	Server.Flags().BoolVar(&c.Kafka.TLS.Enable, "tls-enable", false, "Whether or not to use TLS when connecting to the broker")
@@ -103,17 +121,14 @@ func Run(_ *cobra.Command, _ []string) {
 		// All active connections are stored in this variable.
 		connset := proxy.NewConnSet()
 		prometheus.MustRegister(proxy.NewCollector(connset))
-		listenerTCPConnOptions := proxy.TCPConnOptions{
-			KeepAlive:       c.Proxy.ListenerKeepAlive,
-			ReadBufferSize:  c.Proxy.ListenerReadBufferSize,
-			WriteBufferSize: c.Proxy.ListenerWriteBufferSize,
+		listeners, err := proxy.NewListeners(c)
+		if err != nil {
+			logrus.Fatal(err)
 		}
-		listeners := proxy.NewListeners(c.Proxy.DefaultListenerIP, listenerTCPConnOptions)
 		connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-
 		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
 		if err != nil {
 			logrus.Fatal(err)

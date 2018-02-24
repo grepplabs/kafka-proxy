@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	SASLPlain = "PLAIN"
+)
+
 type SASLPlainAuth struct {
 	conn net.Conn
 
@@ -80,7 +84,7 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake() error {
 
 	req := &protocol.Request{
 		ClientID: b.clientID,
-		Body:     &protocol.SaslHandshakeRequestV0{Mechanism: "PLAIN"},
+		Body:     &protocol.SaslHandshakeRequestV0{Mechanism: SASLPlain},
 	}
 	reqBuf, err := protocol.Encode(req)
 	if err != nil {

@@ -27,6 +27,11 @@ type DeadlineReader interface {
 	SetReadDeadline(t time.Time) error
 }
 
+type DeadlineReaderWriter interface {
+	DeadlineReader
+	DeadlineWriter
+}
+
 // myCopy is similar to io.Copy, but reports whether the returned error was due
 // to a bad read or write. The returned error will never be nil
 func myCopy(dst io.Writer, src io.Reader) (readErr bool, err error) {
