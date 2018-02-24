@@ -1,12 +1,15 @@
 package proxy
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
 )
+
+type ListenFunc func(cfg config.ListenerConfig) (l net.Listener, err error)
 
 type Listeners struct {
 	// Source of new connections to Kafka broker.
@@ -16,17 +19,58 @@ type Listeners struct {
 	// socket TCP options
 	tcpConnOptions TCPConnOptions
 
+	listenFunc ListenFunc
+
+	disableDynamicListeners bool
+
 	brokerToListenerAddresses map[string]string
 	lock                      sync.RWMutex
 }
 
-func NewListeners(defaultListenerIP string, tcpConnOptions TCPConnOptions) *Listeners {
+func NewListeners(cfg *config.Config) (*Listeners, error) {
+
+	defaultListenerIP := cfg.Proxy.DefaultListenerIP
+
+	tcpConnOptions := TCPConnOptions{
+		KeepAlive:       cfg.Proxy.ListenerKeepAlive,
+		ReadBufferSize:  cfg.Proxy.ListenerReadBufferSize,
+		WriteBufferSize: cfg.Proxy.ListenerWriteBufferSize,
+	}
+
+	var tlsConfig *tls.Config
+	if cfg.Proxy.TLS.Enable {
+		var err error
+		tlsConfig, err = newTLSListenerConfig(cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	listenFunc := func(cfg config.ListenerConfig) (net.Listener, error) {
+		if tlsConfig != nil {
+			return tls.Listen("tcp", cfg.ListenerAddress, tlsConfig)
+		}
+		return net.Listen("tcp", cfg.ListenerAddress)
+	}
+
+	brokerToListenerAddresses := make(map[string]string)
+
+	// add mapping without starting local listeners
+	for _, v := range cfg.Proxy.ExternalServers {
+		if _, ok := brokerToListenerAddresses[v.BrokerAddress]; ok {
+			return nil, fmt.Errorf("broker to listener address mapping %s configured twice", v.BrokerAddress)
+		}
+		brokerToListenerAddresses[v.BrokerAddress] = v.ListenerAddress
+	}
+
 	return &Listeners{
 		defaultListenerIP:         defaultListenerIP,
 		connSrc:                   make(chan Conn, 1),
-		brokerToListenerAddresses: make(map[string]string),
+		brokerToListenerAddresses: brokerToListenerAddresses,
 		tcpConnOptions:            tcpConnOptions,
-	}
+		listenFunc:                listenFunc,
+		disableDynamicListeners:   cfg.Proxy.DisableDynamicListeners,
+	}, nil
 }
 
 func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
@@ -43,7 +87,10 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (l
 	if listenerAddress != "" {
 		return config.SplitHostPort(listenerAddress)
 	}
-	return p.ListenDynamicInstance(brokerAddress)
+	if !p.disableDynamicListeners {
+		return p.ListenDynamicInstance(brokerAddress)
+	}
+	return "", 0, fmt.Errorf("net address mapping for %s:%d was not found", brokerHost, brokerPort)
 }
 
 func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, error) {
@@ -57,7 +104,7 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 	defaultListenerAddress := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(0))
 
 	cfg := config.ListenerConfig{ListenerAddress: defaultListenerAddress, BrokerAddress: brokerAddress}
-	l, err := listenInstance(p.connSrc, cfg, p.tcpConnOptions)
+	l, err := listenInstance(p.connSrc, cfg, p.tcpConnOptions, p.listenFunc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -72,7 +119,7 @@ func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, 
 
 	// allows multiple local addresses to point to the remote
 	for _, v := range cfgs {
-		_, err := listenInstance(p.connSrc, v, p.tcpConnOptions)
+		_, err := listenInstance(p.connSrc, v, p.tcpConnOptions, p.listenFunc)
 		if err != nil {
 			return nil, err
 		}
@@ -81,8 +128,8 @@ func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, 
 	return p.connSrc, nil
 }
 
-func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOptions) (net.Listener, error) {
-	l, err := net.Listen("tcp", cfg.ListenerAddress)
+func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOptions, listenFunc ListenFunc) (net.Listener, error) {
+	l, err := listenFunc(cfg)
 	if err != nil {
 		return nil, err
 	}

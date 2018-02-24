@@ -10,6 +10,14 @@ func (r *SaslHandshakeRequestV0) encode(pe packetEncoder) error {
 	}
 	return nil
 }
+func (r *SaslHandshakeRequestV0) decode(pd packetDecoder) (err error) {
+	if r.Mechanism, err = pd.getString(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *SaslHandshakeRequestV0) key() int16 {
 	return 17
 }
@@ -21,6 +29,11 @@ func (r *SaslHandshakeRequestV0) version() int16 {
 type SaslHandshakeResponseV0 struct {
 	Err               KError
 	EnabledMechanisms []string
+}
+
+func (r *SaslHandshakeResponseV0) encode(pe packetEncoder) error {
+	pe.putInt16(int16(r.Err))
+	return pe.putStringArray(r.EnabledMechanisms)
 }
 
 func (r *SaslHandshakeResponseV0) decode(pd packetDecoder) error {

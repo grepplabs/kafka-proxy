@@ -1,12 +1,16 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
+	"github.com/sirupsen/logrus"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,6 +31,8 @@ type ProcessorConfig struct {
 	ResponseBufferSize    int
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
+	ListenerAuth          bool
+	ForbiddenApiKeys      map[int16]struct{}
 }
 
 type processor struct {
@@ -37,6 +43,9 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
+	listenerAuth bool
+
+	forbiddenApiKeys map[int16]struct{}
 	// metrics
 	brokerAddress string
 }
@@ -70,24 +79,141 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		readTimeout:           readTimeout,
 		writeTimeout:          writeTimeout,
 		brokerAddress:         brokerAddress,
+		listenerAuth:          cfg.ListenerAuth,
+		forbiddenApiKeys:      cfg.ForbiddenApiKeys,
 	}
 }
+func (p *processor) localSasl(dst DeadlineWriter, src DeadlineReader) (err error) {
+	requestDeadline := time.Now().Add(p.readTimeout)
+	err = dst.SetWriteDeadline(requestDeadline)
+	if err != nil {
+		return err
+	}
+	err = src.SetReadDeadline(requestDeadline)
+	if err != nil {
+		return err
+	}
 
-func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
-	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout, p.brokerAddress)
+	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
+	if _, err = io.ReadFull(src, keyVersionBuf); err != nil {
+		return err
+	}
+	requestKeyVersion := &protocol.RequestKeyVersion{}
+	if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
+		return err
+	}
+	if !(requestKeyVersion.ApiKey == 17 && requestKeyVersion.ApiVersion == 0) {
+		return errors.New("SaslHandshake version 0 is expected")
+	}
+
+	if int32(requestKeyVersion.Length) > protocol.MaxRequestSize {
+		return protocol.PacketDecodingError{Info: fmt.Sprintf("sasl handshake message of length %d too large", requestKeyVersion.Length)}
+	}
+
+	resp := make([]byte, int(requestKeyVersion.Length-4))
+	if _, err = io.ReadFull(src, resp); err != nil {
+		return err
+	}
+	payload := bytes.Join([][]byte{keyVersionBuf[4:], resp}, nil)
+
+	saslReqV0 := &protocol.SaslHandshakeRequestV0{}
+	req := &protocol.Request{Body: saslReqV0}
+	if err = protocol.Decode(payload, req); err != nil {
+		return err
+	}
+
+	var saslResult error
+	saslErr := protocol.ErrNoError
+	if saslReqV0.Mechanism != SASLPlain {
+		saslResult = fmt.Errorf("PLAIN mechanism expected, but got %s", saslReqV0.Mechanism)
+		saslErr = protocol.ErrUnsupportedSASLMechanism
+	}
+
+	saslResV0 := &protocol.SaslHandshakeResponseV0{Err: saslErr, EnabledMechanisms: []string{SASLPlain}}
+	newResponseBuf, err := protocol.Encode(saslResV0)
+	if err != nil {
+		return err
+	}
+	newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
+	if err != nil {
+		return err
+	}
+	if _, err := dst.Write(newHeaderBuf); err != nil {
+		return err
+	}
+	if _, err := dst.Write(newResponseBuf); err != nil {
+		return err
+	}
+	return saslResult
+}
+
+func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error) {
+	requestDeadline := time.Now().Add(p.readTimeout)
+	err = dst.SetWriteDeadline(requestDeadline)
+	if err != nil {
+		return err
+	}
+	err = src.SetReadDeadline(requestDeadline)
+	if err != nil {
+		return err
+	}
+
+	sizeBuf := make([]byte, 4) // Size => int32
+	if _, err = io.ReadFull(src, sizeBuf); err != nil {
+		return err
+	}
+
+	length := binary.BigEndian.Uint32(sizeBuf)
+	if int32(length) > protocol.MaxRequestSize {
+		return protocol.PacketDecodingError{Info: fmt.Sprintf("auth message of length %d too large", length)}
+	}
+
+	payload := make([]byte, length)
+	_, err = io.ReadFull(src, payload)
+	if err != nil {
+		return err
+	}
+	tokens := strings.Split(string(payload), "\x00")
+	if len(tokens) != 3 {
+		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens))
+	}
+	logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
+
+	// If the credentials are valid, we would write a 4 byte response filled with null characters.
+	// Otherwise, the closes the connection i.e. return error
+	header := make([]byte, 4)
+	if _, err := dst.Write(header); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
+	if p.listenerAuth {
+		if err = p.localSasl(src, src); err != nil {
+			return true, err
+		}
+		if err = p.localAuth(src, src); err != nil {
+			return true, err
+		}
+	}
+	src.SetReadDeadline(time.Time{})
+	src.SetWriteDeadline(time.Time{})
+
+	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout, p.brokerAddress, p.forbiddenApiKeys)
 }
 
 func (p *processor) ResponsesLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
 	return responsesLoop(dst, src, p.openRequestsChannel, p.netAddressMappingFunc, p.responseBufferSize, p.readTimeout, p.brokerAddress)
 }
 
-func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel chan<- protocol.RequestKeyVersion, bufSize int, timeout time.Duration, brokerAddress string) (readErr bool, err error) {
+func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel chan<- protocol.RequestKeyVersion, bufSize int, timeout time.Duration, brokerAddress string, forbiddenApiKeys map[int16]struct{}) (readErr bool, err error) {
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
 	buf := make([]byte, bufSize)
 
 	for {
-		// log.Println("Await Kafka request")
+		// logrus.Println("Await Kafka request")
 
 		// waiting for first bytes or EOF - reset deadlines
 		src.SetReadDeadline(time.Time{})
@@ -101,10 +227,14 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 		if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
 			return true, err
 		}
-		// log.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+		// logrus.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		proxyRequestsTotal.WithLabelValues(brokerAddress, strconv.Itoa(int(requestKeyVersion.ApiKey)), strconv.Itoa(int(requestKeyVersion.ApiVersion))).Inc()
 		proxyRequestsBytes.WithLabelValues(brokerAddress).Add(float64(requestKeyVersion.Length + 4))
+
+		if _, ok := forbiddenApiKeys[requestKeyVersion.ApiKey]; ok {
+			return true, fmt.Errorf("api key %d is forbidden", requestKeyVersion.ApiKey)
+		}
 
 		// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
 		if err = sendRequestKeyVersion(openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
@@ -138,7 +268,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 	buf := make([]byte, bufSize)
 
 	for {
-		// log.Println("Await Kafka response")
+		//logrus.Println("Await Kafka response")
 
 		// waiting for first bytes or EOF - reset deadlines
 		src.SetReadDeadline(time.Time{})
@@ -159,7 +289,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 			return true, err
 		}
 		proxyResponsesBytes.WithLabelValues(brokerAddress).Add(float64(responseHeader.Length + 4))
-		// log.Printf("Kafka response lenght %v for key %v, version %v", responseHeader.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+		//logrus.Printf("Kafka response lenght %v for key %v, version %v", responseHeader.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		responseDeadline := time.Now().Add(timeout)
 		err = dst.SetWriteDeadline(responseDeadline)

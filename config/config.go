@@ -41,16 +41,31 @@ type Config struct {
 	Proxy struct {
 		DefaultListenerIP       string
 		BootstrapServers        []ListenerConfig
+		ExternalServers         []ListenerConfig
+		DisableDynamicListeners bool
 		RequestBufferSize       int
 		ResponseBufferSize      int
 		ListenerReadBufferSize  int // SO_RCVBUF
 		ListenerWriteBufferSize int // SO_SNDBUF
 		ListenerKeepAlive       time.Duration
+
+		TLS struct {
+			Enable              bool
+			ListenerCertFile    string
+			ListenerKeyFile     string
+			ListenerKeyPassword string
+			CAChainCertFile     string
+		}
+		Auth struct {
+			Enable bool
+		}
 	}
 	Kafka struct {
 		ClientID string
 
 		MaxOpenRequests int
+
+		ForbiddenApiKeys []int
 
 		DialTimeout               time.Duration // How long to wait for the initial connection.
 		WriteTimeout              time.Duration // How long to wait for a request.
@@ -81,6 +96,10 @@ func (c *Config) InitBootstrapServers(bootstrapServersMapping []string) (err err
 	c.Proxy.BootstrapServers, err = getListenerConfigs(bootstrapServersMapping)
 	return err
 }
+func (c *Config) InitExternalServers(externalServersMapping []string) (err error) {
+	c.Proxy.ExternalServers, err = getListenerConfigs(externalServersMapping)
+	return err
+}
 
 func (c *Config) InitSASLCredentials() (err error) {
 	if c.Kafka.SASL.JaasConfigFile != "" {
@@ -94,13 +113,13 @@ func (c *Config) InitSASLCredentials() (err error) {
 	return nil
 }
 
-func getListenerConfigs(bootstrapServersMapping []string) ([]ListenerConfig, error) {
+func getListenerConfigs(serversMapping []string) ([]ListenerConfig, error) {
 	listenerConfigs := make([]ListenerConfig, 0)
-	if bootstrapServersMapping != nil {
-		for _, v := range bootstrapServersMapping {
+	if serversMapping != nil {
+		for _, v := range serversMapping {
 			pair := strings.Split(v, ",")
 			if len(pair) != 2 {
-				return nil, errors.New("bootstrap-server-mapping must be in form 'remotehost:remoteport,localhost:localport'")
+				return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport'")
 			}
 			remotehost, remoteport, err := SplitHostPort(pair[0])
 			if err != nil {
@@ -126,11 +145,13 @@ func NewConfig() *Config {
 	c.Kafka.ReadTimeout = 30 * time.Second
 	c.Kafka.WriteTimeout = 30 * time.Second
 	c.Kafka.KeepAlive = 60 * time.Second
+	c.Kafka.ForbiddenApiKeys = make([]int, 0)
 
 	c.Http.MetricsPath = "/metrics"
 	c.Http.HealthPath = "/health"
 
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
+	c.Proxy.DisableDynamicListeners = false
 	c.Proxy.RequestBufferSize = 4096
 	c.Proxy.ResponseBufferSize = 4096
 	c.Proxy.ListenerKeepAlive = 60 * time.Second
@@ -180,6 +201,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Proxy.ListenerKeepAlive < 0 {
 		return errors.New("ListenerKeepAlive must be greater or equal 0")
+	}
+	if c.Proxy.TLS.Enable && (c.Proxy.TLS.ListenerKeyFile == "" || c.Proxy.TLS.ListenerCertFile == "") {
+		return errors.New("ListenerKeyFile and ListenerCertFile are required when Proxy TLS is enabled")
 	}
 	return nil
 }
