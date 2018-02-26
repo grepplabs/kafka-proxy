@@ -13,9 +13,14 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"errors"
+	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/hashicorp/go-plugin"
 )
 
 var (
@@ -69,7 +74,10 @@ func init() {
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", "", "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
 
+	// authentication plugin
 	Server.Flags().BoolVar(&c.Proxy.Auth.Enable, "proxy-listener-auth-enable", false, "Enable SASL/PLAIN listener authentication")
+	Server.Flags().StringVar(&c.Proxy.Auth.Command, "proxy-listener-auth-command", "", "Path to authentication plugin binary")
+	Server.Flags().StringSliceVar(&c.Proxy.Auth.Parameters, "proxy-listener-auth-param", []string{}, "Authentication plugin parameter")
 
 	// kafka
 	Server.Flags().StringVar(&c.Kafka.ClientID, "kafka-client-id", "kafka-proxy", "An optional identifier to track the source of requests")
@@ -116,6 +124,34 @@ func init() {
 func Run(_ *cobra.Command, _ []string) {
 	logrus.Infof("Starting kafka-proxy version %s", config.Version)
 
+	var passwordAuthenticator shared.PasswordAuthenticator
+	if c.Proxy.Auth.Enable {
+		client := plugin.NewClient(&plugin.ClientConfig{
+			HandshakeConfig: shared.Handshake,
+			Plugins:         shared.PluginMap,
+			SyncStdout:      os.Stdout,
+			SyncStderr:      os.Stderr,
+			Cmd:             exec.Command(c.Proxy.Auth.Command, c.Proxy.Auth.Parameters...),
+			AllowedProtocols: []plugin.Protocol{
+				plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+		})
+		defer client.Kill()
+		rpcClient, err := client.Client()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		raw, err := rpcClient.Dispense("passwordAuthenticator")
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		var ok bool
+		passwordAuthenticator, ok = raw.(shared.PasswordAuthenticator)
+		if !ok {
+			logrus.Fatal(errors.New("unsupported plugin type"))
+		}
+	}
+	_ = passwordAuthenticator
+
 	var g group.Group
 	{
 		// All active connections are stored in this variable.
@@ -129,7 +165,7 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping)
+		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, passwordAuthenticator)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -179,6 +215,7 @@ func Run(_ *cobra.Command, _ []string) {
 			debugListener.Close()
 		})
 	}
+
 	err := g.Run()
 	logrus.Info("Exit", err)
 }

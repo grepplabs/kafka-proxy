@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"net"
@@ -34,7 +35,7 @@ type Client struct {
 	stopOnce sync.Once
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc) (*Client, error) {
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator shared.PasswordAuthenticator) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
@@ -62,6 +63,7 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
 			ListenerAuth:          c.Proxy.Auth.Enable,
+			ListenerAuthenticator: passwordAuthenticator,
 			ForbiddenApiKeys:      forbiddenApiKeys,
 		}}, nil
 }

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
-	"github.com/sirupsen/logrus"
 	"io"
 	"strconv"
 	"strings"
@@ -32,6 +32,7 @@ type ProcessorConfig struct {
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
 	ListenerAuth          bool
+	ListenerAuthenticator shared.PasswordAuthenticator
 	ForbiddenApiKeys      map[int16]struct{}
 }
 
@@ -43,7 +44,8 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
-	listenerAuth bool
+	listenerAuth          bool
+	listenerAuthenticator shared.PasswordAuthenticator
 
 	forbiddenApiKeys map[int16]struct{}
 	// metrics
@@ -80,6 +82,7 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		writeTimeout:          writeTimeout,
 		brokerAddress:         brokerAddress,
 		listenerAuth:          cfg.ListenerAuth,
+		listenerAuthenticator: cfg.ListenerAuthenticator,
 		forbiddenApiKeys:      cfg.ForbiddenApiKeys,
 	}
 }
@@ -177,8 +180,18 @@ func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error
 	if len(tokens) != 3 {
 		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens))
 	}
-	logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
+	if p.listenerAuthenticator == nil {
+		return protocol.PacketDecodingError{Info: "Listener authenticator is not set"}
+	}
 
+	// logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
+	ok, err := p.listenerAuthenticator.Authenticate(tokens[1], tokens[2])
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("user %s authentication failed", tokens[1])
+	}
 	// If the credentials are valid, we would write a 4 byte response filled with null characters.
 	// Otherwise, the closes the connection i.e. return error
 	header := make([]byte, 4)
@@ -189,6 +202,7 @@ func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error
 }
 
 func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
+
 	if p.listenerAuth {
 		if err = p.localSasl(src, src); err != nil {
 			return true, err

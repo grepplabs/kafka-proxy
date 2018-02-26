@@ -1,0 +1,15 @@
+syntax = "proto3";
+package proto;
+
+message CredentialsRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message AuthenticateResponse {
+    bool authenticated = 1;
+}
+
+service PasswordAuthenticator {
+    rpc Authenticate(CredentialsRequest) returns (AuthenticateResponse);
+}

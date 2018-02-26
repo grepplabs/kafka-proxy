@@ -1,6 +1,7 @@
 # Build
 build/
 /kafka-proxy
+testcerts/
 
 # Intellij
 .idea/
