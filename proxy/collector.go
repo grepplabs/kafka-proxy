@@ -30,6 +30,11 @@ var (
 		"Number of opened connections",
 		[]string{"broker"}, nil,
 	)
+
+	proxyLocalAuthTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{Name: "proxy_local_auth_total",
+			Help: "Total number of local auth requests sent"},
+		[]string{"success", "status"})
 )
 
 func init() {
@@ -37,6 +42,7 @@ func init() {
 	prometheus.MustRegister(proxyRequestsTotal)
 	prometheus.MustRegister(proxyRequestsBytes)
 	prometheus.MustRegister(proxyResponsesBytes)
+	prometheus.MustRegister(proxyLocalAuthTotal)
 }
 
 type proxyCollector struct {

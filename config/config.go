@@ -57,7 +57,9 @@ type Config struct {
 			CAChainCertFile     string
 		}
 		Auth struct {
-			Enable bool
+			Enable     bool
+			Command    string
+			Parameters []string
 		}
 	}
 	Kafka struct {
@@ -204,6 +206,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Proxy.TLS.Enable && (c.Proxy.TLS.ListenerKeyFile == "" || c.Proxy.TLS.ListenerCertFile == "") {
 		return errors.New("ListenerKeyFile and ListenerCertFile are required when Proxy TLS is enabled")
+	}
+	if c.Proxy.Auth.Enable && c.Proxy.Auth.Command == "" {
+		return errors.New("Auth.Command is required when Proxy.Auth is enabled")
 	}
 	return nil
 }

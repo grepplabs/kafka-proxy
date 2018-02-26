@@ -68,5 +68,11 @@ build.docker-build.osx:
     docker rm $$buildContainer ;\
     docker rmi $$buildContainerName ;\
 
+protoc.auth:
+	protoc -I plugin/auth/proto/ plugin/auth/proto/auth.proto --go_out=plugins=grpc:plugin/auth/proto/
+
+plugin.auth-user:
+	CGO_ENABLED=0 go build -o build/auth-user $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-user/main.go
+
 clean:
 	@rm -rf build
