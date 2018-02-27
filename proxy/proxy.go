@@ -57,8 +57,11 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 
 	// add mapping without starting local listeners
 	for _, v := range cfg.Proxy.ExternalServers {
-		if _, ok := brokerToListenerAddresses[v.BrokerAddress]; ok {
-			return nil, fmt.Errorf("broker to listener address mapping %s configured twice", v.BrokerAddress)
+		if la, ok := brokerToListenerAddresses[v.BrokerAddress]; ok {
+			if la != v.ListenerAddress {
+				return nil, fmt.Errorf("broker to listener address mapping %s configured twice: %s and %s", v.BrokerAddress, v.ListenerAddress, la)
+			}
+			continue
 		}
 		brokerToListenerAddresses[v.BrokerAddress] = v.ListenerAddress
 	}
