@@ -74,5 +74,8 @@ protoc.auth:
 plugin.auth-user:
 	CGO_ENABLED=0 go build -o build/auth-user $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-user/main.go
 
+plugin.auth-ldap:
+	CGO_ENABLED=0 go build -o build/auth-ldap $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-ldap/main.go
+
 clean:
 	@rm -rf build

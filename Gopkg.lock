@@ -27,9 +27,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/errwrap"
+  packages = ["."]
+  revision = "7554cd9344cec97297fa6649b055a8c98c2a1e55"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/go-hclog"
   packages = ["."]
   revision = "5bcb0f17e36442247290887cc914a6e507afa5c4"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/go-multierror"
+  packages = ["."]
+  revision = "b7773ae218740a7be65057fc60b366a49b538a44"
 
 [[projects]]
   branch = "master"
@@ -233,9 +245,21 @@
   revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
   version = "v1.10.0"
 
+[[projects]]
+  name = "gopkg.in/asn1-ber.v1"
+  packages = ["."]
+  revision = "379148ca0225df7a432012b8df0355c2a2063ac0"
+  version = "v1.2"
+
+[[projects]]
+  name = "gopkg.in/ldap.v2"
+  packages = ["."]
+  revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
+  version = "v2.5.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "176697cb5040eb841033fe5e41934fa1782d30e28133e3fadeb9d408d81a2a9c"
+  inputs-digest = "c1bc60c4b1d7e614165ff4e87f82924a08d1a692bf3ec59d3b298659efa41d51"
   solver-name = "gps-cdcl"
   solver-version = 1

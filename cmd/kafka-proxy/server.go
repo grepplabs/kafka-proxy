@@ -78,7 +78,7 @@ func init() {
 	// authentication plugin
 	Server.Flags().BoolVar(&c.Proxy.Auth.Enable, "proxy-listener-auth-enable", false, "Enable SASL/PLAIN listener authentication")
 	Server.Flags().StringVar(&c.Proxy.Auth.Command, "proxy-listener-auth-command", "", "Path to authentication plugin binary")
-	Server.Flags().StringSliceVar(&c.Proxy.Auth.Parameters, "proxy-listener-auth-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringArrayVar(&c.Proxy.Auth.Parameters, "proxy-listener-auth-param", []string{}, "Authentication plugin parameter")
 	Server.Flags().StringVar(&c.Proxy.Auth.LogLevel, "proxy-listener-auth-log-level", "trace", "Log level of the auth plugin")
 
 	// kafka
