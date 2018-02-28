@@ -60,6 +60,7 @@ type Config struct {
 			Enable     bool
 			Command    string
 			Parameters []string
+			LogLevel   string
 		}
 	}
 	Kafka struct {

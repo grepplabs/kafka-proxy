@@ -20,6 +20,7 @@ import (
 
 	"errors"
 	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
 
@@ -78,6 +79,7 @@ func init() {
 	Server.Flags().BoolVar(&c.Proxy.Auth.Enable, "proxy-listener-auth-enable", false, "Enable SASL/PLAIN listener authentication")
 	Server.Flags().StringVar(&c.Proxy.Auth.Command, "proxy-listener-auth-command", "", "Path to authentication plugin binary")
 	Server.Flags().StringSliceVar(&c.Proxy.Auth.Parameters, "proxy-listener-auth-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringVar(&c.Proxy.Auth.LogLevel, "proxy-listener-auth-log-level", "trace", "Log level of the auth plugin")
 
 	// kafka
 	Server.Flags().StringVar(&c.Kafka.ClientID, "kafka-client-id", "kafka-proxy", "An optional identifier to track the source of requests")
@@ -126,16 +128,9 @@ func Run(_ *cobra.Command, _ []string) {
 
 	var passwordAuthenticator shared.PasswordAuthenticator
 	if c.Proxy.Auth.Enable {
-		client := plugin.NewClient(&plugin.ClientConfig{
-			HandshakeConfig: shared.Handshake,
-			Plugins:         shared.PluginMap,
-			SyncStdout:      os.Stdout,
-			SyncStderr:      os.Stderr,
-			Cmd:             exec.Command(c.Proxy.Auth.Command, c.Proxy.Auth.Parameters...),
-			AllowedProtocols: []plugin.Protocol{
-				plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
-		})
+		client := NewPluginClient()
 		defer client.Kill()
+
 		rpcClient, err := client.Client()
 		if err != nil {
 			logrus.Fatal(err)
@@ -150,8 +145,6 @@ func Run(_ *cobra.Command, _ []string) {
 			logrus.Fatal(errors.New("unsupported plugin type"))
 		}
 	}
-	_ = passwordAuthenticator
-
 	var g group.Group
 	{
 		// All active connections are stored in this variable.
@@ -244,7 +237,15 @@ func NewHTTPHandler() http.Handler {
 
 func SetLogger() {
 	if c.Log.Format == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
+		formatter := &logrus.JSONFormatter{
+			FieldMap: logrus.FieldMap{
+				logrus.FieldKeyTime:  "@timestamp",
+				logrus.FieldKeyLevel: "@level",
+				logrus.FieldKeyMsg:   "@message",
+			},
+			TimestampFormat: time.RFC3339,
+		}
+		logrus.SetFormatter(formatter)
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 	}
@@ -254,4 +255,27 @@ func SetLogger() {
 		level = logrus.InfoLevel
 	}
 	logrus.SetLevel(level)
+}
+
+func NewPluginClient() *plugin.Client {
+	jsonFormat := false
+	if c.Log.Format == "json" {
+		jsonFormat = true
+	}
+	logger := hclog.New(&hclog.LoggerOptions{
+		Output:     os.Stdout,
+		Level:      hclog.LevelFromString(c.Proxy.Auth.LogLevel),
+		Name:       "plugin",
+		JSONFormat: jsonFormat,
+		TimeFormat: time.RFC3339,
+	})
+
+	return plugin.NewClient(&plugin.ClientConfig{
+		HandshakeConfig: shared.Handshake,
+		Plugins:         shared.PluginMap,
+		Logger:          logger,
+		Cmd:             exec.Command(c.Proxy.Auth.Command, c.Proxy.Auth.Parameters...),
+		AllowedProtocols: []plugin.Protocol{
+			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+	})
 }
