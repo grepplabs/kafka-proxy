@@ -34,20 +34,19 @@ See:
 	
 	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
 	                         --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401" \
-	                         --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402"
+	                         --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402" \
+	                         --dynamic-listeners-disable
+
+	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
+	                         --external-server-mapping "192.168.99.100:32401,127.0.0.1:32402" \
+	                         --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403" \
+	                         --forbidden-api-keys 20
     
     build/kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
                              --tls-enable --tls-insecure-skip-verify \
                              --sasl-enable -sasl-username myuser --sasl-password mysecret
 
-    make clean build plugin.auth-user && build/kafka-proxy server \
-                             --proxy-listener-auth-enable \
-                             --proxy-listener-auth-command build/auth-user \
-                             --proxy-listener-auth-param "--username=my-test-user" \
-                             --proxy-listener-auth-param "--password=my-test-password" \
-                             --dynamic-listeners-disable \
-                             --forbidden-api-keys 20 \
-                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32401"
+### Local authentication example
 
     make clean build plugin.auth-user && build/kafka-proxy server --proxy-listener-key-file "server-key.pem"  \
                              --proxy-listener-cert-file "server-cert.pem" \
@@ -56,12 +55,16 @@ See:
                              --proxy-listener-auth-enable \
                              --proxy-listener-auth-command build/auth-user \
                              --proxy-listener-auth-param "--username=my-test-user" \
-                             --proxy-listener-auth-param "--password=my-test-password" \                             
-                             --dynamic-listeners-disable \
-                             --forbidden-api-keys 20 \
-                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32401" \
-                             --external-server-mapping "192.168.99.100:32401,127.0.0.1:32402" \
-                             --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403"
+                             --proxy-listener-auth-param "--password=my-test-password"
+
+    make clean build plugin.auth-ldap && build/kafka-proxy server \
+                             --proxy-listener-auth-enable \
+                             --proxy-listener-auth-command build/auth-ldap \
+                             --proxy-listener-auth-param "--url=ldaps://ldap.example.com:636" \
+                             --proxy-listener-auth-param "--user-dn=cn=users,dc=exemple,dc=com" \
+                             --proxy-listener-auth-param "--user-attr=uid" \
+                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
+
 
 ### What should be done
 
