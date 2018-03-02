@@ -4,7 +4,15 @@ language: go
 
 go:
   - "1.9.x"
-  - "tip"
+
+env:
+  global:
+  - REPO=grepplabs/kafka-proxy
+  - CGO_ENABLED=0
+  - GOOS=linux
+  - GOARCH=amd64
+  - secure: "B3kJ5218xZViW8Suj5ruE4koOH9MavpPcAhkxae0BPvwW7wzuuJlquWheFcw/UUT5nzccjvKBfDNj+RMvOHaXllAisepOHGM3UmQzbH0mC7Me8pOM0N8nqnGXdsABXTGuIzQYFTTndUiD4/8p3R3ZazMTuZy4kIXPFp5OaiC39gUjLp3dIqRbMmN41qlSWwETWlh/aUyi81H/GcNOfBZAS60JP1unY92B8RAjuHBKsdhTixRAGvJ4kPPSipyN5+afNzdnT3h/igno0NTYoxzZVlyqQ8bRJ8WeksT25tBodSO/gKI5JZdTMKYPWBC+J5R0gH+5S2PxYaB9tA8qZLbeKCBZ9hS8Hi4JwilwEn032bc1ZZQghwHY0E1p3gvSKQ+VQTBEq95swUAMdnlgPiZAFyfTn0cwxBzX3H+ePO/UNmxF0UJpXuT4kqCtwuVqw/lEq24LdQNC66KBjfsAoLYidCk0uagdalDq8HfO0fLZBw8FwBBnrpw6AM7rOP6zrbiPafyMQlellsQ5Paz8oFhuCdvQJYXYBe+JGtynj58/R7rVTTCNZtm7anJLkCZA3bTUS7eVn5U5sSI6iWvEeCNtkdRXSlQhen/NDAhvIhvViBXc42BOg7EqQvVS9A4eKi62on54ej/P/r686gz9KkPKqswmOQGKEbqQP3QAoJvwlQ="
+  - secure: "hH+sph4FvLzMCpnoh+0g4hpeqgMv1+egkoDEVJ+ZJtSI/keq1uxr78ftvU3yaFzM6xQBtdkTZ4CEGet+rXT/XF4OHQctEZebgmzY9xJYnptj7XII4/3wPBehfI1BCgXxOjpe6eH+L1YeANTYvjTos0x6rlrYRt7Jp77ktA64DDW1GgYoiluYz+9/hVHjqDMZ1PZKrZ922r4LW0XZ4xxwwlYCmSyNeyfjUYf1ixEfmr0iHXYjbS/rMp3fyRArLC3ptg9kKchqwbTdqdoDhjxnqYJl0RloSJ4YiIiQLWUQheeQz1+rweAH0Zpa1rpipWgaFlI8Fe+uW4mwuiC3yPvzRlmE9tGcz5V5VXLms56trk55ecVEt9iZPR9ibmvK6l90OuaOGSjnVLSUV1mx/fGgrc1fBxV9RlVDHSKNChiARaXDSXNDLkH8q0YxmWJQYm9ebbm+CKpwdFyvejAEhwbtFcrSGPjCjQQ+2nscLJeaVaAGeOQnK7aDG8BRoIPiAPkWHVni6gEENxxLrAbJpkTjzL2jy3ltvcKdkpaYK8e4wN7zQRYI8AUOza3BqXor2Tzec5LrKeW7JdOiH5PnZS2MWc3NNhP2l9Q6hVQSI2zNO6387Q5vxmjyo4ry4XFGLGdp0kJ6QJj2iIZJd2b7L3A/9EEGrag5IJ8bVYrI1lzDyrk="
 
 services:
   - docker
@@ -16,3 +24,12 @@ notifications:
 
 script:
   - go build .
+  - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"; fi`
+  - docker build -t $REPO:$TAG -f Dockerfile .
+
+after_success:
+  - docker login -u $DOCKER_USER -p $DOCKER_PASS
+  - if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then
+       docker tag $REPO:$TAG $REPO:$TRAVIS_BUILD_NUMBER; docker push $REPO:$TRAVIS_BUILD_NUMBER;
+    fi
+  - docker push $REPO:$TAG
