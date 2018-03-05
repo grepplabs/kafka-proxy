@@ -210,7 +210,7 @@ func Run(_ *cobra.Command, _ []string) {
 	}
 
 	err := g.Run()
-	logrus.Info("Exit", err)
+	logrus.Info("Exit ", err)
 }
 
 func NewHTTPHandler() http.Handler {
