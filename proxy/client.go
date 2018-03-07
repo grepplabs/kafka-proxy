@@ -100,7 +100,7 @@ func (c *Client) Close() {
 func (c *Client) handleConn(conn Conn) {
 	proxyConnectionsTotal.WithLabelValues(conn.BrokerAddress).Inc()
 
-	server, err := c.Dial(conn.BrokerAddress, c.tlsConfig)
+	server, err := c.DialAndAuth(conn.BrokerAddress, c.tlsConfig)
 	if err != nil {
 		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
@@ -118,7 +118,19 @@ func (c *Client) handleConn(conn Conn) {
 	}
 }
 
-func (c *Client) Dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
+func (c *Client) DialAndAuth(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
+	conn, err := c.dial(brokerAddress, tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	err = c.auth(conn)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func (c *Client) dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
 	dialer := net.Dialer{
 		Timeout:   c.config.Kafka.DialTimeout,
 		KeepAlive: c.config.Kafka.KeepAlive,
@@ -127,29 +139,28 @@ func (c *Client) Dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, er
 		if tlsConfig == nil {
 			return nil, errors.New("tlsConfig must not be nil")
 		}
-		conn, connErr := tls.DialWithDialer(&dialer, "tcp", brokerAddress, tlsConfig)
-		if connErr != nil {
-			return nil, connErr
-		}
-		if c.config.Kafka.SASL.Enable {
-			// http://kafka.apache.org/protocol.html#sasl_handshake
-			saslPlainAuth := SASLPlainAuth{
-				conn:         conn,
-				clientID:     c.config.Kafka.ClientID,
-				writeTimeout: c.config.Kafka.WriteTimeout,
-				readTimeout:  c.config.Kafka.ReadTimeout,
-				username:     c.config.Kafka.SASL.Username,
-				password:     c.config.Kafka.SASL.Password,
-			}
-			err := saslPlainAuth.sendAndReceiveSASLPlainAuth()
-			if err != nil {
-				conn.Close()
-				return nil, err
-			}
-			// reset deadlines
-			conn.SetDeadline(time.Time{})
-		}
-		return conn, connErr
+		return tls.DialWithDialer(&dialer, "tcp", brokerAddress, tlsConfig)
 	}
 	return dialer.Dial("tcp", brokerAddress)
+}
+
+func (c *Client) auth(conn net.Conn) error {
+	if c.config.Kafka.SASL.Enable {
+		saslPlainAuth := SASLPlainAuth{
+			conn:         conn,
+			clientID:     c.config.Kafka.ClientID,
+			writeTimeout: c.config.Kafka.WriteTimeout,
+			readTimeout:  c.config.Kafka.ReadTimeout,
+			username:     c.config.Kafka.SASL.Username,
+			password:     c.config.Kafka.SASL.Password,
+		}
+		err := saslPlainAuth.sendAndReceiveSASLPlainAuth()
+		if err != nil {
+			conn.Close()
+			return err
+		}
+		// reset deadlines
+		return conn.SetDeadline(time.Time{})
+	}
+	return nil
 }

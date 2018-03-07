@@ -166,10 +166,6 @@ func (c *Config) Validate() error {
 	if c.Kafka.SASL.Enable && (c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "") {
 		return errors.New("SASL.Username and SASL.Password are required when SASL is enabled")
 	}
-
-	if c.Kafka.SASL.Enable && !c.Kafka.TLS.Enable {
-		return errors.New("TLS.Enable is required when SASL is enabled")
-	}
 	if c.Kafka.KeepAlive < 0 {
 		return errors.New("KeepAlive must be greater or equal 0")
 	}
