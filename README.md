@@ -197,6 +197,7 @@ spec:
   5. counter: proxy_responses_bytes {broker}
 * [X] Pluggable proxy authentication
 * [X] Deploying Kafka Proxy as a sidecar container
+* [ ] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advlocalhost:advlocalport)
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests

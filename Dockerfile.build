@@ -4,4 +4,4 @@ ARG target=build
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
-RUN make clean $target
+RUN make clean test $target
