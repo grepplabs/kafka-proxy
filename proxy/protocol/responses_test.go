@@ -1,7 +1,9 @@
 package protocol
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -10,44 +12,6 @@ var (
 		// brokers
 		0x00, 0x00, 0x00, 0x00,
 		// topic_metadata
-		0x00, 0x00, 0x00, 0x00}
-
-	brokersNoTopicsMetadataResponse = []byte{
-		// brokers
-		0x00, 0x00, 0x00, 0x02,
-		// brokers[0]
-		0x00, 0x00, 0xab, 0xff, // 44031
-		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
-		0x00, 0x00, 0x00, 0x33, // 51
-		// brokers[1]
-		0x00, 0x01, 0x02, 0x03, // 66051
-		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
-		0x00, 0x00, 0x01, 0x11, // 273
-
-		// topic_metadata
-		0x00, 0x00, 0x00, 0x00}
-
-	topicsNoBrokersMetadataResponse = []byte{
-		// brokers
-		0x00, 0x00, 0x00, 0x00,
-		// topic_metadata
-		0x00, 0x00, 0x00, 0x02,
-
-		// topic_metadata[0]
-		0x00, 0x00,
-		0x00, 0x03, 'f', 'o', 'o',
-		// partition_metadata
-		0x00, 0x00, 0x00, 0x01,
-		0x00, 0x04,
-		0x00, 0x00, 0x00, 0x01,
-		0x00, 0x00, 0x00, 0x07,
-		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
-		0x00, 0x00, 0x00, 0x00,
-
-		// topic_metadata[1]
-		0x00, 0x00,
-		0x00, 0x03, 'b', 'a', 'r',
-		// partition_metadata
 		0x00, 0x00, 0x00, 0x00}
 )
 
@@ -77,10 +41,25 @@ func TestDecodeEmptyMetadataResponseV0(t *testing.T) {
 }
 
 func TestMetadataResponseV0WithBrokers(t *testing.T) {
+	// The Hard Way
+	bytes := []byte{
+		// brokers
+		0x00, 0x00, 0x00, 0x02,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x00}
+
 	a := assert.New(t)
 
 	schema := metadataResponseSchemaVersions[0]
-	bytes := brokersNoTopicsMetadataResponse
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
@@ -135,10 +114,34 @@ func TestMetadataResponseV0WithBrokers(t *testing.T) {
 }
 
 func TestMetadataResponseV0WithTopics(t *testing.T) {
+	// The Hard Way
+
+	bytes := []byte{
+		// brokers
+		0x00, 0x00, 0x00, 0x00,
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x00,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
 	a := assert.New(t)
 
 	schema := metadataResponseSchemaVersions[0]
-	bytes := topicsNoBrokersMetadataResponse
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
@@ -219,4 +222,182 @@ func TestMetadataResponseV0WithTopics(t *testing.T) {
 	resp, err := EncodeSchema(s, schema)
 	a.Nil(err)
 	a.Equal(bytes, resp)
+}
+
+func TestEmptyMetadataResponseV0(t *testing.T) {
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[0]
+	bytes := emptyMetadataResponse
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+	expected := []string{
+		"[brokers]",
+		"[topic_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+}
+
+func TestMetadataResponseV0(t *testing.T) {
+	/*
+	   Metadata Response (Version: 0) => [brokers] [topic_metadata]
+	     brokers => node_id host port
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	     topic_metadata => error_code topic [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       partition_metadata => error_code partition leader [replicas] [isr]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+	*/
+
+	bytes := []byte{
+		// brokers
+		0x00, 0x00, 0x00, 0x02,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x00,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[0]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+	expected := []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+}
+
+type decodeCheck struct {
+	attrValues []string
+}
+
+func NewDecodeCheck() *decodeCheck {
+	return &decodeCheck{attrValues: make([]string, 0)}
+}
+
+func (t *decodeCheck) Traverse(s *Struct) error {
+	for i, _ := range s.schema.fields {
+		arg := s.values[i]
+		if err := t.value(s, arg, i); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *decodeCheck) value(s *Struct, arg interface{}, sindex int) error {
+	name := s.schema.fields[sindex].def.GetName()
+
+	switch v := arg.(type) {
+	case bool:
+		t.append(name, "bool", v)
+	case int16:
+		t.append(name, "int16", v)
+	case int32:
+		t.append(name, "int32", v)
+	case string:
+		t.append(name, "string", v)
+	case *string:
+		t.append(name, "*string", v)
+	case *Struct:
+		t.append(name, "struct")
+		t.Traverse(v)
+	case []interface{}:
+		t.append(fmt.Sprintf("[%s]", name))
+		for _, v := range v {
+			if err := t.value(s, v, sindex); err != nil {
+				return nil
+			}
+		}
+	default:
+		return fmt.Errorf("unknow type for value %v", arg)
+	}
+	return nil
+}
+
+func (t *decodeCheck) append(vs ...interface{}) {
+	ss := make([]string, 0)
+	for _, v := range vs {
+		ss = append(ss, fmt.Sprint(v))
+	}
+	t.attrValues = append(t.attrValues, strings.Join(ss, " "))
+}
+
+func (t *decodeCheck) AttrValues() []string {
+	return t.attrValues
+}
+func (t *decodeCheck) Dump() {
+	for _, v := range t.attrValues {
+		fmt.Printf("\"%s\",\n", v)
+	}
 }
