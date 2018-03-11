@@ -201,7 +201,7 @@ spec:
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
-* [ ] Different Kafka API versions tests
+* [X] Different Kafka API versions tests
 * [ ] Unit and integration tests
 * [ ] Rolling upgrade test
 * [ ] Graceful shutdown

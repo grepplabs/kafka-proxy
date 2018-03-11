@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"fmt"
+	"github.com/kataras/go-errors"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -13,6 +14,17 @@ var (
 		0x00, 0x00, 0x00, 0x00,
 		// topic_metadata
 		0x00, 0x00, 0x00, 0x00}
+
+	testResponseModifier = func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+		if brokerHost == "localhost" && brokerPort == 51 {
+			return "myhost1", 34001, nil
+		} else if brokerHost == "google.com" && brokerPort == 273 {
+			return "myhost2", 34002, nil
+		} else if brokerHost == "kafka.org" && brokerPort == 53503 {
+			return "myhost3", 34003, nil
+		}
+		return "", 0, errors.New("unexpected data")
+	}
 )
 
 func TestDecodeEmptyMetadataResponseV0(t *testing.T) {
@@ -262,6 +274,8 @@ func TestMetadataResponseV0(t *testing.T) {
 	         isr => INT32
 	*/
 
+	apiVersion := int16(0)
+
 	bytes := []byte{
 		// brokers
 		0x00, 0x00, 0x00, 0x02,
@@ -296,7 +310,7 @@ func TestMetadataResponseV0(t *testing.T) {
 
 	a := assert.New(t)
 
-	schema := metadataResponseSchemaVersions[0]
+	schema := metadataResponseSchemaVersions[apiVersion]
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
@@ -335,6 +349,1101 @@ func TestMetadataResponseV0(t *testing.T) {
 	resp, err := EncodeSchema(s, schema)
 	a.Nil(err)
 	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+		if brokerHost == "localhost" && brokerPort == 51 {
+			return "azure.microsoft.com", 34001, nil
+		} else if brokerHost == "google.com" && brokerPort == 273 {
+			return "aws.com", 34999, nil
+		}
+		return "", 0, errors.New("unexpected data")
+	})
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string azure.microsoft.com", // replaced
+		"port int32 34001",                // replaced
+		"brokers struct",
+		"node_id int32 66051",
+		"host string aws.com", // replaced
+		"port int32 34999",    // replaced
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestMetadataResponseV1(t *testing.T) {
+	/*
+	   Metadata Response (Version: 1) => [brokers] controller_id [topic_metadata]
+	     brokers => node_id host port rack
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	       rack => NULLABLE_STRING
+	     controller_id => INT32
+	     topic_metadata => error_code topic is_internal [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       is_internal => BOOLEAN
+	       partition_metadata => error_code partition leader [replicas] [isr]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+	*/
+
+	apiVersion := int16(1)
+
+	bytes := []byte{
+		// brokers
+		0x00, 0x00, 0x00, 0x03,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		0x00, 0x00, // ''
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+		0x00, 0x07, 'e', 'u', 'w', 'e', 's', 't', '1',
+		// brokers[2]
+		0x00, 0x00, 0x00, 0x02, // 2
+		0x00, 0x09, 'k', 'a', 'f', 'k', 'a', '.', 'o', 'r', 'g',
+		0x00, 0x00, 0xd0, 0xff, // 53503
+		0xff, 0xff, //  -1 is nil'
+
+		// controller_id
+		0x00, 0x00, 0xe1, 0xb2, // 57778
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		0x01, // true
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		0x00, // false
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string kafka.org",
+		"port int32 53503",
+		"rack *string <nil>",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestMetadataResponseV2(t *testing.T) {
+	/*
+
+	   Metadata Response (Version: 2) => [brokers] cluster_id controller_id [topic_metadata]
+	     brokers => node_id host port rack
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	       rack => NULLABLE_STRING
+	     cluster_id => NULLABLE_STRING
+	     controller_id => INT32
+	     topic_metadata => error_code topic is_internal [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       is_internal => BOOLEAN
+	       partition_metadata => error_code partition leader [replicas] [isr]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+	*/
+
+	apiVersion := int16(2)
+
+	bytes := []byte{
+		// brokers
+		0x00, 0x00, 0x00, 0x03,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		0x00, 0x00, // ''
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+		0x00, 0x07, 'e', 'u', 'w', 'e', 's', 't', '1',
+		// brokers[2]
+		0x00, 0x00, 0x00, 0x02, // 2
+		0x00, 0x09, 'k', 'a', 'f', 'k', 'a', '.', 'o', 'r', 'g',
+		0x00, 0x00, 0xd0, 0xff, // 53503
+		0xff, 0xff, //  -1 is nil'
+
+		// cluster_id
+		0xff, 0xff, // nil
+
+		// controller_id
+		0x00, 0x00, 0xe1, 0xb2, // 57778
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		0x01, // true
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		0x00, // false
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string kafka.org",
+		"port int32 53503",
+		"rack *string <nil>",
+		"cluster_id *string <nil>",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"cluster_id *string <nil>",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestMetadataResponseV3(t *testing.T) {
+	/*
+	   Metadata Response (Version: 3) => throttle_time_ms [brokers] cluster_id controller_id [topic_metadata]
+	     throttle_time_ms => INT32
+	     brokers => node_id host port rack
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	       rack => NULLABLE_STRING
+	     cluster_id => NULLABLE_STRING
+	     controller_id => INT32
+	     topic_metadata => error_code topic is_internal [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       is_internal => BOOLEAN
+	       partition_metadata => error_code partition leader [replicas] [isr]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+
+	*/
+
+	apiVersion := int16(3)
+
+	bytes := []byte{
+		// throttle_time_ms
+		0x00, 0x00, 0x00, 0x01, // 1
+		// brokers
+		0x00, 0x00, 0x00, 0x03,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		0x00, 0x00, // ''
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+		0x00, 0x07, 'e', 'u', 'w', 'e', 's', 't', '1',
+		// brokers[2]
+		0x00, 0x00, 0x00, 0x02, // 2
+		0x00, 0x09, 'k', 'a', 'f', 'k', 'a', '.', 'o', 'r', 'g',
+		0x00, 0x00, 0xd0, 0xff, // 53503
+		0xff, 0xff, //  -1 is nil'
+
+		// cluster_id
+		0x00, 0x07, 'm', 'y', 'k', 'a', 'f', 'k', 'a',
+
+		// controller_id
+		0x00, 0x00, 0xe1, 0xb2, // 57778
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		0x01, // true
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		0x00, // false
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string kafka.org",
+		"port int32 53503",
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestMetadataResponseV4(t *testing.T) {
+	// SAME as V3
+	/*
+	   Metadata Response (Version: 4) => throttle_time_ms [brokers] cluster_id controller_id [topic_metadata]
+	     throttle_time_ms => INT32
+	     brokers => node_id host port rack
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	       rack => NULLABLE_STRING
+	     cluster_id => NULLABLE_STRING
+	     controller_id => INT32
+	     topic_metadata => error_code topic is_internal [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       is_internal => BOOLEAN
+	       partition_metadata => error_code partition leader [replicas] [isr]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+	*/
+
+	apiVersion := int16(4)
+
+	bytes := []byte{
+		// throttle_time_ms
+		0x00, 0x00, 0x00, 0x01, // 1
+		// brokers
+		0x00, 0x00, 0x00, 0x03,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		0x00, 0x00, // ''
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+		0x00, 0x07, 'e', 'u', 'w', 'e', 's', 't', '1',
+		// brokers[2]
+		0x00, 0x00, 0x00, 0x02, // 2
+		0x00, 0x09, 'k', 'a', 'f', 'k', 'a', '.', 'o', 'r', 'g',
+		0x00, 0x00, 0xd0, 0xff, // 53503
+		0xff, 0xff, //  -1 is nil'
+
+		// cluster_id
+		0x00, 0x07, 'm', 'y', 'k', 'a', 'f', 'k', 'a',
+
+		// controller_id
+		0x00, 0x00, 0xe1, 0xb2, // 57778
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		0x01, // true
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		0x00, // false
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string kafka.org",
+		"port int32 53503",
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestMetadataResponseV5(t *testing.T) {
+	/*
+	   Metadata Response (Version: 5) => throttle_time_ms [brokers] cluster_id controller_id [topic_metadata]
+	     throttle_time_ms => INT32
+	     brokers => node_id host port rack
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	       rack => NULLABLE_STRING
+	     cluster_id => NULLABLE_STRING
+	     controller_id => INT32
+	     topic_metadata => error_code topic is_internal [partition_metadata]
+	       error_code => INT16
+	       topic => STRING
+	       is_internal => BOOLEAN
+	       partition_metadata => error_code partition leader [replicas] [isr] [offline_replicas]
+	         error_code => INT16
+	         partition => INT32
+	         leader => INT32
+	         replicas => INT32
+	         isr => INT32
+	         offline_replicas => INT32
+	*/
+
+	apiVersion := int16(5)
+
+	bytes := []byte{
+		// throttle_time_ms
+		0x00, 0x00, 0x00, 0x01, // 1
+		// brokers
+		0x00, 0x00, 0x00, 0x03,
+		// brokers[0]
+		0x00, 0x00, 0xab, 0xff, // 44031
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+		0x00, 0x00, // ''
+		// brokers[1]
+		0x00, 0x01, 0x02, 0x03, // 66051
+		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
+		0x00, 0x00, 0x01, 0x11, // 273
+		0x00, 0x07, 'e', 'u', 'w', 'e', 's', 't', '1',
+		// brokers[2]
+		0x00, 0x00, 0x00, 0x02, // 2
+		0x00, 0x09, 'k', 'a', 'f', 'k', 'a', '.', 'o', 'r', 'g',
+		0x00, 0x00, 0xd0, 0xff, // 53503
+		0xff, 0xff, //  -1 is nil'
+
+		// cluster_id
+		0x00, 0x07, 'm', 'y', 'k', 'a', 'f', 'k', 'a',
+
+		// controller_id
+		0x00, 0x00, 0xe1, 0xb2, // 57778
+
+		// topic_metadata
+		0x00, 0x00, 0x00, 0x02,
+
+		// topic_metadata[0]
+		0x00, 0x00,
+		0x00, 0x03, 'f', 'o', 'o',
+		0x01, // true
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x04,
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x07,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x07,
+		// topic_metadata[1]
+		0x00, 0x00,
+		0x00, 0x03, 'b', 'a', 'r',
+		0x00, // false
+		// partition_metadata
+		0x00, 0x00, 0x00, 0x00}
+
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string localhost",
+		"port int32 51",
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string google.com",
+		"port int32 273",
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string kafka.org",
+		"port int32 53503",
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"[offline_replicas]",
+		"offline_replicas int32 5",
+		"offline_replicas int32 6",
+		"offline_replicas int32 7",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"throttle_time_ms int32 1",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 44031",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string ",
+		"brokers struct",
+		"node_id int32 66051",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string euwest1",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"cluster_id *string mykafka",
+		"controller_id int32 57778",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string foo",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 4",
+		"partition int32 1",
+		"leader int32 7",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"isr int32 2",
+		"[offline_replicas]",
+		"offline_replicas int32 5",
+		"offline_replicas int32 6",
+		"offline_replicas int32 7",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"topic string bar",
+		"is_internal bool false",
+		"[partition_metadata]",
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestFindCoordinatorResponseV0(t *testing.T) {
+	/*
+	   FindCoordinator Response (Version: 0) => error_code coordinator
+	     error_code => INT16
+	     coordinator => node_id host port
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	*/
+	apiVersion := int16(0)
+
+	bytes := []byte{
+		0x00, 0x00,
+		// coordinator
+		0x00, 0x00, 0x00, 0xAB,
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+	}
+	a := assert.New(t)
+
+	schema := findCoordinatorResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"error_code int16 0",
+		"coordinator struct",
+		"node_id int32 171",
+		"host string localhost",
+		"port int32 51",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyFindCoordinator, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"error_code int16 0",
+		"coordinator struct",
+		"node_id int32 171",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestFindCoordinatorResponseV1(t *testing.T) {
+	/*
+	   FindCoordinator Response (Version: 1) => throttle_time_ms error_code error_message coordinator
+	     throttle_time_ms => INT32
+	     error_code => INT16
+	     error_message => NULLABLE_STRING
+	     coordinator => node_id host port
+	       node_id => INT32
+	       host => STRING
+	       port => INT32
+	*/
+	apiVersion := int16(1)
+
+	bytes := []byte{
+		// throttle_time_ms
+		0x00, 0x00, 0x00, 0x01, // 1
+		0x00, 0x00,
+		0xff, 0xff,
+		// coordinator
+		0x00, 0x00, 0x00, 0xAB,
+		0x00, 0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+		0x00, 0x00, 0x00, 0x33, // 51
+	}
+	a := assert.New(t)
+
+	schema := findCoordinatorResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 1",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"coordinator struct",
+		"node_id int32 171",
+		"host string localhost",
+		"port int32 51",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyFindCoordinator, apiVersion, testResponseModifier)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"throttle_time_ms int32 1",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"coordinator struct",
+		"node_id int32 171",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+	}
+	a.Equal(expected, dc.AttrValues())
 }
 
 type decodeCheck struct {
@@ -368,7 +1477,11 @@ func (t *decodeCheck) value(s *Struct, arg interface{}, sindex int) error {
 	case string:
 		t.append(name, "string", v)
 	case *string:
-		t.append(name, "*string", v)
+		if v != nil {
+			t.append(name, "*string", *v)
+		} else {
+			t.append(name, "*string", nil)
+		}
 	case *Struct:
 		t.append(name, "struct")
 		t.Traverse(v)
