@@ -18,8 +18,9 @@ var (
 type NetAddressMappingFunc func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error)
 
 type ListenerConfig struct {
-	BrokerAddress   string
-	ListenerAddress string
+	BrokerAddress     string
+	ListenerAddress   string
+	AdvertisedAddress string
 }
 
 type Config struct {
@@ -121,18 +122,29 @@ func getListenerConfigs(serversMapping []string) ([]ListenerConfig, error) {
 	if serversMapping != nil {
 		for _, v := range serversMapping {
 			pair := strings.Split(v, ",")
-			if len(pair) != 2 {
-				return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport'")
+			if len(pair) != 2 && len(pair) != 3 {
+				return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport(,advhost:advport)'")
 			}
-			remotehost, remoteport, err := SplitHostPort(pair[0])
+			remoteHost, remotePort, err := SplitHostPort(pair[0])
 			if err != nil {
 				return nil, err
 			}
-			localhost, localport, err := SplitHostPort(pair[1])
+			localHost, localPort, err := SplitHostPort(pair[1])
 			if err != nil {
 				return nil, err
 			}
-			listenerConfig := ListenerConfig{BrokerAddress: net.JoinHostPort(remotehost, fmt.Sprint(remoteport)), ListenerAddress: net.JoinHostPort(localhost, fmt.Sprint(localport))}
+			advertisedHost, advertisedPort := localHost, localPort
+			if len(pair) == 3 {
+				advertisedHost, advertisedPort, err = SplitHostPort(pair[2])
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			listenerConfig := ListenerConfig{
+				BrokerAddress:     net.JoinHostPort(remoteHost, fmt.Sprint(remotePort)),
+				ListenerAddress:   net.JoinHostPort(localHost, fmt.Sprint(localPort)),
+				AdvertisedAddress: net.JoinHostPort(advertisedHost, fmt.Sprint(advertisedPort))}
 			listenerConfigs = append(listenerConfigs, listenerConfig)
 		}
 	}

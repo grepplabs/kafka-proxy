@@ -23,8 +23,8 @@ type Listeners struct {
 
 	disableDynamicListeners bool
 
-	brokerToListenerAddresses map[string]string
-	lock                      sync.RWMutex
+	brokerToListenerConfig map[string]config.ListenerConfig
+	lock                   sync.RWMutex
 }
 
 func NewListeners(cfg *config.Config) (*Listeners, error) {
@@ -53,26 +53,30 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		return net.Listen("tcp", cfg.ListenerAddress)
 	}
 
-	brokerToListenerAddresses := make(map[string]string)
+	brokerToListenerConfig := make(map[string]config.ListenerConfig)
 
 	// add mapping without starting local listeners
 	for _, v := range cfg.Proxy.ExternalServers {
-		if la, ok := brokerToListenerAddresses[v.BrokerAddress]; ok {
-			if la != v.ListenerAddress {
-				return nil, fmt.Errorf("broker to listener address mapping %s configured twice: %s and %s", v.BrokerAddress, v.ListenerAddress, la)
+		if lc, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
+			if lc.ListenerAddress != v.ListenerAddress {
+				return nil, fmt.Errorf("broker to listener address mapping %s configured twice: %s and %v", v.BrokerAddress, v.ListenerAddress, lc)
 			}
 			continue
 		}
-		brokerToListenerAddresses[v.BrokerAddress] = v.ListenerAddress
+		if v.ListenerAddress != v.AdvertisedAddress {
+			return nil, fmt.Errorf("external server mapping has different listener and advertised addresses %v", v)
+		}
+		logrus.Infof("External server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
+		brokerToListenerConfig[v.BrokerAddress] = v
 	}
 
 	return &Listeners{
-		defaultListenerIP:         defaultListenerIP,
-		connSrc:                   make(chan Conn, 1),
-		brokerToListenerAddresses: brokerToListenerAddresses,
-		tcpConnOptions:            tcpConnOptions,
-		listenFunc:                listenFunc,
-		disableDynamicListeners:   cfg.Proxy.DisableDynamicListeners,
+		defaultListenerIP:       defaultListenerIP,
+		connSrc:                 make(chan Conn, 1),
+		brokerToListenerConfig:  brokerToListenerConfig,
+		tcpConnOptions:          tcpConnOptions,
+		listenFunc:              listenFunc,
+		disableDynamicListeners: cfg.Proxy.DisableDynamicListeners,
 	}, nil
 }
 
@@ -84,11 +88,11 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (l
 	brokerAddress := net.JoinHostPort(brokerHost, fmt.Sprint(brokerPort))
 
 	p.lock.RLock()
-	listenerAddress := p.brokerToListenerAddresses[brokerAddress]
+	listenerConfig, ok := p.brokerToListenerConfig[brokerAddress]
 	p.lock.RUnlock()
 
-	if listenerAddress != "" {
-		return config.SplitHostPort(listenerAddress)
+	if ok {
+		return config.SplitHostPort(listenerConfig.AdvertisedAddress)
 	}
 	if !p.disableDynamicListeners {
 		return p.ListenDynamicInstance(brokerAddress)
@@ -100,8 +104,8 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	// double check
-	if v := p.brokerToListenerAddresses[brokerAddress]; v != "" {
-		return v, 0, nil
+	if v, ok := p.brokerToListenerConfig[brokerAddress]; ok {
+		return v.AdvertisedAddress, 0, nil
 	}
 
 	defaultListenerAddress := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(0))
@@ -112,7 +116,8 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 		return "", 0, err
 	}
 	port := l.Addr().(*net.TCPAddr).Port
-	p.brokerToListenerAddresses[brokerAddress] = net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(port))
+	address := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(port))
+	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: address}
 	return p.defaultListenerIP, int32(port), nil
 }
 
@@ -126,7 +131,7 @@ func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, 
 		if err != nil {
 			return nil, err
 		}
-		p.brokerToListenerAddresses[v.BrokerAddress] = v.ListenerAddress
+		p.brokerToListenerConfig[v.BrokerAddress] = v
 	}
 	return p.connSrc, nil
 }
@@ -154,6 +159,6 @@ func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOpti
 		}
 	})
 
-	logrus.Infof("Listening on %s (%s) for %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress)
+	logrus.Infof("Listening on %s (%s) for remote %s advertised as %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress, cfg.AdvertisedAddress)
 	return l, nil
 }

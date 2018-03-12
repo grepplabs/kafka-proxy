@@ -62,6 +62,11 @@ See:
 	                         --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402" \
 	                         --dynamic-listeners-disable
 
+	build/kafka-proxy server --bootstrap-server-mapping "kafka-0.example.com:9092,0.0.0.0:32401,kafka-0.grepplabs.com:9092" \
+	                         --bootstrap-server-mapping "kafka-1.example.com:9092,0.0.0.0:32402,kafka-1.grepplabs.com:9092" \
+	                         --bootstrap-server-mapping "kafka-2.example.com:9092,0.0.0.0:32403,kafka-2.grepplabs.com:9092" \
+	                         --dynamic-listeners-disable
+
 	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
 	                         --external-server-mapping "192.168.99.100:32401,127.0.0.1:32402" \
 	                         --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403" \
@@ -69,7 +74,7 @@ See:
     
     build/kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
                              --tls-enable --tls-insecure-skip-verify \
-                             --sasl-enable -sasl-username myuser --sasl-password mysecret
+                             --sasl-enable --sasl-username myuser --sasl-password mysecret
 
 ### Proxy authentication example
 
@@ -197,7 +202,7 @@ spec:
   5. counter: proxy_responses_bytes {broker}
 * [X] Pluggable proxy authentication
 * [X] Deploying Kafka Proxy as a sidecar container
-* [ ] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advlocalhost:advlocalport)
+* [X] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advhost:advport)
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
