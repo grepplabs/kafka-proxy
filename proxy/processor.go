@@ -1,16 +1,12 @@
 package proxy
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -31,8 +27,7 @@ type ProcessorConfig struct {
 	ResponseBufferSize    int
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
-	LocalAuth             bool
-	LocalAuthenticator    shared.PasswordAuthenticator
+	LocalSasl             *localSasl
 	ForbiddenApiKeys      map[int16]struct{}
 }
 
@@ -44,8 +39,7 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
-	localAuth          bool
-	localAuthenticator shared.PasswordAuthenticator
+	localSasl *localSasl
 
 	forbiddenApiKeys map[int16]struct{}
 	// metrics
@@ -81,141 +75,19 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		readTimeout:           readTimeout,
 		writeTimeout:          writeTimeout,
 		brokerAddress:         brokerAddress,
-		localAuth:             cfg.LocalAuth,
-		localAuthenticator:    cfg.LocalAuthenticator,
+		localSasl:             cfg.LocalSasl,
 		forbiddenApiKeys:      cfg.ForbiddenApiKeys,
 	}
-}
-func (p *processor) doLocalSasl(dst DeadlineWriter, src DeadlineReader) (err error) {
-	requestDeadline := time.Now().Add(p.readTimeout)
-	err = dst.SetWriteDeadline(requestDeadline)
-	if err != nil {
-		return err
-	}
-	err = src.SetReadDeadline(requestDeadline)
-	if err != nil {
-		return err
-	}
-
-	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
-	if _, err = io.ReadFull(src, keyVersionBuf); err != nil {
-		return err
-	}
-	requestKeyVersion := &protocol.RequestKeyVersion{}
-	if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
-		return err
-	}
-	if !(requestKeyVersion.ApiKey == 17 && requestKeyVersion.ApiVersion == 0) {
-		return errors.New("SaslHandshake version 0 is expected")
-	}
-
-	if int32(requestKeyVersion.Length) > protocol.MaxRequestSize {
-		return protocol.PacketDecodingError{Info: fmt.Sprintf("sasl handshake message of length %d too large", requestKeyVersion.Length)}
-	}
-
-	resp := make([]byte, int(requestKeyVersion.Length-4))
-	if _, err = io.ReadFull(src, resp); err != nil {
-		return err
-	}
-	payload := bytes.Join([][]byte{keyVersionBuf[4:], resp}, nil)
-
-	saslReqV0 := &protocol.SaslHandshakeRequestV0{}
-	req := &protocol.Request{Body: saslReqV0}
-	if err = protocol.Decode(payload, req); err != nil {
-		return err
-	}
-
-	var saslResult error
-	saslErr := protocol.ErrNoError
-	if saslReqV0.Mechanism != SASLPlain {
-		saslResult = fmt.Errorf("PLAIN mechanism expected, but got %s", saslReqV0.Mechanism)
-		saslErr = protocol.ErrUnsupportedSASLMechanism
-	}
-
-	saslResV0 := &protocol.SaslHandshakeResponseV0{Err: saslErr, EnabledMechanisms: []string{SASLPlain}}
-	newResponseBuf, err := protocol.Encode(saslResV0)
-	if err != nil {
-		return err
-	}
-	newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
-	if err != nil {
-		return err
-	}
-	if _, err := dst.Write(newHeaderBuf); err != nil {
-		return err
-	}
-	if _, err := dst.Write(newResponseBuf); err != nil {
-		return err
-	}
-	return saslResult
-}
-
-func (p *processor) doLocalAuth(dst DeadlineWriter, src DeadlineReader) (err error) {
-	requestDeadline := time.Now().Add(p.readTimeout)
-	err = dst.SetWriteDeadline(requestDeadline)
-	if err != nil {
-		return err
-	}
-	err = src.SetReadDeadline(requestDeadline)
-	if err != nil {
-		return err
-	}
-
-	sizeBuf := make([]byte, 4) // Size => int32
-	if _, err = io.ReadFull(src, sizeBuf); err != nil {
-		return err
-	}
-
-	length := binary.BigEndian.Uint32(sizeBuf)
-	if int32(length) > protocol.MaxRequestSize {
-		return protocol.PacketDecodingError{Info: fmt.Sprintf("auth message of length %d too large", length)}
-	}
-
-	payload := make([]byte, length)
-	_, err = io.ReadFull(src, payload)
-	if err != nil {
-		return err
-	}
-	tokens := strings.Split(string(payload), "\x00")
-	if len(tokens) != 3 {
-		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens))
-	}
-	if p.localAuthenticator == nil {
-		return protocol.PacketDecodingError{Info: "Listener authenticator is not set"}
-	}
-
-	// logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
-	ok, status, err := p.localAuthenticator.Authenticate(tokens[1], tokens[2])
-	if err != nil {
-		proxyLocalAuthTotal.WithLabelValues("error", "1").Inc()
-		return err
-	}
-	proxyLocalAuthTotal.WithLabelValues(strconv.FormatBool(ok), strconv.Itoa(int(status))).Inc()
-
-	if !ok {
-		return fmt.Errorf("user %s authentication failed", tokens[1])
-	}
-	// If the credentials are valid, we would write a 4 byte response filled with null characters.
-	// Otherwise, the closes the connection i.e. return error
-	header := make([]byte, 4)
-	if _, err := dst.Write(header); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
 
-	if p.localAuth {
-		if err = p.doLocalSasl(src, src); err != nil {
-			return true, err
-		}
-		if err = p.doLocalAuth(src, src); err != nil {
+	if p.localSasl.enabled {
+		if err = p.localSasl.auth(src); err != nil {
 			return true, err
 		}
 	}
-	src.SetReadDeadline(time.Time{})
-	src.SetWriteDeadline(time.Time{})
+	src.SetDeadline(time.Time{})
 
 	return requestsLoop(dst, src, p.openRequestsChannel, p.requestBufferSize, p.writeTimeout, p.brokerAddress, p.forbiddenApiKeys)
 }

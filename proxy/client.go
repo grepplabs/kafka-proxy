@@ -33,6 +33,9 @@ type Client struct {
 
 	stopRun  chan struct{}
 	stopOnce sync.Once
+
+	saslPlainAuth *SASLPlainAuth
+	authClient    *AuthClient
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator shared.PasswordAuthenticator) (*Client, error) {
@@ -54,7 +57,23 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		}
 	}
 
+	saslPlainAuth := &SASLPlainAuth{
+		clientID:     c.Kafka.ClientID,
+		writeTimeout: c.Kafka.WriteTimeout,
+		readTimeout:  c.Kafka.ReadTimeout,
+		username:     c.Kafka.SASL.Username,
+		password:     c.Kafka.SASL.Password,
+	}
+
+	authClient := &AuthClient{
+		magic:   c.Auth.Gateway.Client.Magic,
+		method:  c.Auth.Gateway.Client.Method,
+		timeout: c.Auth.Gateway.Client.Timeout,
+	}
+
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
+		saslPlainAuth: saslPlainAuth,
+		authClient:    authClient,
 		processorConfig: ProcessorConfig{
 			MaxOpenRequests:       c.Kafka.MaxOpenRequests,
 			NetAddressMappingFunc: netAddressMappingFunc,
@@ -62,9 +81,11 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
-			LocalAuth:             c.Auth.Local.Enable,
-			LocalAuthenticator:    passwordAuthenticator,
-			ForbiddenApiKeys:      forbiddenApiKeys,
+			LocalSasl: &localSasl{
+				enabled:            c.Auth.Local.Enable,
+				timeout:            c.Auth.Local.Timeout,
+				localAuthenticator: passwordAuthenticator},
+			ForbiddenApiKeys: forbiddenApiKeys,
 		}}, nil
 }
 
@@ -146,13 +167,7 @@ func (c *Client) dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, er
 
 func (c *Client) auth(conn net.Conn) error {
 	if c.config.Auth.Gateway.Client.Enable {
-		authClient := AuthClient{
-			conn:    conn,
-			magic:   c.config.Auth.Gateway.Client.Magic,
-			method:  c.config.Auth.Gateway.Client.Method,
-			timeout: c.config.Auth.Gateway.Client.Timeout,
-		}
-		if err := authClient.sendAndReceiveAuth(); err != nil {
+		if err := c.authClient.sendAndReceiveGatewayAuth(conn); err != nil {
 			conn.Close()
 			return err
 		}
@@ -161,15 +176,7 @@ func (c *Client) auth(conn net.Conn) error {
 		}
 	}
 	if c.config.Kafka.SASL.Enable {
-		saslPlainAuth := SASLPlainAuth{
-			conn:         conn,
-			clientID:     c.config.Kafka.ClientID,
-			writeTimeout: c.config.Kafka.WriteTimeout,
-			readTimeout:  c.config.Kafka.ReadTimeout,
-			username:     c.config.Kafka.SASL.Username,
-			password:     c.config.Kafka.SASL.Password,
-		}
-		err := saslPlainAuth.sendAndReceiveSASLPlainAuth()
+		err := c.saslPlainAuth.sendAndReceiveSASLPlainAuth(conn)
 		if err != nil {
 			conn.Close()
 			return err

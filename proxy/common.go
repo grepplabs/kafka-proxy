@@ -15,6 +15,7 @@ type DeadlineReadWriteCloser interface {
 	io.ReadWriteCloser
 	SetWriteDeadline(t time.Time) error
 	SetReadDeadline(t time.Time) error
+	SetDeadline(t time.Time) error
 }
 
 type DeadlineWriter interface {
@@ -30,6 +31,7 @@ type DeadlineReader interface {
 type DeadlineReaderWriter interface {
 	DeadlineReader
 	DeadlineWriter
+	SetDeadline(t time.Time) error
 }
 
 // myCopy is similar to io.Copy, but reports whether the returned error was due

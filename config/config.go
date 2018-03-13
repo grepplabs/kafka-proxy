@@ -64,6 +64,7 @@ type Config struct {
 			Command    string
 			Parameters []string
 			LogLevel   string
+			Timeout    time.Duration
 		}
 		Gateway struct {
 			Client struct {
@@ -240,6 +241,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Auth.Local.Enable && c.Auth.Local.Command == "" {
 		return errors.New("Command is required when Auth.Local.Enable is enabled")
+	}
+	if c.Auth.Local.Enable && c.Auth.Local.Timeout <= 0 {
+		return errors.New("Auth.Local.Timeout must be greater than 0")
 	}
 	if c.Auth.Gateway.Client.Enable && (c.Auth.Gateway.Client.Command == "" || c.Auth.Gateway.Client.Method == "" || c.Auth.Gateway.Client.Magic == 0) {
 		return errors.New("Command, Method and Magic are required when Auth.Gateway.Client.Enable is enabled")

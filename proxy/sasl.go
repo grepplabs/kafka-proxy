@@ -7,7 +7,6 @@ import (
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
 	"io"
-	"net"
 	"time"
 )
 
@@ -16,8 +15,6 @@ const (
 )
 
 type SASLPlainAuth struct {
-	conn net.Conn
-
 	clientID string
 
 	writeTimeout time.Duration
@@ -42,9 +39,9 @@ type SASLPlainAuth struct {
 // When credentials are valid, Kafka returns a 4 byte array of null characters.
 // When credentials are invalid, Kafka closes the connection. This does not seem to be the ideal way
 // of responding to bad credentials but thats how its being done today.
-func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth() error {
+func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth(conn DeadlineReaderWriter) error {
 
-	handshakeErr := b.sendAndReceiveSASLPlainHandshake()
+	handshakeErr := b.sendAndReceiveSASLPlainHandshake(conn)
 	if handshakeErr != nil {
 		return handshakeErr
 	}
@@ -53,22 +50,22 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth() error {
 	binary.BigEndian.PutUint32(authBytes, uint32(length))
 	copy(authBytes[4:], []byte("\x00"+b.username+"\x00"+b.password))
 
-	err := b.conn.SetWriteDeadline(time.Now().Add(b.writeTimeout))
+	err := conn.SetWriteDeadline(time.Now().Add(b.writeTimeout))
 	if err != nil {
 		return err
 	}
-	_, err = b.conn.Write(authBytes)
+	_, err = conn.Write(authBytes)
 	if err != nil {
 		return errors.Wrap(err, "Failed to write SASL auth header")
 	}
 
-	err = b.conn.SetReadDeadline(time.Now().Add(b.readTimeout))
+	err = conn.SetReadDeadline(time.Now().Add(b.readTimeout))
 	if err != nil {
 		return err
 	}
 
 	header := make([]byte, 4)
-	_, err = io.ReadFull(b.conn, header)
+	_, err = io.ReadFull(conn, header)
 	// If the credentials are valid, we would get a 4 byte response filled with null characters.
 	// Otherwise, the broker closes the connection and we get an EOF
 	if err != nil {
@@ -80,7 +77,7 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainAuth() error {
 	return nil
 }
 
-func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake() error {
+func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake(conn DeadlineReaderWriter) error {
 
 	req := &protocol.Request{
 		ClientID: b.clientID,
@@ -93,30 +90,30 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake() error {
 	sizeBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(sizeBuf, uint32(len(reqBuf)))
 
-	err = b.conn.SetWriteDeadline(time.Now().Add(b.writeTimeout))
+	err = conn.SetWriteDeadline(time.Now().Add(b.writeTimeout))
 	if err != nil {
 		return err
 	}
 
-	_, err = b.conn.Write(bytes.Join([][]byte{sizeBuf, reqBuf}, nil))
+	_, err = conn.Write(bytes.Join([][]byte{sizeBuf, reqBuf}, nil))
 	if err != nil {
 		return errors.Wrap(err, "Failed to send SASL handshake")
 	}
 
-	err = b.conn.SetReadDeadline(time.Now().Add(b.readTimeout))
+	err = conn.SetReadDeadline(time.Now().Add(b.readTimeout))
 	if err != nil {
 		return err
 	}
 
 	//wait for the response
 	header := make([]byte, 8) // response header
-	_, err = io.ReadFull(b.conn, header)
+	_, err = io.ReadFull(conn, header)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read SASL handshake header")
 	}
 	length := binary.BigEndian.Uint32(header[:4])
 	payload := make([]byte, length-4)
-	_, err = io.ReadFull(b.conn, payload)
+	_, err = io.ReadFull(conn, payload)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read SASL handshake payload")
 	}

@@ -6,21 +6,18 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
-	"net"
 	"strings"
 	"time"
 )
 
 type AuthClient struct {
-	conn net.Conn
-
 	magic   uint64
 	method  string
 	timeout time.Duration
 }
 
 //TODO: reset deadlines after method - ok
-func (b *AuthClient) sendAndReceiveAuth() error {
+func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
 	data := "my-test-jwt-token"
 
@@ -31,17 +28,17 @@ func (b *AuthClient) sendAndReceiveAuth() error {
 	binary.BigEndian.PutUint32(buf[8:], uint32(length))
 	copy(buf[12:], []byte(b.method+"\x00"+data))
 
-	err := b.conn.SetDeadline(time.Now().Add(b.timeout))
+	err := conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {
 		return err
 	}
-	_, err = b.conn.Write(buf)
+	_, err = conn.Write(buf)
 	if err != nil {
 		return errors.Wrap(err, "Failed to write gateway handshake")
 	}
 
 	header := make([]byte, 4)
-	_, err = io.ReadFull(b.conn, header)
+	_, err = io.ReadFull(conn, header)
 	// If the credentials are valid, we would get a 4 byte response filled with null characters.
 	// Otherwise, the broker closes the connection and we get an EOF
 	if err != nil {
@@ -54,21 +51,19 @@ func (b *AuthClient) sendAndReceiveAuth() error {
 }
 
 type AuthServer struct {
-	conn net.Conn
-
 	magic   uint64
 	method  string
 	timeout time.Duration
 }
 
 //TODO: reset deadlines after method - ok
-func (b *AuthServer) receiveAndSendAuth() error {
-	err := b.conn.SetDeadline(time.Now().Add(b.timeout))
+func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error {
+	err := conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {
 		return err
 	}
 	headerBuf := make([]byte, 12) // magic 8 + length 4
-	_, err = io.ReadFull(b.conn, headerBuf)
+	_, err = io.ReadFull(conn, headerBuf)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read gateway bytes magic")
 	}
@@ -80,7 +75,7 @@ func (b *AuthServer) receiveAndSendAuth() error {
 
 	length := binary.BigEndian.Uint32(headerBuf[8:])
 	payload := make([]byte, length-4)
-	_, err = io.ReadFull(b.conn, payload)
+	_, err = io.ReadFull(conn, payload)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read gateway handshake payload")
 	}
@@ -98,7 +93,7 @@ func (b *AuthServer) receiveAndSendAuth() error {
 	logrus.Infof("gateway handshake payload: %s", data)
 
 	header := make([]byte, 4)
-	if _, err := b.conn.Write(header); err != nil {
+	if _, err := conn.Write(header); err != nil {
 		return err
 	}
 	return nil
