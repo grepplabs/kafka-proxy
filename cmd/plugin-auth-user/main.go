@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
 	"os"

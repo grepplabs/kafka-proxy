@@ -57,11 +57,33 @@ type Config struct {
 			ListenerKeyPassword string
 			CAChainCertFile     string
 		}
-		Auth struct {
+	}
+	Auth struct {
+		Local struct {
 			Enable     bool
 			Command    string
 			Parameters []string
 			LogLevel   string
+		}
+		Gateway struct {
+			Client struct {
+				Enable     bool
+				Method     string
+				Magic      uint64
+				Command    string
+				Parameters []string
+				LogLevel   string
+				Timeout    time.Duration
+			}
+			Server struct {
+				Enable     bool
+				Method     string
+				Magic      uint64
+				Command    string
+				Parameters []string
+				LogLevel   string
+				Timeout    time.Duration
+			}
 		}
 	}
 	Kafka struct {
@@ -216,8 +238,21 @@ func (c *Config) Validate() error {
 	if c.Proxy.TLS.Enable && (c.Proxy.TLS.ListenerKeyFile == "" || c.Proxy.TLS.ListenerCertFile == "") {
 		return errors.New("ListenerKeyFile and ListenerCertFile are required when Proxy TLS is enabled")
 	}
-	if c.Proxy.Auth.Enable && c.Proxy.Auth.Command == "" {
-		return errors.New("Auth.Command is required when Proxy.Auth is enabled")
+	if c.Auth.Local.Enable && c.Auth.Local.Command == "" {
+		return errors.New("Command is required when Auth.Local.Enable is enabled")
+	}
+	if c.Auth.Gateway.Client.Enable && (c.Auth.Gateway.Client.Command == "" || c.Auth.Gateway.Client.Method == "" || c.Auth.Gateway.Client.Magic == 0) {
+		return errors.New("Command, Method and Magic are required when Auth.Gateway.Client.Enable is enabled")
+	}
+	if c.Auth.Gateway.Client.Enable && c.Auth.Gateway.Client.Timeout <= 0 {
+		return errors.New("Auth.Gateway.Client.Timeout must be greater than 0")
+	}
+
+	if c.Auth.Gateway.Server.Enable && (c.Auth.Gateway.Server.Command == "" || c.Auth.Gateway.Server.Method == "" || c.Auth.Gateway.Server.Magic == 0) {
+		return errors.New("Command, Method and Magic are required when Auth.Gateway.Server.Enable is enabled")
+	}
+	if c.Auth.Gateway.Server.Enable && c.Auth.Gateway.Server.Timeout <= 0 {
+		return errors.New("Auth.Gateway.Server.Timeout must be greater than 0")
 	}
 	return nil
 }

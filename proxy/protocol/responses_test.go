@@ -2,7 +2,7 @@ package protocol
 
 import (
 	"fmt"
-	"github.com/kataras/go-errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"

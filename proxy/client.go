@@ -3,7 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"net"
@@ -62,8 +62,8 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
-			ListenerAuth:          c.Proxy.Auth.Enable,
-			ListenerAuthenticator: passwordAuthenticator,
+			LocalAuth:             c.Auth.Local.Enable,
+			LocalAuthenticator:    passwordAuthenticator,
 			ForbiddenApiKeys:      forbiddenApiKeys,
 		}}, nil
 }
@@ -145,6 +145,21 @@ func (c *Client) dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, er
 }
 
 func (c *Client) auth(conn net.Conn) error {
+	if c.config.Auth.Gateway.Client.Enable {
+		authClient := AuthClient{
+			conn:    conn,
+			magic:   c.config.Auth.Gateway.Client.Magic,
+			method:  c.config.Auth.Gateway.Client.Method,
+			timeout: c.config.Auth.Gateway.Client.Timeout,
+		}
+		if err := authClient.sendAndReceiveAuth(); err != nil {
+			conn.Close()
+			return err
+		}
+		if err := conn.SetDeadline(time.Time{}); err != nil {
+			return err
+		}
+	}
 	if c.config.Kafka.SASL.Enable {
 		saslPlainAuth := SASLPlainAuth{
 			conn:         conn,

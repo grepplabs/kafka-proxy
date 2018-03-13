@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"io"
 	"strconv"
@@ -31,8 +31,8 @@ type ProcessorConfig struct {
 	ResponseBufferSize    int
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
-	ListenerAuth          bool
-	ListenerAuthenticator shared.PasswordAuthenticator
+	LocalAuth             bool
+	LocalAuthenticator    shared.PasswordAuthenticator
 	ForbiddenApiKeys      map[int16]struct{}
 }
 
@@ -44,8 +44,8 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
-	listenerAuth          bool
-	listenerAuthenticator shared.PasswordAuthenticator
+	localAuth          bool
+	localAuthenticator shared.PasswordAuthenticator
 
 	forbiddenApiKeys map[int16]struct{}
 	// metrics
@@ -81,12 +81,12 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		readTimeout:           readTimeout,
 		writeTimeout:          writeTimeout,
 		brokerAddress:         brokerAddress,
-		listenerAuth:          cfg.ListenerAuth,
-		listenerAuthenticator: cfg.ListenerAuthenticator,
+		localAuth:             cfg.LocalAuth,
+		localAuthenticator:    cfg.LocalAuthenticator,
 		forbiddenApiKeys:      cfg.ForbiddenApiKeys,
 	}
 }
-func (p *processor) localSasl(dst DeadlineWriter, src DeadlineReader) (err error) {
+func (p *processor) doLocalSasl(dst DeadlineWriter, src DeadlineReader) (err error) {
 	requestDeadline := time.Now().Add(p.readTimeout)
 	err = dst.SetWriteDeadline(requestDeadline)
 	if err != nil {
@@ -150,7 +150,7 @@ func (p *processor) localSasl(dst DeadlineWriter, src DeadlineReader) (err error
 	return saslResult
 }
 
-func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error) {
+func (p *processor) doLocalAuth(dst DeadlineWriter, src DeadlineReader) (err error) {
 	requestDeadline := time.Now().Add(p.readTimeout)
 	err = dst.SetWriteDeadline(requestDeadline)
 	if err != nil {
@@ -180,12 +180,12 @@ func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error
 	if len(tokens) != 3 {
 		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens))
 	}
-	if p.listenerAuthenticator == nil {
+	if p.localAuthenticator == nil {
 		return protocol.PacketDecodingError{Info: "Listener authenticator is not set"}
 	}
 
 	// logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
-	ok, status, err := p.listenerAuthenticator.Authenticate(tokens[1], tokens[2])
+	ok, status, err := p.localAuthenticator.Authenticate(tokens[1], tokens[2])
 	if err != nil {
 		proxyLocalAuthTotal.WithLabelValues("error", "1").Inc()
 		return err
@@ -206,11 +206,11 @@ func (p *processor) localAuth(dst DeadlineWriter, src DeadlineReader) (err error
 
 func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
 
-	if p.listenerAuth {
-		if err = p.localSasl(src, src); err != nil {
+	if p.localAuth {
+		if err = p.doLocalSasl(src, src); err != nil {
 			return true, err
 		}
-		if err = p.localAuth(src, src); err != nil {
+		if err = p.doLocalAuth(src, src); err != nil {
 			return true, err
 		}
 	}

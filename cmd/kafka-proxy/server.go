@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"errors"
-	"github.com/grepplabs/kafka-proxy/plugin/auth/shared"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
@@ -75,11 +75,27 @@ func init() {
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", "", "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
 
-	// authentication plugin
-	Server.Flags().BoolVar(&c.Proxy.Auth.Enable, "proxy-listener-auth-enable", false, "Enable SASL/PLAIN listener authentication")
-	Server.Flags().StringVar(&c.Proxy.Auth.Command, "proxy-listener-auth-command", "", "Path to authentication plugin binary")
-	Server.Flags().StringArrayVar(&c.Proxy.Auth.Parameters, "proxy-listener-auth-param", []string{}, "Authentication plugin parameter")
-	Server.Flags().StringVar(&c.Proxy.Auth.LogLevel, "proxy-listener-auth-log-level", "trace", "Log level of the auth plugin")
+	// local authentication plugin
+	Server.Flags().BoolVar(&c.Auth.Local.Enable, "auth-local-enable", false, "Enable local SASL/PLAIN authentication performed by listener - SASL handshake will not be passed to kafka brokers")
+	Server.Flags().StringVar(&c.Auth.Local.Command, "auth-local-command", "", "Path to authentication plugin binary")
+	Server.Flags().StringArrayVar(&c.Auth.Local.Parameters, "auth-local-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringVar(&c.Auth.Local.LogLevel, "auth-local-log-level", "trace", "Log level of the auth plugin")
+
+	Server.Flags().BoolVar(&c.Auth.Gateway.Client.Enable, "auth-gateway-client-enable", false, "Enable gateway client authentication")
+	Server.Flags().StringVar(&c.Auth.Gateway.Client.Command, "auth-gateway-client-command", "", "Path to authentication plugin binary")
+	Server.Flags().StringArrayVar(&c.Auth.Gateway.Client.Parameters, "auth-gateway-client-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringVar(&c.Auth.Gateway.Client.LogLevel, "auth-gateway-client-log-level", "trace", "Log level of the auth plugin")
+	Server.Flags().StringVar(&c.Auth.Gateway.Client.Method, "auth-gateway-client-method", "", "Authentication method")
+	Server.Flags().Uint64Var(&c.Auth.Gateway.Client.Magic, "auth-gateway-client-magic", 0, "Magic bytes sent in the handshake")
+	Server.Flags().DurationVar(&c.Auth.Gateway.Client.Timeout, "auth-gateway-client-timeout", 10*time.Second, "Authentication timeout")
+
+	Server.Flags().BoolVar(&c.Auth.Gateway.Server.Enable, "auth-gateway-server-enable", false, "Enable proxy server authentication")
+	Server.Flags().StringVar(&c.Auth.Gateway.Server.Command, "auth-gateway-server-command", "", "Path to authentication plugin binary")
+	Server.Flags().StringArrayVar(&c.Auth.Gateway.Server.Parameters, "auth-gateway-server-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringVar(&c.Auth.Gateway.Server.LogLevel, "auth-gateway-server-log-level", "trace", "Log level of the auth plugin")
+	Server.Flags().StringVar(&c.Auth.Gateway.Server.Method, "auth-gateway-server-method", "", "Authentication method")
+	Server.Flags().Uint64Var(&c.Auth.Gateway.Server.Magic, "auth-gateway-server-magic", 0, "Magic bytes sent in the handshake")
+	Server.Flags().DurationVar(&c.Auth.Gateway.Server.Timeout, "auth-gateway-server-timeout", 10*time.Second, "Authentication timeout")
 
 	// kafka
 	Server.Flags().StringVar(&c.Kafka.ClientID, "kafka-client-id", "kafka-proxy", "An optional identifier to track the source of requests")
@@ -127,8 +143,8 @@ func Run(_ *cobra.Command, _ []string) {
 	logrus.Infof("Starting kafka-proxy version %s", config.Version)
 
 	var passwordAuthenticator shared.PasswordAuthenticator
-	if c.Proxy.Auth.Enable {
-		client := NewPluginClient()
+	if c.Auth.Local.Enable {
+		client := NewLocalAuthPluginClient()
 		defer client.Kill()
 
 		rpcClient, err := client.Client()
@@ -257,14 +273,14 @@ func SetLogger() {
 	logrus.SetLevel(level)
 }
 
-func NewPluginClient() *plugin.Client {
+func NewLocalAuthPluginClient() *plugin.Client {
 	jsonFormat := false
 	if c.Log.Format == "json" {
 		jsonFormat = true
 	}
 	logger := hclog.New(&hclog.LoggerOptions{
 		Output:     os.Stdout,
-		Level:      hclog.LevelFromString(c.Proxy.Auth.LogLevel),
+		Level:      hclog.LevelFromString(c.Auth.Local.LogLevel),
 		Name:       "plugin",
 		JSONFormat: jsonFormat,
 		TimeFormat: time.RFC3339,
@@ -274,7 +290,7 @@ func NewPluginClient() *plugin.Client {
 		HandshakeConfig: shared.Handshake,
 		Plugins:         shared.PluginMap,
 		Logger:          logger,
-		Cmd:             exec.Command(c.Proxy.Auth.Command, c.Proxy.Auth.Parameters...),
+		Cmd:             exec.Command(c.Auth.Local.Command, c.Auth.Local.Parameters...),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
 	})

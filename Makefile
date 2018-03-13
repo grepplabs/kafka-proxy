@@ -76,8 +76,8 @@ release: clean build.linux build/osx/$(BINARY)
 	github-release upload -u grepplabs -r $(BINARY) -t $(TAG) -f build/osx/$(BINARY) -n darwin/amd64/$(BINARY)
 	github-release info -u grepplabs -r $(BINARY)
 
-protoc.auth:
-	protoc -I plugin/auth/proto/ plugin/auth/proto/auth.proto --go_out=plugins=grpc:plugin/auth/proto/
+protoc.local-auth:
+	protoc -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=plugins=grpc:plugin/local-auth/proto/
 
 plugin.auth-user:
 	CGO_ENABLED=0 go build -o build/auth-user $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-user/main.go

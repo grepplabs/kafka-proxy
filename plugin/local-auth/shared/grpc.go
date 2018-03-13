@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"github.com/grepplabs/kafka-proxy/plugin/auth/proto"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/proto"
 	"github.com/hashicorp/go-plugin"
 	"golang.org/x/net/context"
 )

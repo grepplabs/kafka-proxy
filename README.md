@@ -82,17 +82,17 @@ See:
                              --proxy-listener-cert-file "server-cert.pem" \
                              --proxy-listener-ca-chain-cert-file "ca.pem" \
                              --proxy-listener-tls-enable \
-                             --proxy-listener-auth-enable \
-                             --proxy-listener-auth-command build/auth-user \
-                             --proxy-listener-auth-param "--username=my-test-user" \
-                             --proxy-listener-auth-param "--password=my-test-password"
+                             --auth-local-enable \
+                             --auth-local-command build/auth-user \
+                             --auth-local-param "--username=my-test-user" \
+                             --auth-local-param "--password=my-test-password"
 
     make clean build plugin.auth-ldap && build/kafka-proxy server \
-                             --proxy-listener-auth-enable \
-                             --proxy-listener-auth-command build/auth-ldap \
-                             --proxy-listener-auth-param "--url=ldaps://ldap.example.com:636" \
-                             --proxy-listener-auth-param "--user-dn=cn=users,dc=exemple,dc=com" \
-                             --proxy-listener-auth-param "--user-attr=uid" \
+                             --auth-local-enable \
+                             --auth-local-command build/auth-ldap \
+                             --auth-local-param "--url=ldaps://ldap.example.com:636" \
+                             --auth-local-param "--user-dn=cn=users,dc=exemple,dc=com" \
+                             --auth-local-param "--user-attr=uid" \
                              --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
 
 

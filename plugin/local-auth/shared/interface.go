@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"github.com/grepplabs/kafka-proxy/plugin/auth/proto"
+	"github.com/grepplabs/kafka-proxy/plugin/local-auth/proto"
 	"github.com/hashicorp/go-plugin"
 	"net/rpc"
 )
