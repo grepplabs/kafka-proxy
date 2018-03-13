@@ -27,7 +27,8 @@ type ProcessorConfig struct {
 	ResponseBufferSize    int
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
-	LocalSasl             *localSasl
+	LocalSasl             *LocalSasl
+	AuthServer            *AuthServer
 	ForbiddenApiKeys      map[int16]struct{}
 }
 
@@ -39,7 +40,8 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
-	localSasl *localSasl
+	localSasl  *LocalSasl
+	authServer *AuthServer
 
 	forbiddenApiKeys map[int16]struct{}
 	// metrics
@@ -76,14 +78,20 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		writeTimeout:          writeTimeout,
 		brokerAddress:         brokerAddress,
 		localSasl:             cfg.LocalSasl,
+		authServer:            cfg.AuthServer,
 		forbiddenApiKeys:      cfg.ForbiddenApiKeys,
 	}
 }
 
 func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
 
+	if p.authServer.enabled {
+		if err = p.authServer.receiveAndSendGatewayAuth(src); err != nil {
+			return true, err
+		}
+	}
 	if p.localSasl.enabled {
-		if err = p.localSasl.auth(src); err != nil {
+		if err = p.localSasl.receiveAndSendSASLPlainAuth(src); err != nil {
 			return true, err
 		}
 	}

@@ -57,23 +57,20 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		}
 	}
 
-	saslPlainAuth := &SASLPlainAuth{
-		clientID:     c.Kafka.ClientID,
-		writeTimeout: c.Kafka.WriteTimeout,
-		readTimeout:  c.Kafka.ReadTimeout,
-		username:     c.Kafka.SASL.Username,
-		password:     c.Kafka.SASL.Password,
-	}
-
-	authClient := &AuthClient{
-		magic:   c.Auth.Gateway.Client.Magic,
-		method:  c.Auth.Gateway.Client.Method,
-		timeout: c.Auth.Gateway.Client.Timeout,
-	}
-
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
-		saslPlainAuth: saslPlainAuth,
-		authClient:    authClient,
+		saslPlainAuth: &SASLPlainAuth{
+			clientID:     c.Kafka.ClientID,
+			writeTimeout: c.Kafka.WriteTimeout,
+			readTimeout:  c.Kafka.ReadTimeout,
+			username:     c.Kafka.SASL.Username,
+			password:     c.Kafka.SASL.Password,
+		},
+		authClient: &AuthClient{
+			enabled: c.Auth.Gateway.Client.Enable,
+			magic:   c.Auth.Gateway.Client.Magic,
+			method:  c.Auth.Gateway.Client.Method,
+			timeout: c.Auth.Gateway.Client.Timeout,
+		},
 		processorConfig: ProcessorConfig{
 			MaxOpenRequests:       c.Kafka.MaxOpenRequests,
 			NetAddressMappingFunc: netAddressMappingFunc,
@@ -81,10 +78,16 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
-			LocalSasl: &localSasl{
+			LocalSasl: &LocalSasl{
 				enabled:            c.Auth.Local.Enable,
 				timeout:            c.Auth.Local.Timeout,
 				localAuthenticator: passwordAuthenticator},
+			AuthServer: &AuthServer{
+				enabled: c.Auth.Gateway.Server.Enable,
+				magic:   c.Auth.Gateway.Server.Magic,
+				method:  c.Auth.Gateway.Server.Method,
+				timeout: c.Auth.Gateway.Server.Timeout,
+			},
 			ForbiddenApiKeys: forbiddenApiKeys,
 		}}, nil
 }

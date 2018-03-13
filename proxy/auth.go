@@ -11,6 +11,7 @@ import (
 )
 
 type AuthClient struct {
+	enabled bool
 	magic   uint64
 	method  string
 	timeout time.Duration
@@ -51,6 +52,7 @@ func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error 
 }
 
 type AuthServer struct {
+	enabled bool
 	magic   uint64
 	method  string
 	timeout time.Duration

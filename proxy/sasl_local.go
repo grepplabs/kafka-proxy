@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-type localSasl struct {
+type LocalSasl struct {
 	enabled            bool
 	timeout            time.Duration
 	localAuthenticator shared.PasswordAuthenticator
 }
 
-func (p *localSasl) auth(conn DeadlineReaderWriter) (err error) {
+func (p *LocalSasl) receiveAndSendSASLPlainAuth(conn DeadlineReaderWriter) (err error) {
 	if err = p.receiveAndSendSasl(conn); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (p *localSasl) auth(conn DeadlineReaderWriter) (err error) {
 	return nil
 }
 
-func (p *localSasl) receiveAndSendSasl(conn DeadlineReaderWriter) (err error) {
+func (p *LocalSasl) receiveAndSendSasl(conn DeadlineReaderWriter) (err error) {
 	requestDeadline := time.Now().Add(p.timeout)
 	err = conn.SetDeadline(requestDeadline)
 	if err != nil {
@@ -89,7 +89,7 @@ func (p *localSasl) receiveAndSendSasl(conn DeadlineReaderWriter) (err error) {
 	return saslResult
 }
 
-func (p *localSasl) receiveAndSendAuth(conn DeadlineReaderWriter) (err error) {
+func (p *LocalSasl) receiveAndSendAuth(conn DeadlineReaderWriter) (err error) {
 	requestDeadline := time.Now().Add(p.timeout)
 	err = conn.SetDeadline(requestDeadline)
 	if err != nil {
