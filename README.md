@@ -203,6 +203,9 @@ spec:
 * [X] Pluggable proxy authentication
 * [X] Deploying Kafka Proxy as a sidecar container
 * [X] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advhost:advport)
+* [ ] Pluggable authentication between client kafka-proxy and broker kafka-proxy
+  1. additional handshake - protocol: magic, method, data
+  2. JWT method
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
