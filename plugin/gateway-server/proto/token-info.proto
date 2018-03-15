@@ -1,0 +1,15 @@
+syntax = "proto3";
+package proto;
+
+message VerifyRequest {
+    string token = 1;
+}
+
+message VerifyResponse {
+    int32 status = 1;
+    string error_message = 2;
+}
+
+service TokenInfo {
+    rpc VerifyToken(VerifyRequest) returns (VerifyResponse);
+}

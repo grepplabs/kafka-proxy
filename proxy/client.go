@@ -3,7 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"net"
@@ -38,7 +38,7 @@ type Client struct {
 	authClient    *AuthClient
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator shared.PasswordAuthenticator) (*Client, error) {
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator apis.PasswordAuthenticator, tokenProvider apis.TokenProvider) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err

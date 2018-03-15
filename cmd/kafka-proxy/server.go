@@ -19,7 +19,8 @@ import (
 	"time"
 
 	"errors"
-	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
+	gatewayclient "github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
+	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
@@ -143,7 +144,7 @@ func init() {
 func Run(_ *cobra.Command, _ []string) {
 	logrus.Infof("Starting kafka-proxy version %s", config.Version)
 
-	var passwordAuthenticator shared.PasswordAuthenticator
+	var passwordAuthenticator localauth.PasswordAuthenticator
 	if c.Auth.Local.Enable {
 		client := NewLocalAuthPluginClient()
 		defer client.Kill()
@@ -157,11 +158,32 @@ func Run(_ *cobra.Command, _ []string) {
 			logrus.Fatal(err)
 		}
 		var ok bool
-		passwordAuthenticator, ok = raw.(shared.PasswordAuthenticator)
+		passwordAuthenticator, ok = raw.(localauth.PasswordAuthenticator)
 		if !ok {
 			logrus.Fatal(errors.New("unsupported plugin type"))
 		}
 	}
+
+	var tokenProvider gatewayclient.TokenProvider
+	if c.Auth.Gateway.Client.Enable {
+		client := NewGatewayClientPluginClient()
+		defer client.Kill()
+
+		rpcClient, err := client.Client()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		raw, err := rpcClient.Dispense("tokenProvider")
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		var ok bool
+		tokenProvider, ok = raw.(gatewayclient.TokenProvider)
+		if !ok {
+			logrus.Fatal(errors.New("unsupported plugin type"))
+		}
+	}
+
 	var g group.Group
 	{
 		// All active connections are stored in this variable.
@@ -175,7 +197,7 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, passwordAuthenticator)
+		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, passwordAuthenticator, tokenProvider)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -274,24 +296,32 @@ func SetLogger() {
 	logrus.SetLevel(level)
 }
 
+func NewGatewayClientPluginClient() *plugin.Client {
+	return NewPluginClient(gatewayclient.Handshake, gatewayclient.PluginMap, c.Auth.Gateway.Client.LogLevel, c.Auth.Gateway.Client.Command, c.Auth.Gateway.Client.Parameters)
+}
+
 func NewLocalAuthPluginClient() *plugin.Client {
+	return NewPluginClient(localauth.Handshake, localauth.PluginMap, c.Auth.Local.LogLevel, c.Auth.Local.Command, c.Auth.Local.Parameters)
+}
+
+func NewPluginClient(handshakeConfig plugin.HandshakeConfig, plugins map[string]plugin.Plugin, logLevel string, command string, params []string) *plugin.Client {
 	jsonFormat := false
 	if c.Log.Format == "json" {
 		jsonFormat = true
 	}
 	logger := hclog.New(&hclog.LoggerOptions{
 		Output:     os.Stdout,
-		Level:      hclog.LevelFromString(c.Auth.Local.LogLevel),
+		Level:      hclog.LevelFromString(logLevel),
 		Name:       "plugin",
 		JSONFormat: jsonFormat,
 		TimeFormat: time.RFC3339,
 	})
 
 	return plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: shared.Handshake,
-		Plugins:         shared.PluginMap,
+		HandshakeConfig: handshakeConfig,
+		Plugins:         plugins,
 		Logger:          logger,
-		Cmd:             exec.Command(c.Auth.Local.Command, c.Auth.Local.Parameters...),
+		Cmd:             exec.Command(command, params...),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
 	})

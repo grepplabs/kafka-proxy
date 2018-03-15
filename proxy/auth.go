@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -15,12 +16,23 @@ type AuthClient struct {
 	magic   uint64
 	method  string
 	timeout time.Duration
+
+	tokenProvider apis.TokenProvider
 }
 
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
-	data := "my-test-google-id-jwt-token"
+	status, data, err := b.tokenProvider.GetToken([]string{})
+	if err != nil {
+		return err
+	}
+	if status != 0 {
+		return fmt.Errorf("get token failed with status: %d", status)
+	}
+	if data == "" {
+		return errors.New("received empty token")
+	}
 
 	length := len(b.method) + 1 + len(data)
 	// 8 - bytes magic, 4 bytes length
@@ -29,7 +41,7 @@ func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error 
 	binary.BigEndian.PutUint32(buf[8:], uint32(length))
 	copy(buf[12:], []byte(b.method+"\x00"+data))
 
-	err := conn.SetDeadline(time.Now().Add(b.timeout))
+	err = conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {
 		return err
 	}
