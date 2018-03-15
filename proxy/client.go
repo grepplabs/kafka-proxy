@@ -136,7 +136,8 @@ func (c *Client) handleConn(conn Conn) {
 		}
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
-	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, "local connection on "+conn.LocalConnection.LocalAddr().String())
+	localDesc := "local connection on " + conn.LocalConnection.LocalAddr().String() + " from " + conn.LocalConnection.RemoteAddr().String()
+	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, localDesc)
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		logrus.Info(err)
 	}

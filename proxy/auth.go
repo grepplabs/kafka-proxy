@@ -20,7 +20,7 @@ type AuthClient struct {
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
-	data := "my-test-jwt-token"
+	data := "my-test-google-id-jwt-token"
 
 	length := len(b.method) + 1 + len(data)
 	// 8 - bytes magic, 4 bytes length
@@ -60,6 +60,8 @@ type AuthServer struct {
 
 //TODO: reset deadlines after method - ok
 func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error {
+	logrus.Infof("received gateway handshake")
+
 	err := conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {
 		return err
@@ -72,21 +74,22 @@ func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error 
 
 	magic := binary.BigEndian.Uint64(headerBuf[:8])
 	if magic != b.magic {
-		return errors.Wrap(err, "gateway handshake magic bytes mismatch")
+		return errors.New("gateway handshake magic bytes mismatch")
 	}
 
 	length := binary.BigEndian.Uint32(headerBuf[8:])
-	payload := make([]byte, length-4)
+
+	payload := make([]byte, length)
 	_, err = io.ReadFull(conn, payload)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read gateway handshake payload")
+		return errors.Wrap(err, "failed to read gateway handshake payload")
 	}
 	tokens := strings.Split(string(payload), "\x00")
 	if len(tokens) != 2 {
 		return fmt.Errorf("invalid gateway handshake: expected 2 tokens, got %d", len(tokens))
 	}
 	if tokens[0] != b.method {
-		return errors.Wrap(err, fmt.Sprintf("gateway handshake method mismatch: expected %s , got %s", b.method, tokens[0]))
+		return fmt.Errorf("gateway handshake method mismatch: expected %s , got %s", b.method, tokens[0])
 	}
 	data := tokens[1]
 	// TODO: use data for authentication
