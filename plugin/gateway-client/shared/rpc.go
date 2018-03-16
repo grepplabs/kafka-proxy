@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"net/rpc"
 )
 
@@ -15,7 +16,7 @@ func (m *RPCClient) GetToken(claims []string) (int32, string, error) {
 }
 
 type RPCServer struct {
-	Impl TokenProvider
+	Impl apis.TokenProvider
 }
 
 func (m *RPCServer) GetToken(args map[string]interface{}, resp *map[string]interface{}) error {

@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/plugin/gateway-client/proto"
 	"github.com/hashicorp/go-plugin"
 	"golang.org/x/net/context"
@@ -12,8 +13,8 @@ type GRPCClient struct {
 	client proto.TokenProviderClient
 }
 
-func (m *GRPCClient) GetToken(username, password string) (int32, string, error) {
-	resp, err := m.client.GetToken(context.Background(), &proto.TokenRequest{})
+func (m *GRPCClient) GetToken(claims []string) (int32, string, error) {
+	resp, err := m.client.GetToken(context.Background(), &proto.TokenRequest{Claims: claims})
 	if err != nil {
 		return 0, "", err
 	}
@@ -23,7 +24,7 @@ func (m *GRPCClient) GetToken(username, password string) (int32, string, error) 
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	broker *plugin.GRPCBroker
-	Impl   TokenProvider
+	Impl   apis.TokenProvider
 }
 
 func (m *GRPCServer) GetToken(

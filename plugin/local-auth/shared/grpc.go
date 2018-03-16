@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/plugin/local-auth/proto"
 	"github.com/hashicorp/go-plugin"
 	"golang.org/x/net/context"
@@ -26,7 +27,7 @@ func (m *GRPCClient) Authenticate(username, password string) (bool, int32, error
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	broker *plugin.GRPCBroker
-	Impl   PasswordAuthenticator
+	Impl   apis.PasswordAuthenticator
 }
 
 func (m *GRPCServer) Authenticate(

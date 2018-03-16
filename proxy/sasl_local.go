@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"io"
 	"strconv"
@@ -16,7 +16,7 @@ import (
 type LocalSasl struct {
 	enabled            bool
 	timeout            time.Duration
-	localAuthenticator shared.PasswordAuthenticator
+	localAuthenticator apis.PasswordAuthenticator
 }
 
 func (p *LocalSasl) receiveAndSendSASLPlainAuth(conn DeadlineReaderWriter) (err error) {

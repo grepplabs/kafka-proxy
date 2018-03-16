@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"errors"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	gatewayclient "github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
@@ -144,7 +145,7 @@ func init() {
 func Run(_ *cobra.Command, _ []string) {
 	logrus.Infof("Starting kafka-proxy version %s", config.Version)
 
-	var passwordAuthenticator localauth.PasswordAuthenticator
+	var passwordAuthenticator apis.PasswordAuthenticator
 	if c.Auth.Local.Enable {
 		client := NewLocalAuthPluginClient()
 		defer client.Kill()
@@ -158,13 +159,13 @@ func Run(_ *cobra.Command, _ []string) {
 			logrus.Fatal(err)
 		}
 		var ok bool
-		passwordAuthenticator, ok = raw.(localauth.PasswordAuthenticator)
+		passwordAuthenticator, ok = raw.(apis.PasswordAuthenticator)
 		if !ok {
 			logrus.Fatal(errors.New("unsupported plugin type"))
 		}
 	}
 
-	var tokenProvider gatewayclient.TokenProvider
+	var tokenProvider apis.TokenProvider
 	if c.Auth.Gateway.Client.Enable {
 		client := NewGatewayClientPluginClient()
 		defer client.Kill()
@@ -178,7 +179,7 @@ func Run(_ *cobra.Command, _ []string) {
 			logrus.Fatal(err)
 		}
 		var ok bool
-		tokenProvider, ok = raw.(gatewayclient.TokenProvider)
+		tokenProvider, ok = raw.(apis.TokenProvider)
 		if !ok {
 			logrus.Fatal(errors.New("unsupported plugin type"))
 		}

@@ -91,8 +91,10 @@ plugin.auth-user:
 plugin.auth-ldap:
 	CGO_ENABLED=0 go build -o build/auth-ldap $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-ldap/main.go
 
-plugin.googleid-provider:
-	CGO_ENABLED=0 go build -o build/googleid-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-provider/main.go
+plugin.google-id-provider:
+	CGO_ENABLED=0 go build -o build/google-id-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-provider/main.go
+
+all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider
 
 clean:
 	@rm -rf build

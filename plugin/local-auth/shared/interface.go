@@ -5,6 +5,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/plugin/local-auth/proto"
 	"github.com/hashicorp/go-plugin"
 	"net/rpc"
@@ -21,12 +22,8 @@ var PluginMap = map[string]plugin.Plugin{
 	"passwordAuthenticator": &PasswordAuthenticatorPlugin{},
 }
 
-type PasswordAuthenticator interface {
-	Authenticate(username, password string) (bool, int32, error)
-}
-
 type PasswordAuthenticatorPlugin struct {
-	Impl PasswordAuthenticator
+	Impl apis.PasswordAuthenticator
 }
 
 func (p *PasswordAuthenticatorPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {

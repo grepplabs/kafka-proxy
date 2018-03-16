@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"net/rpc"
 )
 
@@ -16,7 +17,7 @@ func (m *RPCClient) Authenticate(username, password string) (bool, int32, error)
 }
 
 type RPCServer struct {
-	Impl PasswordAuthenticator
+	Impl apis.PasswordAuthenticator
 }
 
 func (m *RPCServer) Authenticate(args map[string]interface{}, resp *map[string]interface{}) error {

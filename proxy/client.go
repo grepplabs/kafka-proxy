@@ -56,6 +56,13 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			forbiddenApiKeys[int16(apiKey)] = struct{}{}
 		}
 	}
+	if c.Auth.Local.Enable && passwordAuthenticator == nil {
+		return nil, errors.New("Auth.Local.Enable is enabled but passwordAuthenticator is nil")
+	}
+
+	if c.Auth.Gateway.Client.Enable && tokenProvider == nil {
+		return nil, errors.New("Auth.Gateway.Client.Enable is enabled but tokenProvider is nil")
+	}
 
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
 		saslPlainAuth: &SASLPlainAuth{
@@ -66,10 +73,11 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			password:     c.Kafka.SASL.Password,
 		},
 		authClient: &AuthClient{
-			enabled: c.Auth.Gateway.Client.Enable,
-			magic:   c.Auth.Gateway.Client.Magic,
-			method:  c.Auth.Gateway.Client.Method,
-			timeout: c.Auth.Gateway.Client.Timeout,
+			enabled:       c.Auth.Gateway.Client.Enable,
+			magic:         c.Auth.Gateway.Client.Magic,
+			method:        c.Auth.Gateway.Client.Method,
+			timeout:       c.Auth.Gateway.Client.Timeout,
+			tokenProvider: tokenProvider,
 		},
 		processorConfig: ProcessorConfig{
 			MaxOpenRequests:       c.Kafka.MaxOpenRequests,

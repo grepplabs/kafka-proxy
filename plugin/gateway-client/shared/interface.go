@@ -5,6 +5,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/plugin/gateway-client/proto"
 	"github.com/hashicorp/go-plugin"
 	"net/rpc"
@@ -21,12 +22,8 @@ var PluginMap = map[string]plugin.Plugin{
 	"tokenProvider": &TokenProviderPlugin{},
 }
 
-type TokenProvider interface {
-	GetToken(claims []string) (int32, string, error)
-}
-
 type TokenProviderPlugin struct {
-	Impl TokenProvider
+	Impl apis.TokenProvider
 }
 
 func (p *TokenProviderPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {

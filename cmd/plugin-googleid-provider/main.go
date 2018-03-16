@@ -51,8 +51,9 @@ func (f *TokenProvider) flagSet() *flag.FlagSet {
 func main() {
 	tokenProvider := &TokenProvider{}
 	fs := tokenProvider.flagSet()
-	fs.Parse(os.Args[1:])
 	fs.IntVar(&tokenProvider.timeout, "timeout", 5, "Request timeout")
+
+	fs.Parse(os.Args[1:])
 
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: shared.Handshake,
