@@ -7,12 +7,12 @@ import (
 
 type RPCClient struct{ client *rpc.Client }
 
-func (m *RPCClient) GetToken(claims []string) (int32, string, error) {
+func (m *RPCClient) GetToken(request apis.TokenRequest) (apis.TokenResponse, error) {
 	var resp map[string]interface{}
 	err := m.client.Call("Plugin.GetToken", map[string]interface{}{
-		"claims": claims,
+		"params": request.Params,
 	}, &resp)
-	return resp["status"].(int32), resp["token"].(string), err
+	return apis.TokenResponse{Success: resp["success"].(bool), Status: resp["status"].(int32), Token: resp["token"].(string)}, err
 }
 
 type RPCServer struct {
@@ -20,10 +20,12 @@ type RPCServer struct {
 }
 
 func (m *RPCServer) GetToken(args map[string]interface{}, resp *map[string]interface{}) error {
-	s, t, err := m.Impl.GetToken(args["claims"].([]string))
+
+	r, err := m.Impl.GetToken(apis.TokenRequest{Params: args["params"].([]string)})
 	*resp = map[string]interface{}{
-		"status": s,
-		"token":  t,
+		"success": r.Success,
+		"status":  r.Status,
+		"token":   r.Token,
 	}
 	return err
 }

@@ -13,12 +13,9 @@ type GRPCClient struct {
 	client proto.TokenProviderClient
 }
 
-func (m *GRPCClient) GetToken(claims []string) (int32, string, error) {
-	resp, err := m.client.GetToken(context.Background(), &proto.TokenRequest{Claims: claims})
-	if err != nil {
-		return 0, "", err
-	}
-	return resp.Status, resp.Token, nil
+func (m *GRPCClient) GetToken(request apis.TokenRequest) (apis.TokenResponse, error) {
+	resp, err := m.client.GetToken(context.Background(), &proto.TokenRequest{Params: request.Params})
+	return apis.TokenResponse{Success: resp.Success, Status: resp.Status, Token: resp.Token}, err
 }
 
 // Here is the gRPC server that GRPCClient talks to.
@@ -30,6 +27,6 @@ type GRPCServer struct {
 func (m *GRPCServer) GetToken(
 	ctx context.Context,
 	req *proto.TokenRequest) (*proto.TokenResponse, error) {
-	s, t, err := m.Impl.GetToken(req.Claims)
-	return &proto.TokenResponse{Status: s, Token: t}, err
+	resp, err := m.Impl.GetToken(apis.TokenRequest{Params: req.Params})
+	return &proto.TokenResponse{Success: resp.Success, Status: resp.Status, Token: resp.Token}, err
 }

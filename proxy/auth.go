@@ -23,16 +23,18 @@ type AuthClient struct {
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
-	status, data, err := b.tokenProvider.GetToken([]string{})
+	resp, err := b.tokenProvider.GetToken(apis.TokenRequest{})
 	if err != nil {
 		return err
 	}
-	if status != 0 {
-		return fmt.Errorf("get token failed with status: %d", status)
+	if !resp.Success {
+		return fmt.Errorf("get token unsuccessful with status: %d", resp.Status)
 	}
-	if data == "" {
-		return errors.New("received empty token")
+	if resp.Token == "" {
+		return errors.New("get token returned empty token")
 	}
+	data := resp.Token
+	logrus.Info(data)
 
 	length := len(b.method) + 1 + len(data)
 	// 8 - bytes magic, 4 bytes length

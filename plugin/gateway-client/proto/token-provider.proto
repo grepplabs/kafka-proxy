@@ -2,12 +2,13 @@ syntax = "proto3";
 package proto;
 
 message TokenRequest {
-    repeated string claims = 1;
+    repeated string params = 1;
 }
 
 message TokenResponse {
-    int32 status = 1;
-    string token = 2;
+    bool success = 1;
+    int32 status = 2;
+    string token = 3;
     // TODO: expiry ?
 }
 

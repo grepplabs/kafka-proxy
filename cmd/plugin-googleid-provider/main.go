@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
 	"github.com/hashicorp/go-plugin"
 	"golang.org/x/oauth2/google"
@@ -18,29 +19,29 @@ type TokenProvider struct {
 //TODO: caching, expiry
 //TODO: refresh in the half of time
 //TODO: send claims
-func (p TokenProvider) GetToken(claims []string) (int32, string, error) {
+func (p TokenProvider) GetToken(request apis.TokenRequest) (apis.TokenResponse, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
 	defer cancel()
 
 	tokenSource, err := google.DefaultTokenSource(ctx, oauth2.UserinfoEmailScope)
 	if err != nil {
-		return tokenResponse(1, "")
+		return tokenResponse(false, 1, "")
 	}
 	token, err := tokenSource.Token()
 	if err != nil {
-		return tokenResponse(2, "")
+		return tokenResponse(false, 2, "")
 	}
 	if token.Extra("id_token") == nil {
-		return tokenResponse(3, "")
+		return tokenResponse(false, 3, "")
 	}
 	idToken := token.Extra("id_token").(string)
-	return tokenResponse(0, idToken)
+	return tokenResponse(true, 0, idToken)
 
 }
 
-func tokenResponse(status int32, token string) (int32, string, error) {
-	return status, token, nil
+func tokenResponse(success bool, status int32, token string) (apis.TokenResponse, error) {
+	return apis.TokenResponse{Success: success, Status: status, Token: token}, nil
 }
 
 func (f *TokenProvider) flagSet() *flag.FlagSet {
