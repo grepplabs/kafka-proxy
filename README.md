@@ -206,6 +206,7 @@ spec:
 * [ ] Pluggable authentication between client kafka-proxy and broker kafka-proxy a.k.a kafka-gateway
   1. additional handshake - protocol: magic, method, data
   2. google-id method
+* [ ] Registry for built in plugins (avoid grpc communication)
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests

@@ -1,9 +1,11 @@
 package proxy
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"testing"
@@ -18,31 +20,46 @@ func TestAuthHandshake(t *testing.T) {
 
 	fmt.Println(magic)
 
+	tokenProvider := &testTokenProvider{response: apis.TokenResponse{
+		Success: true,
+		Token:   "my-test-token",
+	}}
+
 	client := &AuthClient{
-		enabled: true,
-		magic:   magic,
-		method:  "google-id",
-		timeout: 10 * time.Second,
+		enabled:       true,
+		magic:         magic,
+		method:        "google-id",
+		timeout:       10 * time.Second,
+		tokenProvider: tokenProvider,
 	}
 
+	//TODO: implement verify
 	server := &AuthServer{
 		enabled: true,
 		magic:   magic,
 		method:  "google-id",
 		timeout: 10 * time.Second,
 	}
-	c1, c2, _, err := makePipe()
+	c1, c2, stop, err := makePipe()
 	a.Nil(err)
+	defer stop()
 
-	//TODO: check recieved toke and bytes dataCh <- wr.Bytes()
-	//     sendAndReceiveGatewayAuth <=> can return 4 bytes to check
-	//TODO: pipe writes to c1, c2
 	go func() {
 		cerr := client.sendAndReceiveGatewayAuth(c1)
 		a.Nil(cerr)
 	}()
 	serr := server.receiveAndSendGatewayAuth(c2)
 	a.Nil(serr)
+}
+
+type testTokenProvider struct {
+	response apis.TokenResponse
+	err      error
+}
+
+// Implements apis.TokenProvider.GetToken
+func (p *testTokenProvider) GetToken(ctx context.Context, request apis.TokenRequest) (apis.TokenResponse, error) {
+	return p.response, p.err
 }
 
 func makePipe() (c1, c2 net.Conn, stop func(), err error) {

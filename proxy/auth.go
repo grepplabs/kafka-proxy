@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
@@ -9,7 +10,6 @@ import (
 	"io"
 	"strings"
 	"time"
-	"context"
 )
 
 type AuthClient struct {
@@ -24,23 +24,20 @@ type AuthClient struct {
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
-	/*
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
-	defer cancel()
-   */
+	//	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
+	//	defer cancel()
 
 	resp, err := b.tokenProvider.GetToken(context.Background(), apis.TokenRequest{})
 	if err != nil {
 		return err
 	}
 	if !resp.Success {
-		return fmt.Errorf("get token unsuccessful with status: %d", resp.Status)
+		return fmt.Errorf("get token failed with status: %d", resp.Status)
 	}
 	if resp.Token == "" {
 		return errors.New("get token returned empty token")
 	}
 	data := resp.Token
-	logrus.Info(data)
 
 	length := len(b.method) + 1 + len(data)
 	// 8 - bytes magic, 4 bytes length

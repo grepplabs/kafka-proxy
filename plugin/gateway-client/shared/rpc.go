@@ -1,9 +1,9 @@
 package shared
 
 import (
+	"context"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"net/rpc"
-	"context"
 )
 
 type RPCClient struct{ client *rpc.Client }
