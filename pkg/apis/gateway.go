@@ -1,5 +1,9 @@
 package apis
 
+import (
+	"context"
+)
+
 type TokenRequest struct {
 	Params []string
 }
@@ -10,5 +14,5 @@ type TokenResponse struct {
 }
 
 type TokenProvider interface {
-	GetToken(request TokenRequest) (TokenResponse, error)
+	GetToken(ctx context.Context, request TokenRequest) (TokenResponse, error)
 }

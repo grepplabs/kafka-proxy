@@ -9,7 +9,6 @@ message TokenResponse {
     bool success = 1;
     int32 status = 2;
     string token = 3;
-    // TODO: expiry ?
 }
 
 service TokenProvider {

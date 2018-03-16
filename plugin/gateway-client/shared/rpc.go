@@ -3,6 +3,7 @@ package shared
 import (
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"net/rpc"
+	"context"
 )
 
 type RPCClient struct{ client *rpc.Client }
@@ -21,7 +22,7 @@ type RPCServer struct {
 
 func (m *RPCServer) GetToken(args map[string]interface{}, resp *map[string]interface{}) error {
 
-	r, err := m.Impl.GetToken(apis.TokenRequest{Params: args["params"].([]string)})
+	r, err := m.Impl.GetToken(context.Background(), apis.TokenRequest{Params: args["params"].([]string)})
 	*resp = map[string]interface{}{
 		"success": r.Success,
 		"status":  r.Status,

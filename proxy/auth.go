@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"context"
 )
 
 type AuthClient struct {
@@ -23,7 +24,12 @@ type AuthClient struct {
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: retrieve from plugin (with timeout)
-	resp, err := b.tokenProvider.GetToken(apis.TokenRequest{})
+	/*
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
+	defer cancel()
+   */
+
+	resp, err := b.tokenProvider.GetToken(context.Background(), apis.TokenRequest{})
 	if err != nil {
 		return err
 	}

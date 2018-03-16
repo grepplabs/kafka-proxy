@@ -17,11 +17,11 @@ type TokenProvider struct {
 }
 
 //TODO: caching, expiry
-//TODO: refresh in the half of time
-//TODO: send claims
-func (p TokenProvider) GetToken(request apis.TokenRequest) (apis.TokenResponse, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
+//TODO: go routine - on startup, refresh in the half of time (back off - > use the backoff lib)
+//TODO: read / write mutex
+//TODO: const status codes + prometheus metrics
+func (p TokenProvider) GetToken(parent context.Context, request apis.TokenRequest) (apis.TokenResponse, error) {
+	ctx, cancel := context.WithTimeout(parent, time.Duration(p.timeout)*time.Second)
 	defer cancel()
 
 	tokenSource, err := google.DefaultTokenSource(ctx, oauth2.UserinfoEmailScope)
@@ -52,7 +52,7 @@ func (f *TokenProvider) flagSet() *flag.FlagSet {
 func main() {
 	tokenProvider := &TokenProvider{}
 	fs := tokenProvider.flagSet()
-	fs.IntVar(&tokenProvider.timeout, "timeout", 5, "Request timeout")
+	fs.IntVar(&tokenProvider.timeout, "timeout", 5, "Request timeout in seconds")
 
 	fs.Parse(os.Args[1:])
 
