@@ -21,6 +21,7 @@ import (
 	"errors"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	gatewayclient "github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
+	gatewayserver "github.com/grepplabs/kafka-proxy/plugin/gateway-server/shared"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -161,7 +162,7 @@ func Run(_ *cobra.Command, _ []string) {
 		var ok bool
 		passwordAuthenticator, ok = raw.(apis.PasswordAuthenticator)
 		if !ok {
-			logrus.Fatal(errors.New("unsupported plugin type"))
+			logrus.Fatal(errors.New("unsupported PasswordAuthenticator plugin type"))
 		}
 	}
 
@@ -181,7 +182,27 @@ func Run(_ *cobra.Command, _ []string) {
 		var ok bool
 		tokenProvider, ok = raw.(apis.TokenProvider)
 		if !ok {
-			logrus.Fatal(errors.New("unsupported plugin type"))
+			logrus.Fatal(errors.New("unsupported TokenProvider plugin type"))
+		}
+	}
+
+	var tokenInfo apis.TokenInfo
+	if c.Auth.Gateway.Server.Enable {
+		client := NewGatewayServerPluginClient()
+		defer client.Kill()
+
+		rpcClient, err := client.Client()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		raw, err := rpcClient.Dispense("tokenInfo")
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		var ok bool
+		tokenInfo, ok = raw.(apis.TokenInfo)
+		if !ok {
+			logrus.Fatal(errors.New("unsupported TokenInfo plugin type"))
 		}
 	}
 
@@ -198,7 +219,7 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, passwordAuthenticator, tokenProvider)
+		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, passwordAuthenticator, tokenProvider, tokenInfo)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -300,7 +321,9 @@ func SetLogger() {
 func NewGatewayClientPluginClient() *plugin.Client {
 	return NewPluginClient(gatewayclient.Handshake, gatewayclient.PluginMap, c.Auth.Gateway.Client.LogLevel, c.Auth.Gateway.Client.Command, c.Auth.Gateway.Client.Parameters)
 }
-
+func NewGatewayServerPluginClient() *plugin.Client {
+	return NewPluginClient(gatewayserver.Handshake, gatewayserver.PluginMap, c.Auth.Gateway.Server.LogLevel, c.Auth.Gateway.Server.Command, c.Auth.Gateway.Server.Parameters)
+}
 func NewLocalAuthPluginClient() *plugin.Client {
 	return NewPluginClient(localauth.Handshake, localauth.PluginMap, c.Auth.Local.LogLevel, c.Auth.Local.Command, c.Auth.Local.Parameters)
 }

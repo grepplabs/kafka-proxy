@@ -197,7 +197,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 		if err != nil {
 			return true, err
 		}
-
+		// logrus.Printf("Kafka response length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 		responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, netAddressMappingFunc)
 		if err != nil {
 			return true, err

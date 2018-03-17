@@ -38,12 +38,15 @@ build: build/$(BINARY)
 
 build/$(BINARY): $(SOURCES)
 	CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	CGO_ENABLED=0 go build -o build/google-id-info $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-info/main.go
 
 build/linux/$(BINARY): $(SOURCES)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/linux/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/linux/google-id-info $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-info/main.go
 
 build/osx/$(BINARY): $(SOURCES)
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o build/osx/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o build/linux/google-id-info $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-info/main.go
 
 build.docker-build: $(BUILD_DOCKER_BUILD)
 
@@ -55,6 +58,7 @@ build.docker-build.linux:
     echo "containerId: $$buildContainer" ;\
     mkdir -p build ;\
     docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/linux/${BINARY} build/${BINARY} ;\
+    docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/linux/google-id-info build/google-id-info ;\
     docker rm $$buildContainer ;\
     docker rmi $$buildContainerName ;\
 
@@ -66,6 +70,7 @@ build.docker-build.osx:
     echo "containerId: $$buildContainer" ;\
     mkdir -p build ;\
     docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/osx/${BINARY} build/${BINARY} ;\
+    docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/linux/google-id-info build/google-id-info ;\
     docker rm $$buildContainer ;\
     docker rmi $$buildContainerName ;\
 
@@ -94,7 +99,10 @@ plugin.auth-ldap:
 plugin.google-id-provider:
 	CGO_ENABLED=0 go build -o build/google-id-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-provider/main.go
 
-all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider
+plugin.google-id-info:
+	CGO_ENABLED=0 go build -o build/google-id-info $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-info/main.go
+
+all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider plugin.google-id-info
 
 clean:
 	@rm -rf build

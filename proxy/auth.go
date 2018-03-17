@@ -23,7 +23,7 @@ type AuthClient struct {
 
 //TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
-	//TODO: retrieve from plugin (with timeout)
+	//TODO: timeout
 	//	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
 	//	defer cancel()
 
@@ -73,12 +73,12 @@ type AuthServer struct {
 	magic   uint64
 	method  string
 	timeout time.Duration
+
+	tokenInfo apis.TokenInfo
 }
 
 //TODO: reset deadlines after method - ok
 func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error {
-	logrus.Infof("received gateway handshake")
-
 	err := conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {
 		return err
@@ -109,8 +109,17 @@ func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error 
 		return fmt.Errorf("gateway handshake method mismatch: expected %s , got %s", b.method, tokens[0])
 	}
 	data := tokens[1]
-	// TODO: use data for authentication
-	_ = data
+
+	//TODO: timeout
+	//	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
+	//	defer cancel()
+	resp, err := b.tokenInfo.VerifyToken(context.Background(), apis.VerifyRequest{Token: data})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("verify token failed with status: %d", resp.Status)
+	}
 
 	logrus.Infof("gateway handshake payload: %s", data)
 

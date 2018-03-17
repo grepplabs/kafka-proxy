@@ -3,7 +3,7 @@ sudo: false
 language: go
 
 go:
-  - "1.9.x"
+  - "1.10.x"
 
 env:
   global:
@@ -24,6 +24,7 @@ notifications:
 
 script:
   - go build .
+  - go build -o google-id-info cmd/plugin-googleid-info/main.go
   - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"; fi`
   - docker build -t $REPO:$TAG -f Dockerfile .
 

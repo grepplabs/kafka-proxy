@@ -38,7 +38,7 @@ type Client struct {
 	authClient    *AuthClient
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator apis.PasswordAuthenticator, tokenProvider apis.TokenProvider) (*Client, error) {
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator apis.PasswordAuthenticator, tokenProvider apis.TokenProvider, tokenInfo apis.TokenInfo) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
@@ -62,6 +62,9 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 
 	if c.Auth.Gateway.Client.Enable && tokenProvider == nil {
 		return nil, errors.New("Auth.Gateway.Client.Enable is enabled but tokenProvider is nil")
+	}
+	if c.Auth.Gateway.Server.Enable && tokenInfo == nil {
+		return nil, errors.New("Auth.Gateway.Server.Enable is enabled but tokenInfo is nil")
 	}
 
 	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
@@ -91,10 +94,11 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 				timeout:            c.Auth.Local.Timeout,
 				localAuthenticator: passwordAuthenticator},
 			AuthServer: &AuthServer{
-				enabled: c.Auth.Gateway.Server.Enable,
-				magic:   c.Auth.Gateway.Server.Magic,
-				method:  c.Auth.Gateway.Server.Method,
-				timeout: c.Auth.Gateway.Server.Timeout,
+				enabled:   c.Auth.Gateway.Server.Enable,
+				magic:     c.Auth.Gateway.Server.Magic,
+				method:    c.Auth.Gateway.Server.Method,
+				timeout:   c.Auth.Gateway.Server.Timeout,
+				tokenInfo: tokenInfo,
 			},
 			ForbiddenApiKeys: forbiddenApiKeys,
 		}}, nil

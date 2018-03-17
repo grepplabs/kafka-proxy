@@ -1,7 +1,8 @@
 # Build
 build/
 /kafka-proxy
-testcerts/
+/google-id-info
+/google-id-provider
 
 # Intellij
 .idea/

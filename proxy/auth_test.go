@@ -25,6 +25,10 @@ func TestAuthHandshake(t *testing.T) {
 		Token:   "my-test-token",
 	}}
 
+	tokenInfo := &testTokenInfo{
+		token: "my-test-token",
+	}
+
 	client := &AuthClient{
 		enabled:       true,
 		magic:         magic,
@@ -35,10 +39,11 @@ func TestAuthHandshake(t *testing.T) {
 
 	//TODO: implement verify
 	server := &AuthServer{
-		enabled: true,
-		magic:   magic,
-		method:  "google-id",
-		timeout: 10 * time.Second,
+		enabled:   true,
+		magic:     magic,
+		method:    "google-id",
+		timeout:   10 * time.Second,
+		tokenInfo: tokenInfo,
 	}
 	c1, c2, stop, err := makePipe()
 	a.Nil(err)
@@ -60,6 +65,19 @@ type testTokenProvider struct {
 // Implements apis.TokenProvider.GetToken
 func (p *testTokenProvider) GetToken(ctx context.Context, request apis.TokenRequest) (apis.TokenResponse, error) {
 	return p.response, p.err
+}
+
+type testTokenInfo struct {
+	token string
+	err   error
+}
+
+// Implements apis.TokenProvider.GetToken
+func (p *testTokenInfo) VerifyToken(ctx context.Context, request apis.VerifyRequest) (apis.VerifyResponse, error) {
+	if p.token == request.Token {
+		return apis.VerifyResponse{Success: true}, p.err
+	}
+	return apis.VerifyResponse{Success: false}, p.err
 }
 
 func makePipe() (c1, c2 net.Conn, stop func(), err error) {

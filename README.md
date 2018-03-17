@@ -203,7 +203,7 @@ spec:
 * [X] Pluggable proxy authentication
 * [X] Deploying Kafka Proxy as a sidecar container
 * [X] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advhost:advport)
-* [ ] Pluggable authentication between client kafka-proxy and broker kafka-proxy a.k.a kafka-gateway
+* [X] Pluggable authentication between client kafka-proxy and broker kafka-proxy a.k.a kafka-gateway
   1. additional handshake - protocol: magic, method, data
   2. google-id method
 * [ ] Registry for built in plugins (avoid grpc communication)

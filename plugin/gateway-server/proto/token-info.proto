@@ -3,11 +3,12 @@ package proto;
 
 message VerifyRequest {
     string token = 1;
+    repeated string params = 2;
 }
 
 message VerifyResponse {
-    int32 status = 1;
-    string error_message = 2;
+    bool success = 1;
+    int32 status = 2;
 }
 
 service TokenInfo {
