@@ -31,6 +31,7 @@ const (
 	StatusTokenTooEarly           = 8
 	StatusTokenExpired            = 9
 	StatusWrongAudience           = 10
+	StatusWrongEmail              = 11
 )
 
 var (
@@ -46,6 +47,7 @@ var (
 type TokenInfo struct {
 	timeout  time.Duration
 	audience map[string]struct{}
+	emails   map[string]struct{}
 
 	publicKeys map[string]*rsa.PublicKey
 	l          sync.RWMutex
@@ -137,6 +139,9 @@ func (p *TokenInfo) VerifyToken(parent context.Context, request apis.VerifyReque
 			return getVerifyResponseResponse(StatusWrongAudience)
 		}
 	}
+	if _, ok := p.emails[token.ClaimSet.Email]; !ok {
+		return getVerifyResponseResponse(StatusWrongEmail)
+	}
 	publicKey := p.getPublicKey(token.Header.KeyID)
 
 	if publicKey == nil {
@@ -163,6 +168,7 @@ type pluginMeta struct {
 	timeout              int
 	certsRefreshInterval int
 	audience             arrayFlags
+	emails               arrayFlags
 }
 
 type arrayFlags []string
@@ -176,26 +182,39 @@ func (i *arrayFlags) Set(value string) error {
 	return nil
 }
 
+func (i *arrayFlags) asMap() map[string]struct{} {
+	result := make(map[string]struct{})
+	for _, elem := range *i {
+		result[elem] = struct{}{}
+	}
+	return result
+}
+
 func main() {
-	pluginMeta := pluginMeta{}
+	pluginMeta := &pluginMeta{}
 	fs := pluginMeta.flagSet()
 	fs.IntVar(&pluginMeta.timeout, "timeout", 10, "Request timeout in seconds")
 	fs.IntVar(&pluginMeta.certsRefreshInterval, "certs-refresh-interval", 60*60, "Certificates refresh interval in seconds")
 
 	fs.Var(&pluginMeta.audience, "audience", "The audience of a token")
+	fs.Var(&pluginMeta.emails, "email", "Email claim")
 
 	fs.Parse(os.Args[1:])
 
-	audience := make(map[string]struct{})
-	for _, aud := range pluginMeta.audience {
-		if aud == "" {
-			logrus.Errorf("empty audience value: %v", pluginMeta.audience)
-			os.Exit(1)
-		}
-		audience[aud] = struct{}{}
-	}
+	logrus.Infof("Plugin metadata %v", pluginMeta)
+
+	audience := pluginMeta.audience.asMap()
+	emails := pluginMeta.emails.asMap()
+
 	logrus.Infof("JWT target audience: %v", audience)
-	tokenInfo := &TokenInfo{timeout: time.Duration(pluginMeta.timeout) * time.Second, audience: audience}
+	logrus.Infof("JWT allowed emails: %v", emails)
+
+	if len(emails) == 0 {
+		logrus.Errorf("parameter email is required")
+		os.Exit(1)
+	}
+
+	tokenInfo := &TokenInfo{timeout: time.Duration(pluginMeta.timeout) * time.Second, audience: audience, emails: emails}
 
 	op := func() error {
 		return tokenInfo.refreshCerts()

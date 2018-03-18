@@ -304,7 +304,7 @@ type pluginMeta struct {
 }
 
 func main() {
-	pluginMeta := pluginMeta{}
+	pluginMeta := &pluginMeta{}
 	fs := pluginMeta.flagSet()
 	fs.IntVar(&pluginMeta.timeout, "timeout", 10, "Request timeout in seconds")
 	fs.BoolVar(&pluginMeta.adc, "adc", false, "Use Google Application Default Credentials instead of ServiceAccount JSON")
