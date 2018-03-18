@@ -8,7 +8,7 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.0.1"
+TAG           ?= "v0.0.2"
 
 PLATFORM      ?= $(shell uname -s)
 ifeq ($(PLATFORM), Darwin)

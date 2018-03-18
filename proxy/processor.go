@@ -18,6 +18,10 @@ const (
 	defaultWriteTimeout       = 30 * time.Second
 	defaultReadTimeout        = 30 * time.Second
 	minOpenRequests           = 1
+
+	apiKeyUnset         = int16(-1) // not in protocol
+	apiKeySaslAuth      = int16(-2) // not in protocol
+	apiKeySaslHandshake = int16(17)
 )
 
 type ProcessorConfig struct {
@@ -108,8 +112,16 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
 	buf := make([]byte, bufSize)
-
+	lastApiKey := apiKeyUnset
+nextRequest:
 	for {
+		if lastApiKey == apiKeySaslHandshake {
+			lastApiKey = apiKeySaslAuth
+			if readErr, err = copySaslAuthRequest(dst, src, timeout, buf); err != nil {
+				return readErr, err
+			}
+			continue nextRequest
+		}
 		// logrus.Println("Await Kafka request")
 
 		// waiting for first bytes or EOF - reset deadlines
@@ -124,7 +136,7 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 		if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
 			return true, err
 		}
-		// logrus.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+		//logrus.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
 
 		proxyRequestsTotal.WithLabelValues(brokerAddress, strconv.Itoa(int(requestKeyVersion.ApiKey)), strconv.Itoa(int(requestKeyVersion.ApiVersion))).Inc()
 		proxyRequestsBytes.WithLabelValues(brokerAddress).Add(float64(requestKeyVersion.Length + 4))
@@ -156,6 +168,8 @@ func requestsLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel ch
 		if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-4), buf); err != nil {
 			return readErr, err
 		}
+
+		lastApiKey = requestKeyVersion.ApiKey
 	}
 }
 
@@ -163,8 +177,17 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 	responseHeaderBuf := make([]byte, 8) // Size => int32, CorrelationId => int32
 
 	buf := make([]byte, bufSize)
+	lastApiKey := apiKeyUnset
 
+nextResponse:
 	for {
+		if lastApiKey == apiKeySaslHandshake {
+			lastApiKey = apiKeySaslAuth
+			if readErr, err = copySaslAuthResponse(dst, src, timeout); err != nil {
+				return readErr, err
+			}
+			continue nextResponse
+		}
 		//logrus.Println("Await Kafka response")
 
 		// waiting for first bytes or EOF - reset deadlines
@@ -197,7 +220,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 		if err != nil {
 			return true, err
 		}
-		// logrus.Printf("Kafka response length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+
 		responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, netAddressMappingFunc)
 		if err != nil {
 			return true, err
@@ -235,6 +258,7 @@ func responsesLoop(dst DeadlineWriter, src DeadlineReader, openRequestsChannel <
 				return readErr, err
 			}
 		}
+		lastApiKey = requestKeyVersion.ApiKey
 	}
 }
 

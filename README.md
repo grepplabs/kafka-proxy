@@ -17,6 +17,9 @@ The dynamic local listeners feature can be disabled and an additional list of ex
 The Proxy can terminate TLS traffic and authenticate users using SASL/PLAIN. The credentials verification method
 is configurable and uses golang plugin system over RPC.
 
+The proxies can also authenticate each other using a pluggable method which is transparent to other Kafka servers and clients.
+Currently the Google ID Token for service accounts is implemented i.e. proxy client requests and sends service account JWT and proxy server receives and validates it against Google JWKS.
+
 Kafka API calls can be restricted to prevent some operations e.g. topic deletion or produce requests.
 
 
@@ -31,11 +34,11 @@ See:
 
    Linux
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.1/linux.amd64.kafka-proxy
+        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.2/linux.amd64.kafka-proxy
 
    macOS
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.1/darwin.amd64.kafka-proxy
+        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.2/darwin.amd64.kafka-proxy
 
 2. Make the kafka-proxy binary executable
 
