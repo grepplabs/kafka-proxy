@@ -56,6 +56,77 @@ See:
 
     make build.docker-build
 
+### Help output
+
+    Run the kafka-proxy server
+
+    Usage:
+      kafka-proxy server [flags]
+
+    Flags:
+          --auth-gateway-client-command string         Path to authentication plugin binary
+          --auth-gateway-client-enable                 Enable gateway client authentication
+          --auth-gateway-client-log-level string       Log level of the auth plugin (default "trace")
+          --auth-gateway-client-magic uint             Magic bytes sent in the handshake
+          --auth-gateway-client-method string          Authentication method
+          --auth-gateway-client-param stringArray      Authentication plugin parameter
+          --auth-gateway-client-timeout duration       Authentication timeout (default 10s)
+          --auth-gateway-server-command string         Path to authentication plugin binary
+          --auth-gateway-server-enable                 Enable proxy server authentication
+          --auth-gateway-server-log-level string       Log level of the auth plugin (default "trace")
+          --auth-gateway-server-magic uint             Magic bytes sent in the handshake
+          --auth-gateway-server-method string          Authentication method
+          --auth-gateway-server-param stringArray      Authentication plugin parameter
+          --auth-gateway-server-timeout duration       Authentication timeout (default 10s)
+          --auth-local-command string                  Path to authentication plugin binary
+          --auth-local-enable                          Enable local SASL/PLAIN authentication performed by listener - SASL handshake will not be passed to kafka brokers
+          --auth-local-log-level string                Log level of the auth plugin (default "trace")
+          --auth-local-param stringArray               Authentication plugin parameter
+          --auth-local-timeout duration                Authentication timeout (default 10s)
+          --bootstrap-server-mapping stringArray       Mapping of Kafka bootstrap server address to local address (host:port,host:port(,advhost:advport))
+          --debug-enable                               Enable Debug endpoint
+          --debug-listen-address string                Debug listen address (default "0.0.0.0:6060")
+          --default-listener-ip string                 Default listener IP (default "127.0.0.1")
+          --dynamic-listeners-disable                  Disable dynamic listeners.
+          --external-server-mapping stringArray        Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
+          --forbidden-api-keys intSlice                Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics
+      -h, --help                                       help for server
+          --http-disable                               Disable HTTP endpoints
+          --http-health-path string                    Path on which to health endpoint (default "/health")
+          --http-listen-address string                 Address that kafka-proxy is listening on (default "0.0.0.0:9080")
+          --http-metrics-path string                   Path on which to expose metrics (default "/metrics")
+          --kafka-client-id string                     An optional identifier to track the source of requests (default "kafka-proxy")
+          --kafka-connection-read-buffer-size int      Size of the operating system's receive buffer associated with the connection. If zero, system default is used
+          --kafka-connection-write-buffer-size int     Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
+          --kafka-dial-timeout duration                How long to wait for the initial connection (default 15s)
+          --kafka-keep-alive duration                  Keep alive period for an active network connection. If zero, keep-alives are disabled (default 1m0s)
+          --kafka-max-open-requests int                Maximal number of open requests pro tcp connection before sending on it blocks (default 256)
+          --kafka-read-timeout duration                How long to wait for a response (default 30s)
+          --kafka-write-timeout duration               How long to wait for a transmit (default 30s)
+          --log-format string                          Log format text or json (default "text")
+          --log-level string                           Log level debug, info, warning, error, fatal or panic (default "info")
+          --proxy-listener-ca-chain-cert-file string   PEM encoded CA's certificate file
+          --proxy-listener-cert-file string            PEM encoded file with server certificate
+          --proxy-listener-keep-alive duration         Keep alive period for an active network connection. If zero, keep-alives are disabled (default 1m0s)
+          --proxy-listener-key-file string             PEM encoded file with private key for the server certificate
+          --proxy-listener-key-password string         Password to decrypt rsa private key
+          --proxy-listener-read-buffer-size int        Size of the operating system's receive buffer associated with the connection. If zero, system default is used
+          --proxy-listener-tls-enable                  Whether or not to use TLS listener
+          --proxy-listener-write-buffer-size int       Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
+          --proxy-request-buffer-size int              Request buffer size pro tcp connection (default 4096)
+          --proxy-response-buffer-size int             Response buffer size pro tcp connection (default 4096)
+          --sasl-enable                                Connect using SASL/PLAIN
+          --sasl-jaas-config-file string               Location of JAAS config file with SASL username and password
+          --sasl-password string                       SASL user password
+          --sasl-username string                       SASL user name
+          --tls-ca-chain-cert-file string              PEM encoded CA's certificate file
+          --tls-client-cert-file string                PEM encoded file with client certificate
+          --tls-client-key-file string                 PEM encoded file with private key for the client certificate
+          --tls-client-key-password string             Password to decrypt rsa private key
+          --tls-enable                                 Whether or not to use TLS when connecting to the broker
+          --tls-insecure-skip-verify                   It controls whether a client verifies the server's certificate chain and host name
+
+
 ### Usage example
 	
 	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399"
