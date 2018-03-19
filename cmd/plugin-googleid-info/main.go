@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2/jws"
 	"os"
+	"regexp"
 	"sort"
 	"sync"
 	"time"
@@ -45,9 +46,9 @@ var (
 )
 
 type TokenInfo struct {
-	timeout  time.Duration
-	audience map[string]struct{}
-	emails   map[string]struct{}
+	timeout    time.Duration
+	audience   map[string]struct{}
+	emailRegex []*regexp.Regexp
 
 	publicKeys map[string]*rsa.PublicKey
 	l          sync.RWMutex
@@ -139,11 +140,11 @@ func (p *TokenInfo) VerifyToken(parent context.Context, request apis.VerifyReque
 			return getVerifyResponseResponse(StatusWrongAudience)
 		}
 	}
-	if _, ok := p.emails[token.ClaimSet.Email]; !ok {
+	if !p.checkEmail(token.ClaimSet.Email) {
 		return getVerifyResponseResponse(StatusWrongEmail)
 	}
-	publicKey := p.getPublicKey(token.Header.KeyID)
 
+	publicKey := p.getPublicKey(token.Header.KeyID)
 	if publicKey == nil {
 		return getVerifyResponseResponse(StatusPublicKeyNotFound)
 	}
@@ -152,6 +153,15 @@ func (p *TokenInfo) VerifyToken(parent context.Context, request apis.VerifyReque
 		return getVerifyResponseResponse(StatusWrongSignature)
 	}
 	return apis.VerifyResponse{Success: true}, nil
+}
+
+func (p *TokenInfo) checkEmail(email string) bool {
+	for _, re := range p.emailRegex {
+		if re.MatchString(email) {
+			return true
+		}
+	}
+	return false
 }
 
 func getVerifyResponseResponse(status int) (apis.VerifyResponse, error) {
@@ -197,24 +207,33 @@ func main() {
 	fs.IntVar(&pluginMeta.certsRefreshInterval, "certs-refresh-interval", 60*60, "Certificates refresh interval in seconds")
 
 	fs.Var(&pluginMeta.audience, "audience", "The audience of a token")
-	fs.Var(&pluginMeta.emails, "email", "Email claim")
+	fs.Var(&pluginMeta.emails, "email", "Regex of the email claim")
 
 	fs.Parse(os.Args[1:])
 
 	logrus.Infof("Plugin metadata %v", pluginMeta)
 
 	audience := pluginMeta.audience.asMap()
-	emails := pluginMeta.emails.asMap()
+
+	emailRegex := make([]*regexp.Regexp, 0)
+	for _, email := range pluginMeta.emails {
+		re, err := regexp.Compile(email)
+		if err != nil {
+			logrus.Errorf("cannot compile email regex %s: %v", email, err)
+			os.Exit(1)
+		}
+		emailRegex = append(emailRegex, re)
+	}
 
 	logrus.Infof("JWT target audience: %v", audience)
-	logrus.Infof("JWT allowed emails: %v", emails)
+	logrus.Infof("JWT emails regexp: %v", emailRegex)
 
-	if len(emails) == 0 {
-		logrus.Errorf("parameter email is required")
+	if len(emailRegex) == 0 {
+		logrus.Errorf("parameter email (regex) is required")
 		os.Exit(1)
 	}
 
-	tokenInfo := &TokenInfo{timeout: time.Duration(pluginMeta.timeout) * time.Second, audience: audience, emails: emails}
+	tokenInfo := &TokenInfo{timeout: time.Duration(pluginMeta.timeout) * time.Second, audience: audience, emailRegex: emailRegex}
 
 	op := func() error {
 		return tokenInfo.refreshCerts()
