@@ -281,6 +281,8 @@ spec:
   1. additional handshake - protocol: magic, method, data
   2. google-id method
 * [ ] Registry for built in plugins (avoid grpc communication)
+* [ ] Client cert check
+* [ ] TLS server parameters like CipherSuites etc. - see ory/graceful/blob/master/http_defaults.go
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
