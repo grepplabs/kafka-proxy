@@ -280,7 +280,7 @@ spec:
 * [X] Pluggable authentication between client kafka-proxy and broker kafka-proxy a.k.a kafka-gateway
   1. additional handshake - protocol: magic, method, data
   2. google-id method
-* [ ] Registry for built in plugins (avoid grpc communication)
+* [X] Registry for built-in plugins
 * [ ] Client cert check
 * [ ] TLS server parameters like CipherSuites etc. - see ory/graceful/blob/master/http_defaults.go
 * [ ] Performance tests and tuning

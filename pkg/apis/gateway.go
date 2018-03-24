@@ -18,6 +18,10 @@ type TokenProvider interface {
 	GetToken(ctx context.Context, request TokenRequest) (TokenResponse, error)
 }
 
+type TokenProviderFactory interface {
+	New(params []string) (TokenProvider, error)
+}
+
 type VerifyRequest struct {
 	Token  string
 	Params []string
@@ -31,4 +35,8 @@ type VerifyResponse struct {
 type TokenInfo interface {
 	// VerifyToken verifies the providing token and performs authorization. The returned error is only used by the underlying rpc protocol
 	VerifyToken(ctx context.Context, request VerifyRequest) (VerifyResponse, error)
+}
+
+type TokenInfoFactory interface {
+	New(params []string) (TokenInfo, error)
 }

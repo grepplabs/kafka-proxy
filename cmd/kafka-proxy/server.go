@@ -25,6 +25,11 @@ import (
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+
+	"github.com/grepplabs/kafka-proxy/pkg/registry"
+	// built-in plugins
+	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-info"
+	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-provider"
 )
 
 var (
@@ -148,61 +153,89 @@ func Run(_ *cobra.Command, _ []string) {
 
 	var passwordAuthenticator apis.PasswordAuthenticator
 	if c.Auth.Local.Enable {
-		client := NewLocalAuthPluginClient()
-		defer client.Kill()
+		var err error
+		factory, ok := registry.GetComponent(new(apis.PasswordAuthenticatorFactory), c.Auth.Local.Command).(apis.PasswordAuthenticatorFactory)
+		if ok {
+			logrus.Infof("Using built-in PasswordAuthenticator")
+			passwordAuthenticator, err = factory.New(c.Auth.Local.Parameters)
+			if err != nil {
+				logrus.Fatal(err)
+			}
+		} else {
+			client := NewPluginClient(localauth.Handshake, localauth.PluginMap, c.Auth.Local.LogLevel, c.Auth.Local.Command, c.Auth.Local.Parameters)
+			defer client.Kill()
 
-		rpcClient, err := client.Client()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		raw, err := rpcClient.Dispense("passwordAuthenticator")
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		var ok bool
-		passwordAuthenticator, ok = raw.(apis.PasswordAuthenticator)
-		if !ok {
-			logrus.Fatal(errors.New("unsupported PasswordAuthenticator plugin type"))
+			rpcClient, err := client.Client()
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			raw, err := rpcClient.Dispense("passwordAuthenticator")
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			passwordAuthenticator, ok = raw.(apis.PasswordAuthenticator)
+			if !ok {
+				logrus.Fatal(errors.New("unsupported PasswordAuthenticator plugin type"))
+			}
 		}
 	}
 
 	var tokenProvider apis.TokenProvider
 	if c.Auth.Gateway.Client.Enable {
-		client := NewGatewayClientPluginClient()
-		defer client.Kill()
+		var err error
+		factory, ok := registry.GetComponent(new(apis.TokenProviderFactory), c.Auth.Gateway.Client.Command).(apis.TokenProviderFactory)
+		if ok {
+			logrus.Infof("Using built-in TokenProvider")
+			tokenProvider, err = factory.New(c.Auth.Gateway.Client.Parameters)
+			if err != nil {
+				logrus.Fatal(err)
+			}
+		} else {
+			client := NewPluginClient(gatewayclient.Handshake, gatewayclient.PluginMap, c.Auth.Gateway.Client.LogLevel, c.Auth.Gateway.Client.Command, c.Auth.Gateway.Client.Parameters)
+			defer client.Kill()
 
-		rpcClient, err := client.Client()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		raw, err := rpcClient.Dispense("tokenProvider")
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		var ok bool
-		tokenProvider, ok = raw.(apis.TokenProvider)
-		if !ok {
-			logrus.Fatal(errors.New("unsupported TokenProvider plugin type"))
+			rpcClient, err := client.Client()
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			raw, err := rpcClient.Dispense("tokenProvider")
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			tokenProvider, ok = raw.(apis.TokenProvider)
+			if !ok {
+				logrus.Fatal(errors.New("unsupported TokenProvider plugin type"))
+			}
 		}
 	}
 
 	var tokenInfo apis.TokenInfo
 	if c.Auth.Gateway.Server.Enable {
-		client := NewGatewayServerPluginClient()
-		defer client.Kill()
+		var err error
+		factory, ok := registry.GetComponent(new(apis.TokenInfoFactory), c.Auth.Gateway.Server.Command).(apis.TokenInfoFactory)
+		if ok {
+			logrus.Infof("Using built-in TokenInfo")
 
-		rpcClient, err := client.Client()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		raw, err := rpcClient.Dispense("tokenInfo")
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		var ok bool
-		tokenInfo, ok = raw.(apis.TokenInfo)
-		if !ok {
-			logrus.Fatal(errors.New("unsupported TokenInfo plugin type"))
+			tokenInfo, err = factory.New(c.Auth.Gateway.Server.Parameters)
+			if err != nil {
+				logrus.Fatal(err)
+			}
+		} else {
+			client := NewPluginClient(gatewayserver.Handshake, gatewayserver.PluginMap, c.Auth.Gateway.Server.LogLevel, c.Auth.Gateway.Server.Command, c.Auth.Gateway.Server.Parameters)
+			defer client.Kill()
+
+			rpcClient, err := client.Client()
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			raw, err := rpcClient.Dispense("tokenInfo")
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			tokenInfo, ok = raw.(apis.TokenInfo)
+			if !ok {
+				logrus.Fatal(errors.New("unsupported TokenInfo plugin type"))
+			}
 		}
 	}
 
@@ -316,16 +349,6 @@ func SetLogger() {
 		level = logrus.InfoLevel
 	}
 	logrus.SetLevel(level)
-}
-
-func NewGatewayClientPluginClient() *plugin.Client {
-	return NewPluginClient(gatewayclient.Handshake, gatewayclient.PluginMap, c.Auth.Gateway.Client.LogLevel, c.Auth.Gateway.Client.Command, c.Auth.Gateway.Client.Parameters)
-}
-func NewGatewayServerPluginClient() *plugin.Client {
-	return NewPluginClient(gatewayserver.Handshake, gatewayserver.PluginMap, c.Auth.Gateway.Server.LogLevel, c.Auth.Gateway.Server.Command, c.Auth.Gateway.Server.Parameters)
-}
-func NewLocalAuthPluginClient() *plugin.Client {
-	return NewPluginClient(localauth.Handshake, localauth.PluginMap, c.Auth.Local.LogLevel, c.Auth.Local.Command, c.Auth.Local.Parameters)
 }
 
 func NewPluginClient(handshakeConfig plugin.HandshakeConfig, plugins map[string]plugin.Plugin, logLevel string, command string, params []string) *plugin.Client {

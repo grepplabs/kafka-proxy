@@ -49,12 +49,15 @@ func TestAuthHandshake(t *testing.T) {
 	a.Nil(err)
 	defer stop()
 
+	clientResult := make(chan error, 1)
 	go func() {
 		cerr := client.sendAndReceiveGatewayAuth(c1)
-		a.Nil(cerr)
+		clientResult <- cerr
 	}()
 	serr := server.receiveAndSendGatewayAuth(c2)
 	a.Nil(serr)
+	cerr := <-clientResult
+	a.Nil(cerr)
 }
 
 type testTokenProvider struct {
