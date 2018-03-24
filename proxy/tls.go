@@ -45,6 +45,7 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 			return nil, errors.New("Failed to parse listener root certificate")
 		}
 		cfg.ClientCAs = clientCAs
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 	return cfg, nil
 }

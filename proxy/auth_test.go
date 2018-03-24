@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/stretchr/testify/assert"
-	"net"
 	"testing"
 	"time"
 )
@@ -15,7 +14,7 @@ import (
 func TestAuthHandshake(t *testing.T) {
 	a := assert.New(t)
 
-	magic, err := Uint64()
+	magic, err := RandomUint64()
 	a.Nil(err)
 
 	fmt.Println(magic)
@@ -83,45 +82,7 @@ func (p *testTokenInfo) VerifyToken(ctx context.Context, request apis.VerifyRequ
 	return apis.VerifyResponse{Success: false}, p.err
 }
 
-func makePipe() (c1, c2 net.Conn, stop func(), err error) {
-	ln, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Start a connection between two endpoints.
-	var err1, err2 error
-	done := make(chan bool)
-	go func() {
-		c2, err2 = ln.Accept()
-		close(done)
-	}()
-	c1, err1 = net.Dial(ln.Addr().Network(), ln.Addr().String())
-	<-done
-
-	stop = func() {
-		if err1 == nil {
-			c1.Close()
-		}
-		if err2 == nil {
-			c2.Close()
-		}
-		ln.Close()
-	}
-
-	switch {
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
-}
-
-func Uint64() (uint64, error) {
+func RandomUint64() (uint64, error) {
 	var b [8]byte
 
 	_, err := rand.Read(b[:])

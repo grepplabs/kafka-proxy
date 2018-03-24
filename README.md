@@ -105,7 +105,7 @@ See:
           --kafka-write-timeout duration               How long to wait for a transmit (default 30s)
           --log-format string                          Log format text or json (default "text")
           --log-level string                           Log level debug, info, warning, error, fatal or panic (default "info")
-          --proxy-listener-ca-chain-cert-file string   PEM encoded CA's certificate file
+          --proxy-listener-ca-chain-cert-file string   PEM encoded CA's certificate file. If provided, client certificate is required and verified
           --proxy-listener-cert-file string            PEM encoded file with server certificate
           --proxy-listener-keep-alive duration         Keep alive period for an active network connection. If zero, keep-alives are disabled (default 1m0s)
           --proxy-listener-key-file string             PEM encoded file with private key for the server certificate
@@ -316,7 +316,7 @@ spec:
   1. additional handshake - protocol: magic, method, data
   2. google-id method
 * [X] Registry for built-in plugins
-* [ ] Client cert check
+* [X] Client cert check
 * [ ] TLS server parameters like CipherSuites etc. - see ory/graceful/blob/master/http_defaults.go
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
