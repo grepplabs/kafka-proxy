@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/pkg/errors"
 	"net"
 	"strings"
@@ -148,17 +149,17 @@ func getListenerConfigs(serversMapping []string) ([]ListenerConfig, error) {
 			if len(pair) != 2 && len(pair) != 3 {
 				return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport(,advhost:advport)'")
 			}
-			remoteHost, remotePort, err := SplitHostPort(pair[0])
+			remoteHost, remotePort, err := util.SplitHostPort(pair[0])
 			if err != nil {
 				return nil, err
 			}
-			localHost, localPort, err := SplitHostPort(pair[1])
+			localHost, localPort, err := util.SplitHostPort(pair[1])
 			if err != nil {
 				return nil, err
 			}
 			advertisedHost, advertisedPort := localHost, localPort
 			if len(pair) == 3 {
-				advertisedHost, advertisedPort, err = SplitHostPort(pair[2])
+				advertisedHost, advertisedPort, err = util.SplitHostPort(pair[2])
 				if err != nil {
 					return nil, err
 				}

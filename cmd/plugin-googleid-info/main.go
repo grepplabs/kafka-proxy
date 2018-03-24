@@ -178,7 +178,7 @@ type pluginMeta struct {
 	timeout              int
 	certsRefreshInterval int
 	audience             arrayFlags
-	emails               arrayFlags
+	emailsRegex          arrayFlags
 }
 
 type arrayFlags []string
@@ -207,7 +207,7 @@ func main() {
 	fs.IntVar(&pluginMeta.certsRefreshInterval, "certs-refresh-interval", 60*60, "Certificates refresh interval in seconds")
 
 	fs.Var(&pluginMeta.audience, "audience", "The audience of a token")
-	fs.Var(&pluginMeta.emails, "email", "Regex of the email claim")
+	fs.Var(&pluginMeta.emailsRegex, "email-regex", "Regex of the email claim")
 
 	fs.Parse(os.Args[1:])
 
@@ -216,10 +216,10 @@ func main() {
 	audience := pluginMeta.audience.asMap()
 
 	emailRegex := make([]*regexp.Regexp, 0)
-	for _, email := range pluginMeta.emails {
-		re, err := regexp.Compile(email)
+	for _, emailRe := range pluginMeta.emailsRegex {
+		re, err := regexp.Compile(emailRe)
 		if err != nil {
-			logrus.Errorf("cannot compile email regex %s: %v", email, err)
+			logrus.Errorf("cannot compile email regex %s: %v", emailRe, err)
 			os.Exit(1)
 		}
 		emailRegex = append(emailRegex, re)

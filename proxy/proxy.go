@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
@@ -92,7 +93,7 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (l
 	p.lock.RUnlock()
 
 	if ok {
-		return config.SplitHostPort(listenerConfig.AdvertisedAddress)
+		return util.SplitHostPort(listenerConfig.AdvertisedAddress)
 	}
 	if !p.disableDynamicListeners {
 		return p.ListenDynamicInstance(brokerAddress)

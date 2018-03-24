@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/pkg/libs/googleid"
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
@@ -157,6 +158,21 @@ type ServiceAccountSource struct {
 	targetAudience  string
 
 	config *ServiceAccountConfig
+	l      sync.RWMutex
+}
+
+func (p *ServiceAccountSource) getServiceAccountConfig() *ServiceAccountConfig {
+	p.l.RLock()
+	defer p.l.RUnlock()
+
+	return p.config
+}
+
+func (p *ServiceAccountSource) setServiceAccountConfig(config *ServiceAccountConfig) {
+	p.l.Lock()
+	defer p.l.Unlock()
+
+	p.config = config
 }
 
 type ServiceAccountConfig struct {
@@ -171,10 +187,12 @@ func NewServiceAccountSource(credentialsFile string, targetAudience string) (*Se
 	if err != nil {
 		return nil, err
 	}
+
 	return &ServiceAccountSource{
 		credentialsFile: credentialsFile,
 		targetAudience:  targetAudience,
-		config:          config}, nil
+		config:          config,
+	}, nil
 }
 
 func readServiceAccountConfig(credentialsFile string, targetAudience string) (*ServiceAccountConfig, error) {
@@ -226,8 +244,7 @@ func parseKey(key []byte) (*rsa.PrivateKey, error) {
 }
 
 func (s *ServiceAccountSource) GetIDToken(parent context.Context) (string, error) {
-	//TODO: can check file to reload config (mutex protected)
-	return s.config.GetIDToken(parent)
+	return s.getServiceAccountConfig().GetIDToken(parent)
 }
 
 func (s *ServiceAccountConfig) GetIDToken(parent context.Context) (string, error) {
@@ -297,10 +314,12 @@ func (f *pluginMeta) flagSet() *flag.FlagSet {
 }
 
 type pluginMeta struct {
-	timeout         int
-	adc             bool
-	credentialsFile string
-	targetAudience  string
+	timeout int
+	adc     bool
+
+	credentialsWatch bool
+	credentialsFile  string
+	targetAudience   string
 }
 
 func main() {
@@ -309,6 +328,7 @@ func main() {
 	fs.IntVar(&pluginMeta.timeout, "timeout", 10, "Request timeout in seconds")
 	fs.BoolVar(&pluginMeta.adc, "adc", false, "Use Google Application Default Credentials instead of ServiceAccount JSON")
 	fs.StringVar(&pluginMeta.credentialsFile, "credentials-file", "", "Location of the JSON file with the application credentials")
+	fs.BoolVar(&pluginMeta.credentialsWatch, "credentials-watch", true, "Watch credential for reload")
 	fs.StringVar(&pluginMeta.targetAudience, "target-audience", "", "URI of audience claim")
 
 	fs.Parse(os.Args[1:])
@@ -325,16 +345,33 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	stopChannel := make(chan bool, 1)
 
 	var idTokenSource IDTokenSource
 	if pluginMeta.adc {
 		idTokenSource = &AuthorizedUserSource{}
 	} else {
-		var err error
-		idTokenSource, err = NewServiceAccountSource(pluginMeta.credentialsFile, pluginMeta.targetAudience)
+		serviceAccountSource, err := NewServiceAccountSource(pluginMeta.credentialsFile, pluginMeta.targetAudience)
+		idTokenSource = serviceAccountSource
 		if err != nil {
 			logrus.Errorf("creation of service account source failed : %v")
 			os.Exit(1)
+		}
+		if pluginMeta.credentialsWatch {
+			action := func() {
+				logrus.Infof("reloading credential file %s", serviceAccountSource.credentialsFile)
+				newConfig, err := readServiceAccountConfig(serviceAccountSource.credentialsFile, serviceAccountSource.targetAudience)
+				if err != nil {
+					logrus.Errorf("error while reloading credentials files: %s", err)
+					return
+				}
+				serviceAccountSource.setServiceAccountConfig(newConfig)
+			}
+			err = util.WatchForUpdates(pluginMeta.credentialsFile, stopChannel, action)
+			if err != nil {
+				logrus.Errorf("cannot watch credentials file: %v")
+				os.Exit(1)
+			}
 		}
 	}
 	tokenProvider := &TokenProvider{timeout: time.Duration(pluginMeta.timeout) * time.Second, idTokenSource: idTokenSource}
@@ -349,7 +386,7 @@ func main() {
 
 	tokenRefresher := &TokenRefresher{
 		tokenProvider: tokenProvider,
-		stopChannel:   make(chan struct{}, 1),
+		stopChannel:   stopChannel,
 	}
 
 	go tokenRefresher.refreshLoop()
@@ -380,7 +417,7 @@ func initToken(tokenProvider *TokenProvider) error {
 
 type TokenRefresher struct {
 	tokenProvider *TokenProvider
-	stopChannel   chan struct{}
+	stopChannel   chan bool
 }
 
 func (p *TokenRefresher) refreshLoop() {
