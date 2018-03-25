@@ -52,11 +52,13 @@ type Config struct {
 		ListenerKeepAlive       time.Duration
 
 		TLS struct {
-			Enable              bool
-			ListenerCertFile    string
-			ListenerKeyFile     string
-			ListenerKeyPassword string
-			CAChainCertFile     string
+			Enable                   bool
+			ListenerCertFile         string
+			ListenerKeyFile          string
+			ListenerKeyPassword      string
+			CAChainCertFile          string
+			ListenerCipherSuites     []string
+			ListenerCurvePreferences []string
 		}
 	}
 	Auth struct {

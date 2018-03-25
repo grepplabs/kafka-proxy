@@ -13,6 +13,40 @@ import (
 	"time"
 )
 
+func TestDefaultCipherSuites(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+
+	serverConfig, err := newTLSListenerConfig(c)
+	a.Nil(err)
+	a.Equal(len(defaultCipherSuites), len(serverConfig.CipherSuites))
+	a.Equal(len(defaultCurvePreferences), len(serverConfig.CurvePreferences))
+}
+
+func TestEnabledCipherSuites(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.ListenerCipherSuites = []string{"ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384"}
+	c.Proxy.TLS.ListenerCurvePreferences = []string{"P521"}
+
+	serverConfig, err := newTLSListenerConfig(c)
+	a.Nil(err)
+	a.Equal(2, len(serverConfig.CipherSuites))
+	a.Equal(1, len(serverConfig.CurvePreferences))
+}
+
 func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
 	a := assert.New(t)
 
