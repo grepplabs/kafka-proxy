@@ -8,7 +8,7 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.0.2"
+TAG           ?= "v0.0.3"
 
 PLATFORM      ?= $(shell uname -s)
 ifeq ($(PLATFORM), Darwin)
@@ -69,8 +69,11 @@ build.docker-build.osx:
     docker rm $$buildContainer ;\
     docker rmi $$buildContainerName ;\
 
-release: clean build.linux build/osx/$(BINARY)
-	git tag $(TAG) && git push --tags
+tag:
+	git tag $(TAG)
+
+release: clean build.linux build.osx
+	git push origin $(TAG)
 	github-release release -u grepplabs -r $(BINARY) --tag $(TAG)
 	github-release upload -u grepplabs -r $(BINARY) -t $(TAG) -f build/linux/$(BINARY) -n linux/amd64/$(BINARY)
 	github-release upload -u grepplabs -r $(BINARY) -t $(TAG) -f build/osx/$(BINARY) -n darwin/amd64/$(BINARY)
