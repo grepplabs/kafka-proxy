@@ -22,6 +22,9 @@ const (
 	apiKeyUnset         = int16(-1) // not in protocol
 	apiKeySaslAuth      = int16(-2) // not in protocol
 	apiKeySaslHandshake = int16(17)
+
+	minRequestApiKey = int16(0)   // 0 - Produce
+	maxRequestApiKey = int16(100) // so far 42 is the last (reserve some for the feature)
 )
 
 type ProcessorConfig struct {
@@ -137,6 +140,10 @@ nextRequest:
 			return true, err
 		}
 		//logrus.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+
+		if requestKeyVersion.ApiKey < minRequestApiKey || requestKeyVersion.ApiKey > maxRequestApiKey {
+			return true, fmt.Errorf("api key %d is invalid", requestKeyVersion.ApiKey)
+		}
 
 		proxyRequestsTotal.WithLabelValues(brokerAddress, strconv.Itoa(int(requestKeyVersion.ApiKey)), strconv.Itoa(int(requestKeyVersion.ApiVersion))).Inc()
 		proxyRequestsBytes.WithLabelValues(brokerAddress).Add(float64(requestKeyVersion.Length + 4))
