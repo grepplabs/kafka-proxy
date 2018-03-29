@@ -19,8 +19,11 @@ endif
 
 default: build.local
 
-test:
+test.race:
 	GOCACHE=off go test -v -race `go list ./...`
+
+test:
+	GOCACHE=off go test -v `go list ./...`
 
 fmt:
 	go fmt $(GOPKGS)
