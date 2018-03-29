@@ -321,6 +321,7 @@ spec:
 * [X] Registry for built-in plugins
 * [X] Client cert check
 * [X] Set TLS server CipherSuites and CurvePreferences
+* [ ] Socks5 proxy and http proxy (googleid) for outgoing connections
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
