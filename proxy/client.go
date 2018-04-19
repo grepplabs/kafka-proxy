@@ -28,7 +28,7 @@ type Client struct {
 	// Config of Proxy request-response processor (instance p)
 	processorConfig ProcessorConfig
 
-	tlsConfig      *tls.Config
+	dialer         Dialer
 	tcpConnOptions TCPConnOptions
 
 	stopRun  chan struct{}
@@ -40,6 +40,10 @@ type Client struct {
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator apis.PasswordAuthenticator, tokenProvider apis.TokenProvider, tokenInfo apis.TokenInfo) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	dialer, err := newDialer(c, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +71,7 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		return nil, errors.New("Auth.Gateway.Server.Enable is enabled but tokenInfo is nil")
 	}
 
-	return &Client{conns: conns, config: c, tlsConfig: tlsConfig, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
+	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
 		saslPlainAuth: &SASLPlainAuth{
 			clientID:     c.Kafka.ClientID,
 			writeTimeout: c.Kafka.WriteTimeout,
@@ -104,6 +108,40 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 		}}, nil
 }
 
+func newDialer(c *config.Config, tlsConfig *tls.Config) (Dialer, error) {
+	var rawDialer Dialer
+	if c.Socks5.ProxyAddress != "" {
+		logrus.Infof("Kafka clients will connect through the SOCKS5 proxy %s", c.Socks5.ProxyAddress)
+		rawDialer = &socks5Dialer{
+			directDialer: directDialer{
+				dialTimeout: c.Kafka.DialTimeout,
+				keepAlive:   c.Kafka.KeepAlive,
+			},
+			proxyNetwork: "tcp",
+			proxyAddr:    c.Socks5.ProxyAddress,
+			username:     c.Socks5.Username,
+			password:     c.Socks5.Password,
+		}
+	} else {
+		rawDialer = directDialer{
+			dialTimeout: c.Kafka.DialTimeout,
+			keepAlive:   c.Kafka.KeepAlive,
+		}
+	}
+	if c.Kafka.TLS.Enable {
+		if tlsConfig == nil {
+			return nil, errors.New("tlsConfig must not be nil")
+		}
+		tlsDialer := tlsDialer{
+			timeout:   c.Kafka.DialTimeout,
+			rawDialer: rawDialer,
+			config:    tlsConfig,
+		}
+		return tlsDialer, nil
+	}
+	return rawDialer, nil
+}
+
 // Run causes the client to start waiting for new connections to connSrc and
 // proxy them to the destination instance. It blocks until connSrc is closed.
 func (c *Client) Run(connSrc <-chan Conn) error {
@@ -136,7 +174,7 @@ func (c *Client) Close() {
 func (c *Client) handleConn(conn Conn) {
 	proxyConnectionsTotal.WithLabelValues(conn.BrokerAddress).Inc()
 
-	server, err := c.DialAndAuth(conn.BrokerAddress, c.tlsConfig)
+	server, err := c.DialAndAuth(conn.BrokerAddress)
 	if err != nil {
 		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
 		conn.LocalConnection.Close()
@@ -148,15 +186,15 @@ func (c *Client) handleConn(conn Conn) {
 		}
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
-	localDesc := "local connection on " + conn.LocalConnection.LocalAddr().String() + " from " + conn.LocalConnection.RemoteAddr().String()
+	localDesc := "local connection on " + conn.LocalConnection.LocalAddr().String() + " from " + conn.LocalConnection.RemoteAddr().String() + " (" + conn.BrokerAddress + ")"
 	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, localDesc)
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		logrus.Info(err)
 	}
 }
 
-func (c *Client) DialAndAuth(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
-	conn, err := c.dial(brokerAddress, tlsConfig)
+func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
+	conn, err := c.dialer.Dial("tcp", brokerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -165,20 +203,6 @@ func (c *Client) DialAndAuth(brokerAddress string, tlsConfig *tls.Config) (net.C
 		return nil, err
 	}
 	return conn, nil
-}
-
-func (c *Client) dial(brokerAddress string, tlsConfig *tls.Config) (net.Conn, error) {
-	dialer := net.Dialer{
-		Timeout:   c.config.Kafka.DialTimeout,
-		KeepAlive: c.config.Kafka.KeepAlive,
-	}
-	if c.config.Kafka.TLS.Enable {
-		if tlsConfig == nil {
-			return nil, errors.New("tlsConfig must not be nil")
-		}
-		return tls.DialWithDialer(&dialer, "tcp", brokerAddress, tlsConfig)
-	}
-	return dialer.Dial("tcp", brokerAddress)
 }
 
 func (c *Client) auth(conn net.Conn) error {

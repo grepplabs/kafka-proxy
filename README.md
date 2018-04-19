@@ -121,6 +121,9 @@ See:
           --sasl-jaas-config-file string                   Location of JAAS config file with SASL username and password
           --sasl-password string                           SASL user password
           --sasl-username string                           SASL user name
+          --socks5-address string                          Address of SOCKS5 proxy to connect through when connecting to kafka brokers
+          --socks5-password string                         Password for SOCKS5 proxy Username/Password Authentication
+          --socks5-username string                         Username for SOCKS5 proxy Username/Password Authentication
           --tls-ca-chain-cert-file string                  PEM encoded CA's certificate file
           --tls-client-cert-file string                    PEM encoded file with client certificate
           --tls-client-key-file string                     PEM encoded file with private key for the client certificate
@@ -323,7 +326,8 @@ spec:
 * [X] Set TLS server CipherSuites and CurvePreferences
 * [ ] Optional ApiVersionsRequest before Local SASL Authentication Sequence
 * [ ] SaslHandshakeRequest v1 - Kafka 1.1.0
-* [ ] Socks5 proxy and http proxy (googleid) for outgoing connections
+* [X] Connect to Kafka through SOCKS5 Proxy
+* [ ] Proxy support for outgoing HTTP/HTTPS connections (googleid)
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests

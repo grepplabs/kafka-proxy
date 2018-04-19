@@ -148,6 +148,11 @@ func init() {
 	// Logging
 	Server.Flags().StringVar(&c.Log.Format, "log-format", "text", "Log format text or json")
 	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level debug, info, warning, error, fatal or panic")
+
+	// Socks5 to Kafka
+	Server.Flags().StringVar(&c.Socks5.ProxyAddress, "socks5-address", "", "Address of SOCKS5 proxy to connect through when connecting to kafka brokers")
+	Server.Flags().StringVar(&c.Socks5.Username, "socks5-username", "", "Username for SOCKS5 proxy Username/Password Authentication")
+	Server.Flags().StringVar(&c.Socks5.Password, "socks5-password", "", "Password for SOCKS5 proxy Username/Password Authentication")
 }
 
 func Run(_ *cobra.Command, _ []string) {

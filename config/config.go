@@ -120,6 +120,11 @@ type Config struct {
 			JaasConfigFile string
 		}
 	}
+	Socks5 struct {
+		ProxyAddress string
+		Username     string
+		Password     string
+	}
 }
 
 func (c *Config) InitBootstrapServers(bootstrapServersMapping []string) (err error) {
@@ -261,5 +266,21 @@ func (c *Config) Validate() error {
 	if c.Auth.Gateway.Server.Enable && c.Auth.Gateway.Server.Timeout <= 0 {
 		return errors.New("Auth.Gateway.Server.Timeout must be greater than 0")
 	}
+	if c.Socks5.ProxyAddress == "" && (c.Socks5.Username != "" || c.Socks5.Password != "") {
+		return errors.New("Socks5.ProxyAddress must not be empty when Socks5 Username/Password is provided")
+	}
+	if (c.Socks5.Username != "" && c.Socks5.Password == "") || (c.Socks5.Username == "" && c.Socks5.Password != "") {
+		return errors.New("Both Socks5 Username and Password must be provided provided")
+	}
+	if len(c.Socks5.Username) > 255 || len(c.Socks5.Password) > 255 {
+		// RFC1929
+		return errors.New("Max length of Socks5 Username/Password is 255 chars")
+	}
+	if c.Socks5.ProxyAddress != "" {
+		if _, _, err := util.SplitHostPort(c.Socks5.ProxyAddress); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
