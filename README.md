@@ -135,26 +135,26 @@ See:
 
 ### Usage example
 	
-	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399"
+	kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399"
 	
-	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
-	                         --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401" \
-	                         --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402" \
-	                         --dynamic-listeners-disable
+	kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
+	                   --bootstrap-server-mapping "192.168.99.100:32401,127.0.0.1:32401" \
+	                   --bootstrap-server-mapping "192.168.99.100:32402,127.0.0.1:32402" \
+	                   --dynamic-listeners-disable
 
-	build/kafka-proxy server --bootstrap-server-mapping "kafka-0.example.com:9092,0.0.0.0:32401,kafka-0.grepplabs.com:9092" \
-	                         --bootstrap-server-mapping "kafka-1.example.com:9092,0.0.0.0:32402,kafka-1.grepplabs.com:9092" \
-	                         --bootstrap-server-mapping "kafka-2.example.com:9092,0.0.0.0:32403,kafka-2.grepplabs.com:9092" \
-	                         --dynamic-listeners-disable
+	kafka-proxy server --bootstrap-server-mapping "kafka-0.example.com:9092,0.0.0.0:32401,kafka-0.grepplabs.com:9092" \
+	                   --bootstrap-server-mapping "kafka-1.example.com:9092,0.0.0.0:32402,kafka-1.grepplabs.com:9092" \
+	                   --bootstrap-server-mapping "kafka-2.example.com:9092,0.0.0.0:32403,kafka-2.grepplabs.com:9092" \
+	                   --dynamic-listeners-disable
 
-	build/kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
-	                         --external-server-mapping "192.168.99.100:32401,127.0.0.1:32402" \
-	                         --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403" \
-	                         --forbidden-api-keys 20
+	kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400" \
+	                   --external-server-mapping "192.168.99.100:32401,127.0.0.1:32402" \
+	                   --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403" \
+	                   --forbidden-api-keys 20
     
-    build/kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
-                             --tls-enable --tls-insecure-skip-verify \
-                             --sasl-enable --sasl-username myuser --sasl-password mysecret
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
+                       --tls-enable --tls-insecure-skip-verify \
+                       --sasl-enable --sasl-username myuser --sasl-password mysecret
 
 ### Proxy authentication example
 
@@ -179,37 +179,50 @@ See:
 
 Authentication between Kafka Proxy Client and Kafka Proxy Server with Google-ID (service account JWT)
 
-    build/kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
-                             --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
-                             --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
-                             --dynamic-listeners-disable \
-                             --http-disable \
-                             --proxy-listener-tls-enable \
-                             --proxy-listener-cert-file=/var/run/secret/server.cert.pem \
-                             --proxy-listener-key-file=/var/run/secret/server.key.pem \
-                             --auth-gateway-server-enable \
-                             --auth-gateway-server-method google-id \
-                             --auth-gateway-server-magic 3285573610483682037 \
-                             --auth-gateway-server-command google-id-info \
-                             --auth-gateway-server-param  "--timeout=10" \
-                             --auth-gateway-server-param  "--audience=tcp://kafka-gateway.grepplabs.com" \
-                             --auth-gateway-server-param  "--email-regex=^kafka-gateway@my-project.iam.gserviceaccount.com$"
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
+                       --dynamic-listeners-disable \
+                       --http-disable \
+                       --proxy-listener-tls-enable \
+                       --proxy-listener-cert-file=/var/run/secret/server.cert.pem \
+                       --proxy-listener-key-file=/var/run/secret/server.key.pem \
+                       --auth-gateway-server-enable \
+                       --auth-gateway-server-method google-id \
+                       --auth-gateway-server-magic 3285573610483682037 \
+                       --auth-gateway-server-command google-id-info \
+                       --auth-gateway-server-param  "--timeout=10" \
+                       --auth-gateway-server-param  "--audience=tcp://kafka-gateway.grepplabs.com" \
+                       --auth-gateway-server-param  "--email-regex=^kafka-gateway@my-project.iam.gserviceaccount.com$"
 
-    build/kafka-proxy server --bootstrap-server-mapping "127.0.0.1:32500,127.0.0.1:32400" \
-                             --bootstrap-server-mapping "127.0.0.1:32501,127.0.0.1:32401" \
-                             --bootstrap-server-mapping "127.0.0.1:32502,127.0.0.1:32402" \
-                             --dynamic-listeners-disable \
-                             --http-disable \
-                             --tls-enable \
-                             --tls-ca-chain-cert-file /var/run/secret/client/ca-chain.cert.pem \
-                             --auth-gateway-client-enable \
-                             --auth-gateway-client-method google-id \
-                             --auth-gateway-client-magic 3285573610483682037 \
-                             --auth-gateway-client-command google-id-provider \
-                             --auth-gateway-client-param  "--credentials-file=/var/run/secret/client/service-account.json" \
-                             --auth-gateway-client-param  "--target-audience=tcp://kafka-gateway.grepplabs.com" \
-                             --auth-gateway-client-param  "--timeout=10"
+    kafka-proxy server --bootstrap-server-mapping "127.0.0.1:32500,127.0.0.1:32400" \
+                       --bootstrap-server-mapping "127.0.0.1:32501,127.0.0.1:32401" \
+                       --bootstrap-server-mapping "127.0.0.1:32502,127.0.0.1:32402" \
+                       --dynamic-listeners-disable \
+                       --http-disable \
+                       --tls-enable \
+                       --tls-ca-chain-cert-file /var/run/secret/client/ca-chain.cert.pem \
+                       --auth-gateway-client-enable \
+                       --auth-gateway-client-method google-id \
+                       --auth-gateway-client-magic 3285573610483682037 \
+                       --auth-gateway-client-command google-id-provider \
+                       --auth-gateway-client-param  "--credentials-file=/var/run/secret/client/service-account.json" \
+                       --auth-gateway-client-param  "--target-audience=tcp://kafka-gateway.grepplabs.com" \
+                       --auth-gateway-client-param  "--timeout=10"
 
+### Connect to Kafka through SOCKS5 Proxy example
+
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
+                       --socks5-address localhost:1080
+
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
+                       --socks5-address localhost:1080 \
+                       --socks5-username my-proxy-user \
+                       --socks5-password my-proxy-password
 
 ### Kubernetes sidecar container example
 
