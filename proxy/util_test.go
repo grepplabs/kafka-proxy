@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"github.com/armon/go-socks5"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -17,11 +18,21 @@ import (
 )
 
 func makeTLSPipe(conf *config.Config) (c1, c2 net.Conn, stop func(), err error) {
-	serverConfig, err := newTLSListenerConfig(conf)
+	rawDialer := directDialer{
+		dialTimeout: 3 * time.Second,
+		keepAlive:   60 * time.Second,
+	}
+
+	clientConfig, err := newTLSClientConfig(conf)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	clientConfig, err := newTLSClientConfig(conf)
+	tlsDialer := tlsDialer{
+		timeout:   3 * time.Second,
+		rawDialer: rawDialer,
+		config:    clientConfig,
+	}
+	serverConfig, err := newTLSListenerConfig(conf)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -48,14 +59,14 @@ func makeTLSPipe(conf *config.Config) (c1, c2 net.Conn, stop func(), err error) 
 			}
 		}
 	}()
-	c1, err1 = tls.DialWithDialer(&net.Dialer{Timeout: 2 * time.Second}, ln.Addr().Network(), ln.Addr().String(), clientConfig)
+	c1, err1 = tlsDialer.Dial(ln.Addr().Network(), ln.Addr().String())
 	if err1 != nil {
 		ln.Close()
 		return nil, nil, nil, err1
 	}
 	select {
 	case <-done:
-	case <-time.After(1 * time.Second):
+	case <-time.After(4 * time.Second):
 		ln.Close()
 		return nil, nil, nil, errors.New("Accept timeout ")
 	}
@@ -82,7 +93,127 @@ func makeTLSPipe(conf *config.Config) (c1, c2 net.Conn, stop func(), err error) 
 	}
 }
 
+type testCredentials struct {
+	username, password string
+}
+
+func (s testCredentials) Valid(username, password string) bool {
+	return s.username == username && s.password == password
+}
+
+func makeTLSSocks5Pipe(conf *config.Config, authenticator socks5.Authenticator, username, password string) (c1, c2 net.Conn, stop func(), err error) {
+	socks5Conf := &socks5.Config{}
+	if authenticator != nil {
+		socks5Conf.AuthMethods = []socks5.Authenticator{authenticator}
+	}
+	server, err := socks5.New(socks5Conf)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	clientConfig, err := newTLSClientConfig(conf)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	serverConfig, err := newTLSListenerConfig(conf)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	socksDialer := socks5Dialer{
+		directDialer: directDialer{
+			dialTimeout: 2 * time.Second,
+			keepAlive:   60 * time.Second,
+		},
+		proxyNetwork: proxy.Addr().Network(),
+		proxyAddr:    proxy.Addr().String(),
+		username:     username,
+		password:     password,
+	}
+
+	tlsDialer := tlsDialer{
+		timeout:   3 * time.Second,
+		rawDialer: socksDialer,
+		config:    clientConfig,
+	}
+
+	target, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
+	if err != nil {
+		proxy.Close()
+		return nil, nil, nil, err
+	}
+	// Start a connection between two endpoints.
+	var err0, err1, err2 error
+	var c0 net.Conn
+	go func() {
+		c0, err0 = proxy.Accept()
+		if err0 == nil {
+			err0 = server.ServeConn(c0)
+		}
+	}()
+	done := make(chan bool)
+	go func() {
+		c2, err2 = target.Accept()
+		close(done)
+		if err2 != nil {
+			return
+		}
+		// will force handshake completion
+		buf := make([]byte, 0)
+		c2.Read(buf)
+
+		tlscon, ok := c2.(*tls.Conn)
+		if ok {
+			state := tlscon.ConnectionState()
+			for _, v := range state.PeerCertificates {
+				_ = v
+				//fmt.Println(x509.MarshalPKIXPublicKey(v.PublicKey))
+			}
+		}
+	}()
+	stop = func() {
+		if err1 == nil {
+			c1.Close()
+		}
+		if err2 == nil {
+			c2.Close()
+		}
+		target.Close()
+		proxy.Close()
+	}
+
+	c1, err1 = tlsDialer.Dial(target.Addr().Network(), target.Addr().String())
+	if err1 != nil {
+		target.Close()
+		return nil, nil, nil, err1
+	}
+	select {
+	case <-done:
+	case <-time.After(4 * time.Second):
+		target.Close()
+		return nil, nil, nil, errors.New("Accept timeout ")
+	}
+
+	switch {
+	case err1 != nil:
+		stop()
+		return nil, nil, nil, err1
+	case err2 != nil:
+		stop()
+		return nil, nil, nil, err2
+	default:
+		return c1, c2, stop, nil
+	}
+}
+
 func makePipe() (c1, c2 net.Conn, stop func(), err error) {
+	dialer := directDialer{
+		dialTimeout: 2 * time.Second,
+		keepAlive:   60 * time.Second,
+	}
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return nil, nil, nil, err
@@ -95,9 +226,8 @@ func makePipe() (c1, c2 net.Conn, stop func(), err error) {
 		c2, err2 = ln.Accept()
 		close(done)
 	}()
-	c1, err1 = net.Dial(ln.Addr().Network(), ln.Addr().String())
-	<-done
 
+	c1, err1 = dialer.Dial(ln.Addr().Network(), ln.Addr().String())
 	stop = func() {
 		if err1 == nil {
 			c1.Close()
@@ -108,7 +238,87 @@ func makePipe() (c1, c2 net.Conn, stop func(), err error) {
 		ln.Close()
 	}
 
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		stop()
+		return nil, nil, nil, errors.New("Accept timeout")
+	}
+
 	switch {
+	case err1 != nil:
+		stop()
+		return nil, nil, nil, err1
+	case err2 != nil:
+		stop()
+		return nil, nil, nil, err2
+	default:
+		return c1, c2, stop, nil
+	}
+}
+
+func makeSocks5Pipe() (c1, c2 net.Conn, stop func(), err error) {
+	server, err := socks5.New(&socks5.Config{})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	target, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		proxy.Close()
+		return nil, nil, nil, err
+	}
+	socksDialer := socks5Dialer{
+		directDialer: directDialer{
+			dialTimeout: 2 * time.Second,
+			keepAlive:   60 * time.Second,
+		},
+		proxyNetwork: proxy.Addr().Network(),
+		proxyAddr:    proxy.Addr().String(),
+	}
+
+	var err0, err1, err2 error
+	var c0 net.Conn
+	go func() {
+		c0, err0 = proxy.Accept()
+		if err0 == nil {
+			err0 = server.ServeConn(c0)
+		}
+	}()
+
+	done := make(chan bool)
+	go func() {
+		c2, err2 = target.Accept()
+		close(done)
+	}()
+
+	c1, err1 = socksDialer.Dial(target.Addr().Network(), target.Addr().String())
+
+	stop = func() {
+		if err1 == nil {
+			c1.Close()
+		}
+		if err2 == nil {
+			c2.Close()
+		}
+		target.Close()
+		proxy.Close()
+	}
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		stop()
+		return nil, nil, nil, errors.New("Accept timeout")
+	}
+
+	switch {
+	case err0 != nil:
+		stop()
+		return nil, nil, nil, err0
 	case err1 != nil:
 		stop()
 		return nil, nil, nil, err1

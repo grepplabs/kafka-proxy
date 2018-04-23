@@ -9,6 +9,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/armon/go-socks5"
+  packages = ["."]
+  revision = "e75332964ef517daa070d7c38a9466a0d687e0a5"
+
+[[projects]]
+  branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
@@ -320,6 +326,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c0868a33c0fd06f6421accb597845192ab3dad06dde4c3bf9aa0c4e900040c4e"
+  inputs-digest = "3767653478a6bfdf1a5fb8202e202da16cf20f4b1f5b692d306915fe87dae19c"
   solver-name = "gps-cdcl"
   solver-version = 1

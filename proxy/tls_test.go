@@ -3,12 +3,14 @@ package proxy
 import (
 	"bytes"
 	"crypto/x509"
+	"github.com/armon/go-socks5"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -116,6 +118,73 @@ func TestTLSSelfSigned(t *testing.T) {
 	}
 	defer stop()
 	pingPong(t, c1, c2)
+}
+
+func TestTLSThroughSocks5(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+
+	c1, c2, stop, err := makeTLSSocks5Pipe(c, nil, "", "")
+	if err != nil {
+		a.FailNow(err.Error())
+	}
+	defer stop()
+	pingPong(t, c1, c2)
+}
+
+func TestTLSThroughSocks5WithCredentials(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+
+	authenticator := &socks5.UserPassAuthenticator{
+		Credentials: testCredentials{
+			username: "test-user",
+			password: "test-password",
+		},
+	}
+	c1, c2, stop, err := makeTLSSocks5Pipe(c, authenticator, "test-user", "test-password")
+	if err != nil {
+		a.FailNow(err.Error())
+	}
+	defer stop()
+	pingPong(t, c1, c2)
+}
+
+func TestTLSThroughSocks5WithBadCredentials(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+
+	authenticator := &socks5.UserPassAuthenticator{
+		Credentials: testCredentials{
+			username: "test-user",
+			password: "test-password",
+		},
+	}
+	_, _, _, err := makeTLSSocks5Pipe(c, authenticator, "test-user", "bad-password")
+	a.NotNil(err)
+	a.True(strings.HasPrefix(err.Error(), "proxy: SOCKS5 proxy at"))
+	a.True(strings.HasSuffix(err.Error(), "rejected username/password"))
 }
 
 func TestTLSVerifyClientCertDifferentCAs(t *testing.T) {

@@ -7,13 +7,22 @@ import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/stretchr/testify/assert"
+	"net"
 	"testing"
 	"time"
 )
 
 func TestAuthHandshake(t *testing.T) {
 	a := assert.New(t)
+	testAuthHandshake(a, makePipe)
+}
 
+func TestAuthHandshakeSocks5(t *testing.T) {
+	a := assert.New(t)
+	testAuthHandshake(a, makeSocks5Pipe)
+}
+
+func testAuthHandshake(a *assert.Assertions, mp func() (c1, c2 net.Conn, stop func(), err error)) {
 	magic, err := RandomUint64()
 	a.Nil(err)
 
@@ -36,7 +45,6 @@ func TestAuthHandshake(t *testing.T) {
 		tokenProvider: tokenProvider,
 	}
 
-	//TODO: implement verify
 	server := &AuthServer{
 		enabled:   true,
 		magic:     magic,
@@ -44,7 +52,7 @@ func TestAuthHandshake(t *testing.T) {
 		timeout:   10 * time.Second,
 		tokenInfo: tokenInfo,
 	}
-	c1, c2, stop, err := makePipe()
+	c1, c2, stop, err := mp()
 	a.Nil(err)
 	defer stop()
 
