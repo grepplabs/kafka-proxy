@@ -198,6 +198,10 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	err = c.auth(conn)
 	if err != nil {
 		return nil, err
@@ -212,6 +216,7 @@ func (c *Client) auth(conn net.Conn) error {
 			return err
 		}
 		if err := conn.SetDeadline(time.Time{}); err != nil {
+			conn.Close()
 			return err
 		}
 	}
@@ -221,8 +226,10 @@ func (c *Client) auth(conn net.Conn) error {
 			conn.Close()
 			return err
 		}
-		// reset deadlines
-		return conn.SetDeadline(time.Time{})
+		if err := conn.SetDeadline(time.Time{}); err != nil {
+			conn.Close()
+			return err
+		}
 	}
 	return nil
 }

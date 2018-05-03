@@ -1,10 +1,15 @@
 package proxy
 
 import (
+	"bufio"
 	"crypto/tls"
+	"encoding/base64"
+	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/net/proxy"
 	"net"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -23,7 +28,16 @@ func (d directDialer) Dial(network, addr string) (net.Conn, error) {
 		Timeout:   d.dialTimeout,
 		KeepAlive: d.keepAlive,
 	}
-	return dialer.Dial(network, addr)
+	conn, err := dialer.Dial(network, addr)
+	if err != nil {
+		return nil, err
+	}
+	err = conn.SetDeadline(time.Now().Add(d.dialTimeout))
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, err
 }
 
 type socks5Dialer struct {
@@ -121,4 +135,62 @@ func (d tlsDialer) Dial(network, addr string) (net.Conn, error) {
 	}
 
 	return conn, nil
+}
+
+type httpProxy struct {
+	forwardDialer      Dialer
+	hostPort           string
+	username, password string
+}
+
+func (s *httpProxy) Dial(network, addr string) (net.Conn, error) {
+	reqURL, err := url.Parse("http://" + addr)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("CONNECT", reqURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Close = false
+	if s.username != "" && s.password != "" {
+		req.Header.Set("Proxy-Authorization", base64.StdEncoding.EncodeToString([]byte(s.username+":"+s.password)))
+	}
+
+	c, err := s.forwardDialer.Dial("tcp", s.hostPort)
+	if err != nil {
+		return nil, err
+	}
+	err = req.Write(c)
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(c), req)
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		c.Close()
+		return nil, fmt.Errorf("connect server using proxy error, statuscode [%d]", resp.StatusCode)
+	}
+
+	return c, nil
+}
+
+func newHTTPProxy(uri *url.URL, forward Dialer) (Dialer, error) {
+	s := new(httpProxy)
+	s.hostPort = uri.Host
+	if uri.Port() == "" {
+		return nil, fmt.Errorf("http proxy url doesn't contain a port [%v]", uri)
+	}
+	s.forwardDialer = forward
+	if uri.User != nil {
+		s.username = uri.User.Username()
+		s.password, _ = uri.User.Password()
+	}
+	return s, nil
 }
