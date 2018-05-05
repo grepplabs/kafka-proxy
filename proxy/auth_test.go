@@ -17,9 +17,14 @@ func TestAuthHandshake(t *testing.T) {
 	testAuthHandshake(a, makePipe)
 }
 
-func TestAuthHandshakeSocks5(t *testing.T) {
+func TestAuthHandshakeSocks5Proxy(t *testing.T) {
 	a := assert.New(t)
-	testAuthHandshake(a, makeSocks5Pipe)
+	testAuthHandshake(a, makeSocks5ProxyPipe)
+}
+
+func TestAuthHandshakeHttpProxy(t *testing.T) {
+	a := assert.New(t)
+	testAuthHandshake(a, makeHttpProxyPipe)
 }
 
 func testAuthHandshake(a *assert.Assertions, mp func() (c1, c2 net.Conn, stop func(), err error)) {

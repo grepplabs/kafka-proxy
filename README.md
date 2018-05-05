@@ -219,7 +219,6 @@ Connect through test SOCKS5 Proxy server
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
                        --forward-proxy socks5://localhost:1080
-
 ```
 
 ```
@@ -229,7 +228,6 @@ Connect through test SOCKS5 Proxy server
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy socks5://my-proxy-user:my-proxy-password@localhost:1080
-
 ```
 
 ### Connect to Kafka through HTTP Proxy example
@@ -243,7 +241,6 @@ Connect through test HTTP Proxy server using CONNECT method
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
                        --forward-proxy http://localhost:3128
-
 ```
 
 ```
@@ -253,7 +250,6 @@ Connect through test HTTP Proxy server using CONNECT method
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy http://my-proxy-user:my-proxy-password@localhost:3128
-
 ```
 
 ### Kubernetes sidecar container example

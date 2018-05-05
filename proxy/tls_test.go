@@ -120,7 +120,7 @@ func TestTLSSelfSigned(t *testing.T) {
 	pingPong(t, c1, c2)
 }
 
-func TestTLSThroughSocks5(t *testing.T) {
+func TestTLSThroughSocks5Proxy(t *testing.T) {
 	a := assert.New(t)
 
 	bundle := NewCertsBundle()
@@ -131,7 +131,7 @@ func TestTLSThroughSocks5(t *testing.T) {
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
 
-	c1, c2, stop, err := makeTLSSocks5Pipe(c, nil, "", "")
+	c1, c2, stop, err := makeTLSSocks5ProxyPipe(c, nil, "", "")
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -139,7 +139,26 @@ func TestTLSThroughSocks5(t *testing.T) {
 	pingPong(t, c1, c2)
 }
 
-func TestTLSThroughSocks5WithCredentials(t *testing.T) {
+func TestTLSThroughHttpProxy(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+
+	c1, c2, stop, err := makeTLSHttpProxyPipe(c, "", "", "", "")
+	if err != nil {
+		a.FailNow(err.Error())
+	}
+	defer stop()
+	pingPong(t, c1, c2)
+}
+
+func TestTLSThroughSocks5ProxyWithCredentials(t *testing.T) {
 	a := assert.New(t)
 
 	bundle := NewCertsBundle()
@@ -156,7 +175,7 @@ func TestTLSThroughSocks5WithCredentials(t *testing.T) {
 			password: "test-password",
 		},
 	}
-	c1, c2, stop, err := makeTLSSocks5Pipe(c, authenticator, "test-user", "test-password")
+	c1, c2, stop, err := makeTLSSocks5ProxyPipe(c, authenticator, "test-user", "test-password")
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -164,7 +183,25 @@ func TestTLSThroughSocks5WithCredentials(t *testing.T) {
 	pingPong(t, c1, c2)
 }
 
-func TestTLSThroughSocks5WithBadCredentials(t *testing.T) {
+func TestTLSThroughHttpProxyWithCredentials(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+	c1, c2, stop, err := makeTLSHttpProxyPipe(c, "test-user", "test-password", "test-user", "test-password")
+	if err != nil {
+		a.FailNow(err.Error())
+	}
+	defer stop()
+	pingPong(t, c1, c2)
+}
+
+func TestTLSThroughSocks5ProxyWithBadCredentials(t *testing.T) {
 	a := assert.New(t)
 
 	bundle := NewCertsBundle()
@@ -181,10 +218,26 @@ func TestTLSThroughSocks5WithBadCredentials(t *testing.T) {
 			password: "test-password",
 		},
 	}
-	_, _, _, err := makeTLSSocks5Pipe(c, authenticator, "test-user", "bad-password")
+	_, _, _, err := makeTLSSocks5ProxyPipe(c, authenticator, "test-user", "bad-password")
 	a.NotNil(err)
 	a.True(strings.HasPrefix(err.Error(), "proxy: SOCKS5 proxy at"))
 	a.True(strings.HasSuffix(err.Error(), "rejected username/password"))
+}
+
+func TestTLSThroughHttpProxyWithBadCredentials(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
+
+	_, _, _, err := makeTLSHttpProxyPipe(c, "test-user", "test-password", "test-user", "bad-password")
+	a.NotNil(err)
+	a.Equal(err.Error(), "connect server using proxy error, statuscode [407]")
 }
 
 func TestTLSVerifyClientCertDifferentCAs(t *testing.T) {
