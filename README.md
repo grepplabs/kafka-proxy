@@ -90,6 +90,7 @@ See:
           --dynamic-listeners-disable                      Disable dynamic listeners.
           --external-server-mapping stringArray            Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
           --forbidden-api-keys intSlice                    Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics
+          --forward-proxy string                           URL of the forward proxy. Supported schemas are http and socks5
       -h, --help                                           help for server
           --http-disable                                   Disable HTTP endpoints
           --http-health-path string                        Path on which to health endpoint (default "/health")
@@ -121,9 +122,6 @@ See:
           --sasl-jaas-config-file string                   Location of JAAS config file with SASL username and password
           --sasl-password string                           SASL user password
           --sasl-username string                           SASL user name
-          --socks5-address string                          Address of SOCKS5 proxy to connect through when connecting to kafka brokers
-          --socks5-password string                         Password for SOCKS5 proxy Username/Password Authentication
-          --socks5-username string                         Username for SOCKS5 proxy Username/Password Authentication
           --tls-ca-chain-cert-file string                  PEM encoded CA's certificate file
           --tls-client-cert-file string                    PEM encoded file with client certificate
           --tls-client-key-file string                     PEM encoded file with private key for the client certificate
@@ -212,17 +210,51 @@ Authentication between Kafka Proxy Client and Kafka Proxy Server with Google-ID 
 
 ### Connect to Kafka through SOCKS5 Proxy example
 
+Connect through test SOCKS5 Proxy server
+
+```
+    kafka-proxy tools socks5-proxy --addr localhost:1080
+
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
-                       --socks5-address localhost:1080
+                       --forward-proxy socks5://localhost:1080
+
+```
+
+```
+    kafka-proxy tools socks5-proxy --addr localhost:1080 --username my-proxy-user --password my-proxy-password
 
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
-                       --socks5-address localhost:1080 \
-                       --socks5-username my-proxy-user \
-                       --socks5-password my-proxy-password
+                       --forward-proxy socks5://my-proxy-user:my-proxy-password@localhost:1080
+
+```
+
+### Connect to Kafka through HTTP Proxy example
+
+Connect through test HTTP Proxy server using CONNECT method
+
+```
+    kafka-proxy tools http-proxy --addr localhost:3128
+
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
+                       --forward-proxy http://localhost:3128
+
+```
+
+```
+    kafka-proxy tools http-proxy --addr localhost:3128 --username my-proxy-user --password my-proxy-password
+
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
+                       --forward-proxy http://my-proxy-user:my-proxy-password@localhost:3128
+
+```
 
 ### Kubernetes sidecar container example
 

@@ -5,6 +5,7 @@ import (
 	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/pkg/errors"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -120,10 +121,13 @@ type Config struct {
 			JaasConfigFile string
 		}
 	}
-	Socks5 struct {
-		ProxyAddress string
-		Username     string
-		Password     string
+	ForwardProxy struct {
+		Url string
+
+		Scheme   string
+		Address  string
+		Username string
+		Password string
 	}
 }
 
@@ -266,21 +270,32 @@ func (c *Config) Validate() error {
 	if c.Auth.Gateway.Server.Enable && c.Auth.Gateway.Server.Timeout <= 0 {
 		return errors.New("Auth.Gateway.Server.Timeout must be greater than 0")
 	}
-	if c.Socks5.ProxyAddress == "" && (c.Socks5.Username != "" || c.Socks5.Password != "") {
-		return errors.New("Socks5.ProxyAddress must not be empty when Socks5 Username/Password is provided")
-	}
-	if (c.Socks5.Username != "" && c.Socks5.Password == "") || (c.Socks5.Username == "" && c.Socks5.Password != "") {
-		return errors.New("Both Socks5 Username and Password must be provided provided")
-	}
-	if len(c.Socks5.Username) > 255 || len(c.Socks5.Password) > 255 {
-		// RFC1929
-		return errors.New("Max length of Socks5 Username/Password is 255 chars")
-	}
-	if c.Socks5.ProxyAddress != "" {
-		if _, _, err := util.SplitHostPort(c.Socks5.ProxyAddress); err != nil {
+	// http://username:password@hostname:port or socks5://username:password@hostname:port
+	if c.ForwardProxy.Url != "" {
+		var proxyUrl *url.URL
+		var err error
+		if proxyUrl, err = url.Parse(c.ForwardProxy.Url); err != nil {
 			return err
 		}
-	}
+		if proxyUrl.Port() == "" {
+			return errors.New("Port part of ForwardProxy.Url must not be empty")
+		}
+		c.ForwardProxy.Address = proxyUrl.Host
 
+		if proxyUrl.Scheme != "http" && proxyUrl.Scheme != "socks5" {
+			return errors.New("ForwardProxy.Url Scheme must be http or socks5")
+		}
+		c.ForwardProxy.Scheme = proxyUrl.Scheme
+
+		if proxyUrl.User != nil {
+			password, _ := proxyUrl.User.Password()
+			if proxyUrl.User.Username() == "" || password == "" {
+				return errors.New("Both ForwardProxy Url Username and Password must be provided")
+			}
+			c.ForwardProxy.Username = proxyUrl.User.Username()
+			c.ForwardProxy.Password = password
+		}
+
+	}
 	return nil
 }

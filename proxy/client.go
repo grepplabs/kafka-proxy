@@ -109,24 +109,38 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 }
 
 func newDialer(c *config.Config, tlsConfig *tls.Config) (Dialer, error) {
+	directDialer := directDialer{
+		dialTimeout: c.Kafka.DialTimeout,
+		keepAlive:   c.Kafka.KeepAlive,
+	}
+
 	var rawDialer Dialer
-	if c.Socks5.ProxyAddress != "" {
-		logrus.Infof("Kafka clients will connect through the SOCKS5 proxy %s", c.Socks5.ProxyAddress)
-		rawDialer = &socks5Dialer{
-			directDialer: directDialer{
-				dialTimeout: c.Kafka.DialTimeout,
-				keepAlive:   c.Kafka.KeepAlive,
-			},
-			proxyNetwork: "tcp",
-			proxyAddr:    c.Socks5.ProxyAddress,
-			username:     c.Socks5.Username,
-			password:     c.Socks5.Password,
+	if c.ForwardProxy.Url != "" {
+		switch c.ForwardProxy.Scheme {
+		case "socks5":
+			logrus.Infof("Kafka clients will connect through the SOCKS5 proxy %s", c.ForwardProxy.Address)
+			rawDialer = &socks5Dialer{
+				directDialer: directDialer,
+				proxyNetwork: "tcp",
+				proxyAddr:    c.ForwardProxy.Address,
+				username:     c.ForwardProxy.Username,
+				password:     c.ForwardProxy.Password,
+			}
+		case "http":
+			logrus.Infof("Kafka clients will connect through the HTTP proxy %s using CONNECT", c.ForwardProxy.Address)
+
+			rawDialer = &httpProxy{
+				forwardDialer: directDialer,
+				network:       "tcp",
+				hostPort:      c.ForwardProxy.Address,
+				username:      c.ForwardProxy.Username,
+				password:      c.ForwardProxy.Password,
+			}
+		default:
+			return nil, errors.New("Only http or socks5 proxy is supported")
 		}
 	} else {
-		rawDialer = directDialer{
-			dialTimeout: c.Kafka.DialTimeout,
-			keepAlive:   c.Kafka.KeepAlive,
-		}
+		rawDialer = directDialer
 	}
 	if c.Kafka.TLS.Enable {
 		if tlsConfig == nil {

@@ -48,7 +48,7 @@ func httpProxyServer(cmd *cobra.Command, _ []string) error {
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = verbose
 	if username != "" && password != "" {
-		logrus.Info("HTTP proxy will require basic authentication")
+		logrus.Info("HTTP proxy will require Basic Proxy-Authorization for CONNECT")
 
 		proxy.OnRequest().HandleConnect(auth.BasicConnect("", func(user, passwd string) bool {
 			return user == username && passwd == password
@@ -65,12 +65,8 @@ func socks5ProxyServer(cmd *cobra.Command, _ []string) error {
 	addr, _ := cmd.Flags().GetString("addr")
 
 	conf := &socks5.Config{}
-	server, err := socks5.New(conf)
-	if err != nil {
-		return err
-	}
 	if username != "" && password != "" {
-		logrus.Info("SOCKS5 proxy will require basic authentication", addr)
+		logrus.Info("SOCKS5 proxy will require Username/Password Authentication")
 
 		authenticator := &socks5.UserPassAuthenticator{
 			Credentials: socks5ProxyCredentials{
@@ -80,7 +76,10 @@ func socks5ProxyServer(cmd *cobra.Command, _ []string) error {
 		}
 		conf.AuthMethods = []socks5.Authenticator{authenticator}
 	}
-
+	server, err := socks5.New(conf)
+	if err != nil {
+		return err
+	}
 	logrus.Infof("Starting SOCKS5 proxy server on %s", addr)
 	return server.ListenAndServe("tcp", addr)
 }

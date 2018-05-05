@@ -139,6 +139,7 @@ func (d tlsDialer) Dial(network, addr string) (net.Conn, error) {
 
 type httpProxy struct {
 	forwardDialer      Dialer
+	network            string
 	hostPort           string
 	username, password string
 }
@@ -154,10 +155,11 @@ func (s *httpProxy) Dial(network, addr string) (net.Conn, error) {
 	}
 	req.Close = false
 	if s.username != "" && s.password != "" {
-		req.Header.Set("Proxy-Authorization", base64.StdEncoding.EncodeToString([]byte(s.username+":"+s.password)))
+		basic := "Basic " + base64.StdEncoding.EncodeToString([]byte(s.username+":"+s.password))
+		req.Header.Set("Proxy-Authorization", basic)
 	}
 
-	c, err := s.forwardDialer.Dial("tcp", s.hostPort)
+	c, err := s.forwardDialer.Dial(s.network, s.hostPort)
 	if err != nil {
 		return nil, err
 	}
@@ -179,18 +181,4 @@ func (s *httpProxy) Dial(network, addr string) (net.Conn, error) {
 	}
 
 	return c, nil
-}
-
-func newHTTPProxy(uri *url.URL, forward Dialer) (Dialer, error) {
-	s := new(httpProxy)
-	s.hostPort = uri.Host
-	if uri.Port() == "" {
-		return nil, fmt.Errorf("http proxy url doesn't contain a port [%v]", uri)
-	}
-	s.forwardDialer = forward
-	if uri.User != nil {
-		s.username = uri.User.Username()
-		s.password, _ = uri.User.Password()
-	}
-	return s, nil
 }
