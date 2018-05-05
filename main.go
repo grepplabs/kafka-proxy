@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/cmd/kafka-proxy"
+	"github.com/grepplabs/kafka-proxy/cmd/tools"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -20,6 +21,7 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(server.Server)
 	RootCmd.AddCommand(server.Version)
+	RootCmd.AddCommand(tools.Tools)
 }
 
 func main() {

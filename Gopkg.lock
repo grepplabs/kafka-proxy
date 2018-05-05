@@ -32,6 +32,15 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/elazarl/goproxy"
+  packages = [
+    ".",
+    "ext/auth"
+  ]
+  revision = "a96fa3a318260eab29abaf32f7128c9eb07fb073"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
@@ -326,6 +335,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3767653478a6bfdf1a5fb8202e202da16cf20f4b1f5b692d306915fe87dae19c"
+  inputs-digest = "a64ee9f9d5760402323ea9bfbc9075ed6986cc9d052e82a21412cf29ee56c0b3"
   solver-name = "gps-cdcl"
   solver-version = 1
