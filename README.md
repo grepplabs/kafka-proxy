@@ -368,7 +368,6 @@ spec:
 * [ ] Optional ApiVersionsRequest before Local SASL Authentication Sequence
 * [ ] SaslHandshakeRequest v1 - Kafka 1.1.0
 * [X] Connect to Kafka through SOCKS5 Proxy
-* [ ] Proxy support for outgoing HTTP/HTTPS connections (googleid)
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
 * [ ] Kafka connect tests
