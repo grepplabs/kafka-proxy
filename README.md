@@ -34,11 +34,11 @@ See:
 
    Linux
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.3/linux.amd64.kafka-proxy
+        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_linux_amd64.tar.gz
 
    macOS
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.3/darwin.amd64.kafka-proxy
+        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_darwin_amd64.tar.gz
 
 2. Make the kafka-proxy binary executable
 
