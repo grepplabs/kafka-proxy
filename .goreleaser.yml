@@ -1,0 +1,13 @@
+builds:
+- binary: kafka-proxy
+  goos:
+    - windows
+    - darwin
+    - linux
+  goarch:
+    - amd64
+  ldflags: -s -w -X github.com/grepplabs/kafka-proxy/config.Version={{.Version}}
+archive:
+  format: tar.gz
+  files:
+  - LICENSE

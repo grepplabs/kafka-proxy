@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: clean build build.local build.linux build.osx build.docker build.docker-build.linux build.docker-build.osx
+.PHONY: clean build build.docker tag all
 
 BINARY        ?= kafka-proxy
 SOURCES        = $(shell find . -name '*.go' | grep -v /vendor/)
@@ -8,16 +8,11 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.0.3"
+TAG           ?= "v0.0.4"
+GOARCH        ?= amd64
+GOOS          ?= linux
 
-PLATFORM      ?= $(shell uname -s)
-ifeq ($(PLATFORM), Darwin)
-    BUILD_DOCKER_BUILD=build.docker-build.osx
-else
-    BUILD_DOCKER_BUILD=build.docker-build.linux
-endif
-
-default: build.local
+default: build
 
 test.race:
 	GOCACHE=off go test -v -race `go list ./...`
@@ -33,54 +28,20 @@ check:
 	go vet $(GOPKGS)
 
 
-build.local: build/$(BINARY)
-build.linux: build/linux/$(BINARY)
-build.osx: build/osx/$(BINARY)
-
 build: build/$(BINARY)
 
 build/$(BINARY): $(SOURCES)
-	CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
 
-build/linux/$(BINARY): $(SOURCES)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/linux/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
-
-build/osx/$(BINARY): $(SOURCES)
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o build/osx/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
-
-build.docker-build: $(BUILD_DOCKER_BUILD)
-
-build.docker-build.linux:
-	set -e ;\
-    buildContainerName=${BINARY}-buildcontainer ;\
-    docker build -t $$buildContainerName --build-arg target=build.linux -f Dockerfile.build . ;\
-    buildContainer=$$(docker create $$buildContainerName) ;\
-    echo "containerId: $$buildContainer" ;\
-    mkdir -p build ;\
-    docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/linux/${BINARY} build/${BINARY} ;\
-    docker rm $$buildContainer ;\
-    docker rmi $$buildContainerName ;\
-
-build.docker-build.osx:
-	set -e ;\
-    buildContainerName=${BINARY}-buildcontainer ;\
-    docker build -t $$buildContainerName --build-arg target=build.osx -f Dockerfile.build . ;\
-    buildContainer=$$(docker create $$buildContainerName) ;\
-    echo "containerId: $$buildContainer" ;\
-    mkdir -p build ;\
-    docker cp $$buildContainer:/go/src/github.com/grepplabs/kafka-proxy/build/osx/${BINARY} build/${BINARY} ;\
-    docker rm $$buildContainer ;\
-    docker rmi $$buildContainerName ;\
+docker.build:
+	docker build --build-arg GOOS=$(GOOS) --build-arg  GOARCH=$(GOARCH) -f Dockerfile.build .
 
 tag:
 	git tag $(TAG)
 
-release: clean build.linux build.osx
+release: clean
 	git push origin $(TAG)
-	github-release release -u grepplabs -r $(BINARY) --tag $(TAG)
-	github-release upload -u grepplabs -r $(BINARY) -t $(TAG) -f build/linux/$(BINARY) -n linux/amd64/$(BINARY)
-	github-release upload -u grepplabs -r $(BINARY) -t $(TAG) -f build/osx/$(BINARY) -n darwin/amd64/$(BINARY)
-	github-release info -u grepplabs -r $(BINARY)
+	curl -sL https://git.io/goreleaser | bash
 
 protoc.local-auth:
 	protoc -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=plugins=grpc:plugin/local-auth/proto/
