@@ -34,19 +34,13 @@ See:
 
    Linux
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_linux_amd64.tar.gz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_linux_amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Lso kafka-proxy https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_darwin_amd64.tar.gz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.4/kafka-proxy_0.0.4_darwin_amd64.tar.gz | tar xz
 
-2. Make the kafka-proxy binary executable
-
-    ```
-    chmod +x ./kafka-proxy
-    ```
-
-3. Move the binary in to your PATH.
+2. Move the binary in to your PATH.
 
     ```
     sudo mv ./kafka-proxy /usr/local/bin/kafka-proxy

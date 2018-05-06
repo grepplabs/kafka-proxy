@@ -4,6 +4,9 @@ build/
 /google-id-info
 /google-id-provider
 
+# goreleaser
+dist/
+
 # Intellij
 .idea/
 out/
