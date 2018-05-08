@@ -48,7 +48,7 @@ See:
 
 ### Building
 
-    make build.docker-build
+    make clean build
 
 ### Help output
 
