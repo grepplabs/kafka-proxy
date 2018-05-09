@@ -16,7 +16,8 @@ const (
 	defaultReadTimeout        = 30 * time.Second
 	minOpenRequests           = 16
 
-	apiKeySaslHandshake = int16(17)
+	apiKeySaslHandshake  = int16(17)
+	apiKeyApiApiVersions = int16(18)
 
 	minRequestApiKey = int16(0)   // 0 - Produce
 	maxRequestApiKey = int16(100) // so far 42 is the last (reserve some for the feature)
@@ -81,8 +82,7 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 	if readTimeout <= 0 {
 		readTimeout = defaultReadTimeout
 	}
-	// in most use cases there will be only one entry in the nextRequestHandlerChannel channel
-	nextRequestHandlerChannel := make(chan RequestHandler, minOpenRequests)
+	nextRequestHandlerChannel := make(chan RequestHandler, 1)
 	nextResponseHandlerChannel := make(chan ResponseHandler, maxOpenRequests+1)
 
 	// initial handlers -> standard kafka message arrives always as first
@@ -112,14 +112,6 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 			return true, err
 		}
 	}
-	if p.localSasl.enabled {
-		//TODO: when localSasl is enabled SASL is mandadory - we need authorized e.g. in RequestsLoopContext (mutex ?)
-		//TODO: before SASL only ApiVersions is required
-		//TODO: SASL can be done only once
-		if err = p.localSasl.receiveAndSendSASLPlainAuth(src); err != nil {
-			return true, err
-		}
-	}
 	src.SetDeadline(time.Time{})
 
 	ctx := &RequestsLoopContext{
@@ -130,6 +122,8 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 		brokerAddress:              p.brokerAddress,
 		forbiddenApiKeys:           p.forbiddenApiKeys,
 		buf:                        make([]byte, p.requestBufferSize),
+		localSasl:                  p.localSasl,
+		localSaslDone:              false, // sequential processing - mutex is required
 	}
 
 	return ctx.requestsLoop(dst, src)
@@ -144,9 +138,23 @@ type RequestsLoopContext struct {
 	brokerAddress    string
 	forbiddenApiKeys map[int16]struct{}
 	buf              []byte // bufSize
+
+	localSasl     *LocalSasl
+	localSaslDone bool
 }
 
-func (ctx *RequestsLoopContext) nextHandlers(nextRequestHandler RequestHandler, nextResponseHandler ResponseHandler) error {
+// used by local authentication
+func (ctx *RequestsLoopContext) putNextRequestHandler(nextRequestHandler RequestHandler) error {
+
+	select {
+	case ctx.nextRequestHandlerChannel <- nextRequestHandler:
+	default:
+		return errors.New("next request handler channel is full")
+	}
+	return nil
+}
+
+func (ctx *RequestsLoopContext) putNextHandlers(nextRequestHandler RequestHandler, nextResponseHandler ResponseHandler) error {
 
 	select {
 	case ctx.nextRequestHandlerChannel <- nextRequestHandler:
@@ -157,8 +165,7 @@ func (ctx *RequestsLoopContext) nextHandlers(nextRequestHandler RequestHandler, 
 	select {
 	case ctx.nextResponseHandlerChannel <- nextResponseHandler:
 	default:
-		// timer.Stop() will be invoked only after nextHandlers is finished
-		timer := time.NewTimer(openRequestReceiveTimeout) // reuse openRequestReceiveTimeout
+		timer := time.NewTimer(openRequestSendTimeout)
 		defer timer.Stop()
 
 		select {
@@ -170,19 +177,27 @@ func (ctx *RequestsLoopContext) nextHandlers(nextRequestHandler RequestHandler, 
 	return nil
 }
 
-type RequestHandler interface {
-	handleRequest(dst DeadlineWriter, src DeadlineReader, ctx *RequestsLoopContext) (readErr bool, err error)
+func (r *RequestsLoopContext) getNextRequestHandler() (RequestHandler, error) {
+	select {
+	case nextRequestHandler := <-r.nextRequestHandlerChannel:
+		return nextRequestHandler, nil
+	default:
+		return nil, errors.New("next request handler is missing")
+	}
 }
 
-func (r *RequestsLoopContext) requestsLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
+type RequestHandler interface {
+	handleRequest(dst DeadlineWriter, src DeadlineReaderWriter, ctx *RequestsLoopContext) (readErr bool, err error)
+}
+
+func (r *RequestsLoopContext) requestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (readErr bool, err error) {
+	var nextRequestHandler RequestHandler
 	for {
-		select {
-		case nextRequestHandler := <-r.nextRequestHandlerChannel:
-			if readErr, err = nextRequestHandler.handleRequest(dst, src, r); err != nil {
-				return readErr, err
-			}
-		default:
-			return false, errors.New("internal error: next request handler expected")
+		if nextRequestHandler, err = r.getNextRequestHandler(); err != nil {
+			return false, nil
+		}
+		if readErr, err = nextRequestHandler.handleRequest(dst, src, r); err != nil {
+			return readErr, err
 		}
 	}
 }
@@ -213,11 +228,30 @@ type ResponseHandler interface {
 }
 
 func (r *ResponsesLoopContext) responsesLoop(dst DeadlineWriter, src DeadlineReader) (readErr bool, err error) {
+	var nextResponseHandler ResponseHandler
 	for {
-		//TODO: timeout noting was received
-		nextResponseHandler := <-r.nextResponseHandlerChannel
+		if nextResponseHandler, err = r.getNextResponseHandler(); err != nil {
+			return false, err
+		}
 		if readErr, err = nextResponseHandler.handleResponse(dst, src, r); err != nil {
 			return readErr, err
+		}
+	}
+}
+
+func (r *ResponsesLoopContext) getNextResponseHandler() (ResponseHandler, error) {
+	select {
+	case handler := <-r.nextResponseHandlerChannel:
+		return handler, nil
+	default:
+		timer := time.NewTimer(openRequestReceiveTimeout)
+		defer timer.Stop()
+
+		select {
+		case handler := <-r.nextResponseHandlerChannel:
+			return handler, nil
+		case <-timer.C:
+			return nil, errors.New("next response handler is missing")
 		}
 	}
 }

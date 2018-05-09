@@ -19,8 +19,8 @@ type LocalSasl struct {
 	localAuthenticator apis.PasswordAuthenticator
 }
 
-func (p *LocalSasl) receiveAndSendSASLPlainAuth(conn DeadlineReaderWriter) (err error) {
-	if err = p.receiveAndSendSasl(conn); err != nil {
+func (p *LocalSasl) receiveAndSendSASLPlainAuth(conn DeadlineReaderWriter, readKeyVersionBuf []byte) (err error) {
+	if err = p.receiveAndSendSasl(conn, readKeyVersionBuf); err != nil {
 		return err
 	}
 	if err = p.receiveAndSendAuth(conn); err != nil {
@@ -29,17 +29,17 @@ func (p *LocalSasl) receiveAndSendSASLPlainAuth(conn DeadlineReaderWriter) (err 
 	return nil
 }
 
-func (p *LocalSasl) receiveAndSendSasl(conn DeadlineReaderWriter) (err error) {
+func (p *LocalSasl) receiveAndSendSasl(conn DeadlineReaderWriter, keyVersionBuf []byte) (err error) {
 	requestDeadline := time.Now().Add(p.timeout)
 	err = conn.SetDeadline(requestDeadline)
 	if err != nil {
 		return err
 	}
 
-	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
-	if _, err = io.ReadFull(conn, keyVersionBuf); err != nil {
-		return err
+	if len(keyVersionBuf) != 8 {
+		return errors.New("length of keyVersionBuf should be 8")
 	}
+	// keyVersionBuf has already been read from connection
 	requestKeyVersion := &protocol.RequestKeyVersion{}
 	if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
 		return err

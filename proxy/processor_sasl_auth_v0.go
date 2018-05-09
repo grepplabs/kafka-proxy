@@ -14,11 +14,11 @@ type SaslAuthV0RequestHandler struct {
 type SaslAuthV0ResponseHandler struct {
 }
 
-func (handler *SaslAuthV0RequestHandler) handleRequest(dst DeadlineWriter, src DeadlineReader, ctx *RequestsLoopContext) (readErr bool, err error) {
+func (handler *SaslAuthV0RequestHandler) handleRequest(dst DeadlineWriter, src DeadlineReaderWriter, ctx *RequestsLoopContext) (readErr bool, err error) {
 	if readErr, err = copySaslAuthRequest(dst, src, ctx.timeout, ctx.buf); err != nil {
 		return readErr, err
 	}
-	if err = ctx.nextHandlers(defaultRequestHandler, defaultResponseHandler); err != nil {
+	if err = ctx.putNextHandlers(defaultRequestHandler, defaultResponseHandler); err != nil {
 		return false, err
 	}
 	return false, nil

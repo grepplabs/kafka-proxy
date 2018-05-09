@@ -15,7 +15,7 @@ type DefaultRequestHandler struct {
 type DefaultResponseHandler struct {
 }
 
-func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src DeadlineReader, ctx *RequestsLoopContext) (readErr bool, err error) {
+func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src DeadlineReaderWriter, ctx *RequestsLoopContext) (readErr bool, err error) {
 	// logrus.Println("Await Kafka request")
 
 	// waiting for first bytes or EOF - reset deadlines
@@ -45,6 +45,31 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		return true, fmt.Errorf("api key %d is forbidden", requestKeyVersion.ApiKey)
 	}
 
+	if ctx.localSasl.enabled {
+		if ctx.localSaslDone {
+			if requestKeyVersion.ApiKey == apiKeySaslHandshake {
+				return false, errors.New("SASL Auth was already done")
+			}
+		} else {
+			switch requestKeyVersion.ApiKey {
+			case apiKeySaslHandshake:
+				//TODO: this is only V0 version
+				if err = ctx.localSasl.receiveAndSendSASLPlainAuth(src, keyVersionBuf); err != nil {
+					return true, err
+				}
+				ctx.localSaslDone = true
+				src.SetDeadline(time.Time{})
+
+				// defaultRequestHandler was consumed but due to local handling enqueued defaultResponseHandler will not be.
+				return false, ctx.putNextRequestHandler(defaultRequestHandler)
+			case apiKeyApiApiVersions:
+				// continue processing
+			default:
+				return false, errors.New("SASL Auth is required. Only SaslHandshake or ApiVersions requests are allowed")
+			}
+		}
+	}
+
 	// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
 	if err = sendRequestKeyVersion(ctx.openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
 		return true, err
@@ -69,19 +94,12 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		return readErr, err
 	}
 	if requestKeyVersion.ApiKey == apiKeySaslHandshake {
-		if requestKeyVersion.ApiVersion == 0 {
-			if err = ctx.nextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler); err != nil {
-				return false, err
-			}
-			return false, nil
-		} else {
+		if requestKeyVersion.ApiVersion != 0 {
 			return false, errors.New("only SASL V0 Handshake is supported")
 		}
+		return false, ctx.putNextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler)
 	}
-	if err = ctx.nextHandlers(defaultRequestHandler, defaultResponseHandler); err != nil {
-		return false, err
-	}
-	return false, nil
+	return false, ctx.putNextHandlers(defaultRequestHandler, defaultResponseHandler)
 }
 
 func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src DeadlineReader, ctx *ResponsesLoopContext) (readErr bool, err error) {
