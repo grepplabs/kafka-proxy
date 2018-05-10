@@ -94,10 +94,9 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		return readErr, err
 	}
 	if requestKeyVersion.ApiKey == apiKeySaslHandshake {
-		if requestKeyVersion.ApiVersion != 0 {
-			return false, errors.New("only SASL V0 Handshake is supported")
+		if requestKeyVersion.ApiVersion == 0 {
+			return false, ctx.putNextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler)
 		}
-		return false, ctx.putNextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler)
 	}
 	return false, ctx.putNextHandlers(defaultRequestHandler, defaultResponseHandler)
 }
