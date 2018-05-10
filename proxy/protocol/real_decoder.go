@@ -9,6 +9,7 @@ var errInvalidArrayLength = PacketDecodingError{"invalid array length"}
 var errInvalidStringLength = PacketDecodingError{"invalid string length"}
 var errVarintOverflow = PacketDecodingError{"varint overflow"}
 var errInvalidBool = PacketDecodingError{"invalid bool"}
+var errInvalidByteSliceLength = PacketDecodingError{"invalid byteslice length"}
 
 type realDecoder struct {
 	raw []byte
@@ -99,6 +100,31 @@ func (rd *realDecoder) getBool() (bool, error) {
 }
 
 // collections
+
+func (rd *realDecoder) getBytes() ([]byte, error) {
+	tmp, err := rd.getInt32()
+	if err != nil {
+		return nil, err
+	}
+	if tmp == -1 {
+		return nil, nil
+	}
+
+	return rd.getRawBytes(int(tmp))
+}
+
+func (rd *realDecoder) getRawBytes(length int) ([]byte, error) {
+	if length < 0 {
+		return nil, errInvalidByteSliceLength
+	} else if length > rd.remaining() {
+		rd.off = len(rd.raw)
+		return nil, ErrInsufficientData
+	}
+
+	start := rd.off
+	rd.off += length
+	return rd.raw[start:rd.off], nil
+}
 
 func (rd *realDecoder) getStringLength() (int, error) {
 	length, err := rd.getInt16()

@@ -13,6 +13,7 @@ type packetEncoder interface {
 	putArrayLength(in int) error
 	putBool(in bool)
 
+	putBytes(in []byte) error
 	putString(in string) error
 	putNullableString(in *string) error
 	putStringArray(in []string) error

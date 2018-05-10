@@ -359,8 +359,8 @@ spec:
 * [X] Registry for built-in plugins
 * [X] Client cert check
 * [X] Set TLS server CipherSuites and CurvePreferences
-* [ ] Optional ApiVersionsRequest before Local SASL Authentication Sequence
-* [ ] SaslHandshakeRequest v1 - Kafka 1.1.0
+* [X] Optional ApiVersionsRequest before Local SASL Authentication Sequence
+* [X] SaslHandshakeRequest v1 - Kafka 1.0.0
 * [X] Connect to Kafka through SOCKS5 Proxy
 * [ ] Performance tests and tuning
 * [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072

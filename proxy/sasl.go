@@ -81,7 +81,7 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake(conn DeadlineReaderWrit
 
 	req := &protocol.Request{
 		ClientID: b.clientID,
-		Body:     &protocol.SaslHandshakeRequestV0{Mechanism: SASLPlain},
+		Body:     &protocol.SaslHandshakeRequestV0orV1{Version: 0, Mechanism: SASLPlain},
 	}
 	reqBuf, err := protocol.Encode(req)
 	if err != nil {
@@ -117,7 +117,7 @@ func (b *SASLPlainAuth) sendAndReceiveSASLPlainHandshake(conn DeadlineReaderWrit
 	if err != nil {
 		return errors.Wrap(err, "Failed to read SASL handshake payload")
 	}
-	res := &protocol.SaslHandshakeResponseV0{}
+	res := &protocol.SaslHandshakeResponseV0orV1{}
 	err = protocol.Decode(payload, res)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse SASL handshake")

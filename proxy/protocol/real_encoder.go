@@ -50,6 +50,21 @@ func (re *realEncoder) putBool(in bool) {
 
 // collection
 
+func (re *realEncoder) putRawBytes(in []byte) error {
+	copy(re.raw[re.off:], in)
+	re.off += len(in)
+	return nil
+}
+
+func (re *realEncoder) putBytes(in []byte) error {
+	if in == nil {
+		re.putInt32(-1)
+		return nil
+	}
+	re.putInt32(int32(len(in)))
+	return re.putRawBytes(in)
+}
+
 func (re *realEncoder) putString(in string) error {
 	re.putInt16(int16(len(in)))
 	copy(re.raw[re.off:], in)

@@ -46,6 +46,22 @@ func (pe *prepEncoder) putBool(in bool) {
 }
 
 // arrays
+func (pe *prepEncoder) putBytes(in []byte) error {
+	pe.length += 4
+	if in == nil {
+		return nil
+	}
+	return pe.putRawBytes(in)
+}
+
+func (pe *prepEncoder) putRawBytes(in []byte) error {
+	if len(in) > math.MaxInt32 {
+		return PacketEncodingError{fmt.Sprintf("byteslice too long (%d)", len(in))}
+	}
+	pe.length += len(in)
+	return nil
+}
+
 func (pe *prepEncoder) putNullableString(in *string) error {
 	if in == nil {
 		pe.length += 2

@@ -53,9 +53,17 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		} else {
 			switch requestKeyVersion.ApiKey {
 			case apiKeySaslHandshake:
-				//TODO: this is only V0 version
-				if err = ctx.localSasl.receiveAndSendSASLPlainAuth(src, keyVersionBuf); err != nil {
-					return true, err
+				switch requestKeyVersion.ApiVersion {
+				case 0:
+					if err = ctx.localSasl.receiveAndSendSASLPlainAuthV0(src, keyVersionBuf); err != nil {
+						return true, err
+					}
+				case 1:
+					if err = ctx.localSasl.receiveAndSendSASLPlainAuthV1(src, keyVersionBuf); err != nil {
+						return true, err
+					}
+				default:
+					return true, fmt.Errorf("only saslHandshake version 0 and 1 are supported, got version %d", requestKeyVersion.ApiVersion)
 				}
 				ctx.localSaslDone = true
 				src.SetDeadline(time.Time{})
