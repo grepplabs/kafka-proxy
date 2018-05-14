@@ -54,7 +54,7 @@ func watchFileForUpdates(filename string, done <-chan bool, action func()) error
 	filename = filepath.Clean(filename)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		errors.Wrapf(err, "failed to create watcher for %s", filename)
+		return errors.Wrapf(err, "failed to create watcher for %s", filename)
 	}
 	go func() {
 		defer func() {
@@ -98,7 +98,7 @@ func watchLinkForUpdates(filename string, done <-chan bool, action func()) error
 	dirname := filepath.Dir(filename)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		errors.Wrapf(err, "failed to create watcher for file %s in dir %s", filename, dirname)
+		return errors.Wrapf(err, "failed to create watcher for file %s in dir %s", filename, dirname)
 	}
 	go func() {
 		defer func() {

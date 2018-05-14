@@ -260,9 +260,9 @@ func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword stri
 		return nil, nil, nil, err
 	}
 	// Start a connection between two endpoints.
-	var err0, err1, err2 error
+	var err1, err2 error
 	go func() {
-		err0 = http.Serve(proxy, server)
+		http.Serve(proxy, server)
 	}()
 	done := make(chan bool)
 	go func() {
