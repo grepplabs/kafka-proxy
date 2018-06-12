@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -25,11 +26,13 @@ import (
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"strings"
 
 	"github.com/grepplabs/kafka-proxy/pkg/registry"
 	// built-in plugins
 	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-info"
 	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-provider"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -48,10 +51,10 @@ var Server = &cobra.Command{
 		if err := c.InitSASLCredentials(); err != nil {
 			return err
 		}
-		if err := c.InitBootstrapServers(bootstrapServersMapping); err != nil {
+		if err := c.InitBootstrapServers(getOrStringSlice(bootstrapServersMapping, "bootstrap-server-mapping")); err != nil {
 			return err
 		}
-		if err := c.InitExternalServers(externalServersMapping); err != nil {
+		if err := c.InitExternalServers(getOrStringSlice(externalServersMapping, "external-server-mapping")); err != nil {
 			return err
 		}
 		if err := c.Validate(); err != nil {
@@ -62,11 +65,21 @@ var Server = &cobra.Command{
 	Run: Run,
 }
 
+func getOrStringSlice(value []string, key string) []string {
+	if len(bootstrapServersMapping) != 0 {
+		return value
+	}
+	return viper.GetStringSlice(key)
+}
+
 func init() {
+	initFlags()
+}
+
+func initFlags() {
 	// proxy
 	Server.Flags().StringVar(&c.Proxy.DefaultListenerIP, "default-listener-ip", "127.0.0.1", "Default listener IP")
 	Server.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port(,advhost:advport))")
-	Server.MarkFlagRequired("bootstrap-server-mapping")
 	Server.Flags().StringArrayVar(&externalServersMapping, "external-server-mapping", []string{}, "Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started")
 	Server.Flags().BoolVar(&c.Proxy.DisableDynamicListeners, "dynamic-listeners-disable", false, "Disable dynamic listeners.")
 
@@ -151,6 +164,9 @@ func init() {
 
 	// Connect through Socks5 or HTTP CONNECT to Kafka
 	Server.Flags().StringVar(&c.ForwardProxy.Url, "forward-proxy", "", "URL of the forward proxy. Supported schemas are socks5 and http")
+
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv() // read in environment variables that match
 }
 
 func Run(_ *cobra.Command, _ []string) {
