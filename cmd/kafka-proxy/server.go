@@ -51,10 +51,10 @@ var Server = &cobra.Command{
 		if err := c.InitSASLCredentials(); err != nil {
 			return err
 		}
-		if err := c.InitBootstrapServers(getOrStringSlice(bootstrapServersMapping, "bootstrap-server-mapping")); err != nil {
+		if err := c.InitBootstrapServers(getOrEnvStringSlice(bootstrapServersMapping, "BOOTSTRAP_SERVER_MAPPING")); err != nil {
 			return err
 		}
-		if err := c.InitExternalServers(getOrStringSlice(externalServersMapping, "external-server-mapping")); err != nil {
+		if err := c.InitExternalServers(getOrEnvStringSlice(externalServersMapping, "EXTERNAL_SERVER_MAPPING")); err != nil {
 			return err
 		}
 		if err := c.Validate(); err != nil {
@@ -65,11 +65,11 @@ var Server = &cobra.Command{
 	Run: Run,
 }
 
-func getOrStringSlice(value []string, key string) []string {
+func getOrEnvStringSlice(value []string, envKey string) []string {
 	if len(bootstrapServersMapping) != 0 {
 		return value
 	}
-	return viper.GetStringSlice(key)
+	return strings.Fields(os.Getenv(envKey))
 }
 
 func init() {
