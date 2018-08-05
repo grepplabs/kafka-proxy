@@ -71,6 +71,15 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		brokerToListenerConfig[v.BrokerAddress] = v
 	}
 
+	for _, v := range cfg.Proxy.BootstrapServers {
+		//to avoid external server map override by bootstrap server
+		if _, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
+			continue
+		}
+		logrus.Infof("Bootstrap server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
+		brokerToListenerConfig[v.BrokerAddress] = v
+	}
+
 	return &Listeners{
 		defaultListenerIP:       defaultListenerIP,
 		connSrc:                 make(chan Conn, 1),
@@ -132,7 +141,6 @@ func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, 
 		if err != nil {
 			return nil, err
 		}
-		p.brokerToListenerConfig[v.BrokerAddress] = v
 	}
 	return p.connSrc, nil
 }
@@ -160,6 +168,6 @@ func listenInstance(dst chan<- Conn, cfg config.ListenerConfig, opts TCPConnOpti
 		}
 	})
 
-	logrus.Infof("Listening on %s (%s) for remote %s advertised as %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress, cfg.AdvertisedAddress)
+	logrus.Infof("Listening on %s (%s) for remote %s", cfg.ListenerAddress, l.Addr().String(), cfg.BrokerAddress)
 	return l, nil
 }
