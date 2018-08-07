@@ -110,7 +110,10 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&field{name: "controller_id", ty: typeInt32},
 		&array{name: "topic_metadata", ty: topicMetadataV2},
 	)
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5}
+
+	metadataResponseV6 := metadataResponseV5
+
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
@@ -131,7 +134,10 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 		&field{name: "error_message", ty: typeNullableStr},
 		&field{name: coordinatorKeyName, ty: findCoordinatorBrokerV0},
 	)
-	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1}
+
+	findCoordinatorResponseV2 := findCoordinatorResponseV1
+
+	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2}
 }
 
 func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
