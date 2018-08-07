@@ -28,7 +28,7 @@ script:
   - docker build -t $REPO:$TAG -f Dockerfile .
 
 after_success:
-  - docker login -u $DOCKER_USER -p $DOCKER_PASS
+  - echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
   - if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then
        docker tag $REPO:$TAG $REPO:$TRAVIS_BUILD_NUMBER; docker push $REPO:$TRAVIS_BUILD_NUMBER;
     fi
