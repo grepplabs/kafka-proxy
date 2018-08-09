@@ -54,30 +54,9 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		return net.Listen("tcp", cfg.ListenerAddress)
 	}
 
-	brokerToListenerConfig := make(map[string]config.ListenerConfig)
-
-	// add mapping without starting local listeners
-	for _, v := range cfg.Proxy.ExternalServers {
-		if lc, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
-			if lc.ListenerAddress != v.ListenerAddress {
-				return nil, fmt.Errorf("broker to listener address mapping %s configured twice: %s and %v", v.BrokerAddress, v.ListenerAddress, lc)
-			}
-			continue
-		}
-		if v.ListenerAddress != v.AdvertisedAddress {
-			return nil, fmt.Errorf("external server mapping has different listener and advertised addresses %v", v)
-		}
-		logrus.Infof("External server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
-		brokerToListenerConfig[v.BrokerAddress] = v
-	}
-
-	for _, v := range cfg.Proxy.BootstrapServers {
-		//to avoid external server map override by bootstrap server
-		if _, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
-			continue
-		}
-		logrus.Infof("Bootstrap server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
-		brokerToListenerConfig[v.BrokerAddress] = v
+	brokerToListenerConfig, err := getBrokerToListenerConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Listeners{
@@ -88,6 +67,47 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		listenFunc:              listenFunc,
 		disableDynamicListeners: cfg.Proxy.DisableDynamicListeners,
 	}, nil
+}
+
+func getBrokerToListenerConfig(cfg *config.Config) (map[string]config.ListenerConfig, error) {
+	brokerToListenerConfig := make(map[string]config.ListenerConfig)
+
+	for _, v := range cfg.Proxy.BootstrapServers {
+		if lc, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
+			if lc.ListenerAddress != v.ListenerAddress || lc.AdvertisedAddress != v.AdvertisedAddress {
+				return nil, fmt.Errorf("bootstrap server mapping %s configured twice: %v and %v", v.BrokerAddress, v, lc)
+			}
+			continue
+		}
+		logrus.Infof("Bootstrap server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
+		brokerToListenerConfig[v.BrokerAddress] = v
+	}
+
+	externalToListenerConfig := make(map[string]config.ListenerConfig)
+	for _, v := range cfg.Proxy.ExternalServers {
+		if lc, ok := externalToListenerConfig[v.BrokerAddress]; ok {
+			if lc.ListenerAddress != v.ListenerAddress {
+				return nil, fmt.Errorf("external server mapping %s configured twice: %s and %v", v.BrokerAddress, v.ListenerAddress, lc)
+			}
+			continue
+		}
+		if v.ListenerAddress != v.AdvertisedAddress {
+			return nil, fmt.Errorf("external server mapping has different listener and advertised addresses %v", v)
+		}
+		externalToListenerConfig[v.BrokerAddress] = v
+	}
+
+	for _, v := range externalToListenerConfig {
+		if lc, ok := brokerToListenerConfig[v.BrokerAddress]; ok {
+			if lc.AdvertisedAddress != v.AdvertisedAddress {
+				return nil, fmt.Errorf("bootstrap and external server mappings %s with different advertised addresses: %v and %v", v.BrokerAddress, v.ListenerAddress, lc.AdvertisedAddress)
+			}
+			continue
+		}
+		logrus.Infof("External server %s advertised as %s", v.BrokerAddress, v.AdvertisedAddress)
+		brokerToListenerConfig[v.BrokerAddress] = v
+	}
+	return brokerToListenerConfig, nil
 }
 
 func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
