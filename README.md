@@ -338,39 +338,114 @@ spec:
           secretName: tls-client-key-file
 ```
 
-### What should be done
+### Connect to Kafka running in Kubernetes example
 
-* [x] Metadata response versions V0,V1,V2,V3,V4 and V5
-* [x] Find coordinator response versions V0 and V1
-* [X] TLS
-* [X] PLAIN/SASL
-* [X] Request / reponse deadlines - socket reads/writes
-* [X] Health endpoint
-* [X] Prometheus metrics
-  1. gauge: proxy_opened_connections {broker}
-  2. counter: proxy_requests_total {broker, api_key, api_version}
-  3. counter: proxy_connections_total {broker}
-  4. counter: proxy_requests_bytes {broker}
-  5. counter: proxy_responses_bytes {broker}
-* [X] Pluggable proxy authentication
-* [X] Deploying Kafka Proxy as a sidecar container
-* [X] Advertised proxy listeners e.g. bootstrap-server-mapping (remotehost:remoteport,localhost:localport,advhost:advport)
-* [X] Pluggable authentication between client kafka-proxy and broker kafka-proxy a.k.a kafka-gateway
-  1. additional handshake - protocol: magic, method, data
-  2. google-id method
-* [X] Registry for built-in plugins
-* [X] Client cert check
-* [X] Set TLS server CipherSuites and CurvePreferences
-* [X] Optional ApiVersionsRequest before Local SASL Authentication Sequence
-* [X] SaslHandshakeRequest v1 - Kafka 1.0.0
-* [X] Connect to Kafka through SOCKS5 Proxy
-* [ ] Performance tests and tuning
-* [ ] Socket buffer sizing e.g. SO_RCVBUF = 32768, SO_SNDBUF = 131072
-* [ ] Kafka connect tests
-* [X] Different Kafka API versions tests
-* [ ] Unit and integration tests
-* [ ] Rolling upgrade test
-* [ ] Graceful shutdown
+```yaml
+
+---
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+   name: kafka-proxy
+spec:
+  selector:
+    matchLabels:
+      app: kafka-proxy
+  replicas: 1
+  serviceName: kafka-proxy
+  template:
+    metadata:
+      labels:
+        app: kafka-proxy
+    spec:
+      containers:
+        - name: kafka-proxy
+          image: grepplabs/kafka-proxy:latest
+          args:
+            - 'server'
+            - '--log-format=json'
+            - '--bootstrap-server-mapping=kafka-0:9093,127.0.0.1:32400'
+            - '--bootstrap-server-mapping=kafka-1:9093,127.0.0.1:32401'
+            - '--bootstrap-server-mapping=kafka-2:9093,127.0.0.1:32402'
+            - '--tls-enable'
+            - '--tls-ca-chain-cert-file=/var/run/secret/kafka-ca-chain-certificate/ca-chain.cert.pem'
+            - '--tls-client-cert-file=/var/run/secret/kafka-client-certificate/client.cert.pem'
+            - '--tls-client-key-file=/var/run/secret/kafka-client-key/client.key.pem'
+            - '--tls-client-key-password=$(TLS_CLIENT_KEY_PASSWORD)'
+            - '--sasl-enable'
+            - '--sasl-jaas-config-file=/var/run/secret/kafka-client-jaas/jaas.config'
+            - '--proxy-request-buffer-size=32768'
+            - '--proxy-response-buffer-size=32768'
+            - '--proxy-listener-read-buffer-size=32768'
+            - '--proxy-listener-write-buffer-size=131072'
+            - '--kafka-connection-read-buffer-size=131072'
+            - '--kafka-connection-write-buffer-size=32768'
+          env:
+          - name: TLS_CLIENT_KEY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: tls-client-key-password
+                key: password
+          volumeMounts:
+          - name: "sasl-jaas-config-file"
+            mountPath: "/var/run/secret/kafka-client-jaas"
+          - name: "tls-ca-chain-certificate"
+            mountPath: "/var/run/secret/kafka-ca-chain-certificate"
+          - name: "tls-client-cert-file"
+            mountPath: "/var/run/secret/kafka-client-certificate"
+          - name: "tls-client-key-file"
+            mountPath: "/var/run/secret/kafka-client-key"
+          ports:
+          - name: metrics
+            containerPort: 9080
+          - name: kafka-0
+            containerPort: 32400
+          - name: kafka-1
+            containerPort: 32401
+          - name: kafka-2
+            containerPort: 32402
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9080
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 2
+            failureThreshold: 5
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 1000m
+      restartPolicy: Always
+      volumes:
+      - name: sasl-jaas-config-file
+        secret:
+          secretName: sasl-jaas-config-file
+      - name: tls-ca-chain-certificate
+        secret:
+          secretName: tls-ca-chain-certificate
+      - name: tls-client-cert-file
+        secret:
+          secretName: tls-client-cert-file
+      - name: tls-client-key-file
+        secret:
+          secretName: tls-client-key-file
+```
+
+
+```bash
+kubectl port-forward kafka-proxy-0 32400:32400 32401:32401 32402:32402
+```
+
+Use localhost:32400, localhost:32401 and localhost:32402 as boostrap servers
+
 
 ### Embedded third-party source code 
 
