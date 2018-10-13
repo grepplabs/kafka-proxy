@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
+	"github.com/sirupsen/logrus"
 	"io"
 	"strconv"
 	"time"
@@ -32,7 +33,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
 		return true, err
 	}
-	//logrus.Printf("Kafka request length %v, key %v, version %v", requestKeyVersion.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+	logrus.Debugf("Kafka request key %v, version %v, length %v", requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, requestKeyVersion.Length)
 
 	if requestKeyVersion.ApiKey < minRequestApiKey || requestKeyVersion.ApiKey > maxRequestApiKey {
 		return true, fmt.Errorf("api key %d is invalid", requestKeyVersion.ApiKey)
@@ -55,11 +56,11 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 			case apiKeySaslHandshake:
 				switch requestKeyVersion.ApiVersion {
 				case 0:
-					if err = ctx.localSasl.receiveAndSendSASLPlainAuthV0(src, keyVersionBuf); err != nil {
+					if err = ctx.localSasl.receiveAndSendSASLAuthV0(src, keyVersionBuf); err != nil {
 						return true, err
 					}
 				case 1:
-					if err = ctx.localSasl.receiveAndSendSASLPlainAuthV1(src, keyVersionBuf); err != nil {
+					if err = ctx.localSasl.receiveAndSendSASLAuthV1(src, keyVersionBuf); err != nil {
 						return true, err
 					}
 				default:
@@ -132,7 +133,7 @@ func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src De
 		return true, err
 	}
 	proxyResponsesBytes.WithLabelValues(ctx.brokerAddress).Add(float64(responseHeader.Length + 4))
-	//logrus.Printf("Kafka response lenght %v for key %v, version %v", responseHeader.Length, requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion)
+	logrus.Debugf("Kafka response key %v, version %v, length %v", requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, responseHeader.Length)
 
 	responseDeadline := time.Now().Add(ctx.timeout)
 	err = dst.SetWriteDeadline(responseDeadline)

@@ -93,10 +93,10 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
-			LocalSasl: &LocalSasl{
-				enabled:            c.Auth.Local.Enable,
-				timeout:            c.Auth.Local.Timeout,
-				localAuthenticator: passwordAuthenticator},
+			LocalSasl: NewLocalSasl(
+				c.Auth.Local.Enable,
+				c.Auth.Local.Timeout,
+				passwordAuthenticator),
 			AuthServer: &AuthServer{
 				enabled:   c.Auth.Gateway.Server.Enable,
 				magic:     c.Auth.Gateway.Server.Magic,

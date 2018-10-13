@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	SASLPlain = "PLAIN"
+	SASLPlain       = "PLAIN"
+	SASLOAuthBearer = "OAUTHBEARER"
 )
 
 type SASLPlainAuth struct {
