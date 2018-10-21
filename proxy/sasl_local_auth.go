@@ -70,7 +70,7 @@ func (p *LocalSaslOauth) doLocalAuth(saslAuthBytes []byte) (err error) {
 		return err
 	}
 	if !resp.Success {
-		return fmt.Errorf("verify token failed with status: %d", resp.Status)
+		return fmt.Errorf("local oauth verify token failed with status: %d", resp.Status)
 	}
 	return nil
 }

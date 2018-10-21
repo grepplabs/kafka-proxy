@@ -170,6 +170,14 @@ See:
                              --auth-local-param "--user-attr=uid" \
                              --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
 
+    make clean build plugin.unsecured-jwt-info && build/kafka-proxy server \
+                             --auth-local-enable \
+                             --auth-local-command build/unsecured-jwt-info \
+                             --auth-local-mechanism "OAUTHBEARER" \
+                             --auth-local-param "--claim-sub=alice" \
+                             --auth-local-param "--claim-sub=bob" \
+                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
+
 ### Kafka Gateway example
 
 Authentication between Kafka Proxy Client and Kafka Proxy Server with Google-ID (service account JWT)
