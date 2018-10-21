@@ -21,8 +21,8 @@ import (
 
 	"errors"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
-	gatewayclient "github.com/grepplabs/kafka-proxy/plugin/gateway-client/shared"
-	gatewayserver "github.com/grepplabs/kafka-proxy/plugin/gateway-server/shared"
+	gatewayclient "github.com/grepplabs/kafka-proxy/plugin/token-provider/shared"
+	gatewayserver "github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
