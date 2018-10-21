@@ -75,6 +75,7 @@ See:
           --auth-local-command string                      Path to authentication plugin binary
           --auth-local-enable                              Enable local SASL/PLAIN authentication performed by listener - SASL handshake will not be passed to kafka brokers
           --auth-local-log-level string                    Log level of the auth plugin (default "trace")
+          --auth-local-mechanism string                    SASL mechanism used for local authentication: PLAIN or OAUTHBEARER (default "PLAIN")
           --auth-local-param stringArray                   Authentication plugin parameter
           --auth-local-timeout duration                    Authentication timeout (default 10s)
           --bootstrap-server-mapping stringArray           Mapping of Kafka bootstrap server address to local address (host:port,host:port(,advhost:advport))

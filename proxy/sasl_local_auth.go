@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
@@ -47,12 +48,14 @@ func (p *LocalSaslPlain) doLocalAuth(saslAuthBytes []byte) (err error) {
 }
 
 type LocalSaslOauth struct {
-	saslOAuthBearer SaslOAuthBearer
+	saslOAuthBearer    SaslOAuthBearer
+	tokenAuthenticator apis.TokenInfo
 }
 
-func NewLocalSaslOauth() *LocalSaslOauth {
+func NewLocalSaslOauth(tokenAuthenticator apis.TokenInfo) *LocalSaslOauth {
 	return &LocalSaslOauth{
-		saslOAuthBearer: SaslOAuthBearer{},
+		saslOAuthBearer:    SaslOAuthBearer{},
+		tokenAuthenticator: tokenAuthenticator,
 	}
 }
 
@@ -62,7 +65,12 @@ func (p *LocalSaslOauth) doLocalAuth(saslAuthBytes []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	//TODO: implement TokenAuthenticator
-	_ = token
+	resp, err := p.tokenAuthenticator.VerifyToken(context.Background(), apis.VerifyRequest{Token: token})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("verify token failed with status: %d", resp.Status)
+	}
 	return nil
 }

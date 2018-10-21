@@ -66,6 +66,7 @@ type Config struct {
 		Local struct {
 			Enable     bool
 			Command    string
+			Mechanism  string
 			Parameters []string
 			LogLevel   string
 			Timeout    time.Duration
@@ -253,6 +254,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Auth.Local.Enable && c.Auth.Local.Command == "" {
 		return errors.New("Command is required when Auth.Local.Enable is enabled")
+	}
+	if c.Auth.Local.Enable && (c.Auth.Local.Mechanism != "PLAIN" && c.Auth.Local.Mechanism != "OAUTHBEARER") {
+		return errors.New("Mechanism PLAIN or OAUTHBEARER is required when Auth.Local.Enable is enabled")
 	}
 	if c.Auth.Local.Enable && c.Auth.Local.Timeout <= 0 {
 		return errors.New("Auth.Local.Timeout must be greater than 0")

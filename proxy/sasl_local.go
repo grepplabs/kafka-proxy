@@ -17,15 +17,25 @@ type LocalSasl struct {
 	localAuthenticators map[string]LocalSaslAuth
 }
 
-func NewLocalSasl(enabled bool, timeout time.Duration, passwordAuthenticator apis.PasswordAuthenticator) *LocalSasl {
+type LocalSaslParams struct {
+	enabled               bool
+	timeout               time.Duration
+	passwordAuthenticator apis.PasswordAuthenticator
+	tokenAuthenticator    apis.TokenInfo
+}
+
+func NewLocalSasl(params LocalSaslParams) *LocalSasl {
 	localAuthenticators := make(map[string]LocalSaslAuth)
-	if passwordAuthenticator != nil {
-		localAuthenticators[SASLPlain] = NewLocalSaslPlain(passwordAuthenticator)
+	if params.passwordAuthenticator != nil {
+		localAuthenticators[SASLPlain] = NewLocalSaslPlain(params.passwordAuthenticator)
 	}
-	localAuthenticators[SASLOAuthBearer] = NewLocalSaslOauth()
+
+	if params.tokenAuthenticator != nil {
+		localAuthenticators[SASLOAuthBearer] = NewLocalSaslOauth(params.tokenAuthenticator)
+	}
 	return &LocalSasl{
-		enabled:             enabled,
-		timeout:             timeout,
+		enabled:             params.enabled,
+		timeout:             params.timeout,
 		localAuthenticators: localAuthenticators,
 	}
 }
