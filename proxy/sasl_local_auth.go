@@ -61,7 +61,7 @@ func NewLocalSaslOauth(tokenAuthenticator apis.TokenInfo) *LocalSaslOauth {
 
 // implements LocalSaslAuth
 func (p *LocalSaslOauth) doLocalAuth(saslAuthBytes []byte) (err error) {
-	token, err := p.saslOAuthBearer.GetToken(saslAuthBytes)
+	token, _, _, err := p.saslOAuthBearer.GetClientInitialResponse(saslAuthBytes)
 	if err != nil {
 		return err
 	}

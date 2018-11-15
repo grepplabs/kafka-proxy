@@ -34,8 +34,8 @@ type Client struct {
 	stopRun  chan struct{}
 	stopOnce sync.Once
 
-	saslPlainAuth *SASLPlainAuth
-	authClient    *AuthClient
+	saslAuthByProxy SASLAuthByProxy
+	authClient      *AuthClient
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
@@ -72,7 +72,7 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	}
 
 	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
-		saslPlainAuth: &SASLPlainAuth{
+		saslAuthByProxy: &SASLPlainAuth{
 			clientID:     c.Kafka.ClientID,
 			writeTimeout: c.Kafka.WriteTimeout,
 			readTimeout:  c.Kafka.ReadTimeout,
@@ -193,7 +193,7 @@ func (c *Client) handleConn(conn Conn) {
 	server, err := c.DialAndAuth(conn.BrokerAddress)
 	if err != nil {
 		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
-		conn.LocalConnection.Close()
+		_ = conn.LocalConnection.Close()
 		return
 	}
 	if tcpConn, ok := server.(*net.TCPConn); ok {
@@ -215,7 +215,7 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 		return nil, err
 	}
 	if err := conn.SetDeadline(time.Time{}); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	err = c.auth(conn)
@@ -228,22 +228,22 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 func (c *Client) auth(conn net.Conn) error {
 	if c.config.Auth.Gateway.Client.Enable {
 		if err := c.authClient.sendAndReceiveGatewayAuth(conn); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 		if err := conn.SetDeadline(time.Time{}); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 	}
 	if c.config.Kafka.SASL.Enable {
-		err := c.saslPlainAuth.sendAndReceiveSASLPlainAuth(conn)
+		err := c.saslAuthByProxy.sendAndReceiveSASLAuth(conn)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 		if err := conn.SetDeadline(time.Time{}); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 	}
