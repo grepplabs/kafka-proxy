@@ -38,7 +38,7 @@ type Client struct {
 	authClient      *AuthClient
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
@@ -70,15 +70,31 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	if c.Auth.Gateway.Server.Enable && gatewayTokenInfo == nil {
 		return nil, errors.New("Auth.Gateway.Server.Enable is enabled but tokenInfo is nil")
 	}
+	var saslAuthByProxy SASLAuthByProxy
+	if c.Kafka.SASL.Plugin.Enable {
+		if c.Kafka.SASL.Plugin.Mechanism == SASLOAuthBearer && saslTokenProvider != nil {
+			saslAuthByProxy = &SASLOAuthBearerAuth{
+				clientID:      c.Kafka.ClientID,
+				writeTimeout:  c.Kafka.WriteTimeout,
+				readTimeout:   c.Kafka.ReadTimeout,
+				tokenProvider: saslTokenProvider,
+			}
+		} else {
+			return nil, errors.Errorf("SASLAuthByProxy plugin unsupported or plugin misconfiguration for mechanism '%s' ", c.Kafka.SASL.Plugin.Mechanism)
+		}
 
-	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
-		saslAuthByProxy: &SASLPlainAuth{
+	} else {
+		saslAuthByProxy = &SASLPlainAuth{
 			clientID:     c.Kafka.ClientID,
 			writeTimeout: c.Kafka.WriteTimeout,
 			readTimeout:  c.Kafka.ReadTimeout,
 			username:     c.Kafka.SASL.Username,
 			password:     c.Kafka.SASL.Password,
-		},
+		}
+	}
+
+	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
+		saslAuthByProxy: saslAuthByProxy,
 		authClient: &AuthClient{
 			enabled:       c.Auth.Gateway.Client.Enable,
 			magic:         c.Auth.Gateway.Client.Magic,

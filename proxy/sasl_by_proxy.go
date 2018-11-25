@@ -8,6 +8,7 @@ import (
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"io"
 	"time"
 )
@@ -77,6 +78,12 @@ func (b *SASLPlainAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error 
 	if handshakeErr != nil {
 		return handshakeErr
 	}
+	return b.sendSaslAuthenticateRequest(conn)
+}
+
+func (b *SASLPlainAuth) sendSaslAuthenticateRequest(conn DeadlineReaderWriter) error {
+	logrus.Debugf("Sending authentication opaque packets, mechanism PLAIN")
+
 	length := 1 + len(b.username) + 1 + len(b.password)
 	authBytes := make([]byte, length+4) //4 byte length header + auth data
 	binary.BigEndian.PutUint32(authBytes, uint32(length))
@@ -110,6 +117,7 @@ func (b *SASLPlainAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error 
 }
 
 func (b *SASLHandshake) sendAndReceiveHandshake(conn DeadlineReaderWriter) error {
+	logrus.Debugf("Sending SaslHandshakeRequest")
 
 	req := &protocol.Request{
 		ClientID: b.clientID,
@@ -195,6 +203,8 @@ func (b *SASLOAuthBearerAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) 
 }
 
 func (b *SASLOAuthBearerAuth) sendSaslAuthenticateRequest(token string, conn DeadlineReaderWriter) error {
+	logrus.Debugf("Sending SaslAuthenticateRequest, mechanism OAUTHBEARER")
+
 	saslAuthReqV0 := protocol.SaslAuthenticateRequestV0{SaslAuthBytes: SaslOAuthBearer{}.ToBytes(token, "", make(map[string]string, 0))}
 
 	req := &protocol.Request{

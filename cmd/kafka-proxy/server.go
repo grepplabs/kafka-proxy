@@ -143,11 +143,19 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", "", "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Kafka.TLS.CAChainCertFile, "tls-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
 
-	// SASL
-	Server.Flags().BoolVar(&c.Kafka.SASL.Enable, "sasl-enable", false, "Connect using SASL/PLAIN")
+	// SASL by Proxy
+	Server.Flags().BoolVar(&c.Kafka.SASL.Enable, "sasl-enable", false, "Connect using SASL")
 	Server.Flags().StringVar(&c.Kafka.SASL.Username, "sasl-username", "", "SASL user name")
 	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", "", "SASL user password")
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
+
+	// SASL by Proxy plugin
+	Server.Flags().BoolVar(&c.Kafka.SASL.Plugin.Enable, "sasl-plugin-enable", false, "Use plugin for SASL authentication")
+	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.Command, "sasl-plugin-command", "", "Path to authentication plugin binary")
+	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.Mechanism, "sasl-plugin-mechanism", "OAUTHBEARER", "SASL mechanism used for proxy authentication: PLAIN or OAUTHBEARER")
+	Server.Flags().StringArrayVar(&c.Kafka.SASL.Plugin.Parameters, "sasl-plugin-param", []string{}, "Authentication plugin parameter")
+	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.LogLevel, "sasl-plugin-log-level", "trace", "Log level of the auth plugin")
+	Server.Flags().DurationVar(&c.Kafka.SASL.Plugin.Timeout, "sasl-plugin-timeout", 10*time.Second, "Authentication timeout")
 
 	// Web
 	Server.Flags().BoolVar(&c.Http.Disable, "http-disable", false, "Disable HTTP endpoints")
@@ -235,6 +243,41 @@ func Run(_ *cobra.Command, _ []string) {
 		}
 	}
 
+	var saslTokenProvider apis.TokenProvider
+	if c.Kafka.SASL.Plugin.Enable {
+		switch c.Kafka.SASL.Plugin.Mechanism {
+		case "OAUTHBEARER":
+			var err error
+			factory, ok := registry.GetComponent(new(apis.TokenProviderFactory), c.Kafka.SASL.Plugin.Command).(apis.TokenProviderFactory)
+			if ok {
+				logrus.Infof("Using built-in '%s' TokenProvider for sasl authentication", c.Kafka.SASL.Plugin.Command)
+
+				saslTokenProvider, err = factory.New(c.Kafka.SASL.Plugin.Parameters)
+				if err != nil {
+					logrus.Fatal(err)
+				}
+			} else {
+				client := NewPluginClient(tokenprovider.Handshake, tokenprovider.PluginMap, c.Kafka.SASL.Plugin.LogLevel, c.Kafka.SASL.Plugin.Command, c.Kafka.SASL.Plugin.Parameters)
+				defer client.Kill()
+
+				rpcClient, err := client.Client()
+				if err != nil {
+					logrus.Fatal(err)
+				}
+				raw, err := rpcClient.Dispense("tokenProvider")
+				if err != nil {
+					logrus.Fatal(err)
+				}
+				saslTokenProvider, ok = raw.(apis.TokenProvider)
+				if !ok {
+					logrus.Fatal(errors.New("unsupported TokenProvider plugin type"))
+				}
+			}
+		default:
+			logrus.Fatal(errors.New("unsupported sasl auth mechanism"))
+		}
+	}
+
 	var gatewayTokenProvider apis.TokenProvider
 	if c.Auth.Gateway.Client.Enable {
 		var err error
@@ -307,7 +350,7 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, localPasswordAuthenticator, localTokenAuthenticator, gatewayTokenProvider, gatewayTokenInfo)
+		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, localPasswordAuthenticator, localTokenAuthenticator, saslTokenProvider, gatewayTokenProvider, gatewayTokenInfo)
 		if err != nil {
 			logrus.Fatal(err)
 		}

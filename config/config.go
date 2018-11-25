@@ -120,6 +120,14 @@ type Config struct {
 			Username       string
 			Password       string
 			JaasConfigFile string
+			Plugin         struct {
+				Enable     bool
+				Command    string
+				Mechanism  string
+				Parameters []string
+				LogLevel   string
+				Timeout    time.Duration
+			}
 		}
 	}
 	ForwardProxy struct {
@@ -211,8 +219,26 @@ func NewConfig() *Config {
 }
 
 func (c *Config) Validate() error {
-	if c.Kafka.SASL.Enable && (c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "") {
-		return errors.New("SASL.Username and SASL.Password are required when SASL is enabled")
+	if c.Kafka.SASL.Enable {
+		if c.Kafka.SASL.Plugin.Enable {
+			if c.Kafka.SASL.Plugin.Command == "" {
+				return errors.New("Command is required when Kafka.SASL.Plugin.Enable is enabled")
+			}
+			if c.Kafka.SASL.Plugin.Timeout <= 0 {
+				return errors.New("Kafka.SASL.Plugin.Timeout must be greater than 0")
+			}
+			if c.Kafka.SASL.Plugin.Mechanism != "OAUTHBEARER" {
+				return errors.New("Mechanism OAUTHBEARER is required when Kafka.SASL.Plugin.Enable is enabled")
+			}
+		} else {
+			if c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "" {
+				return errors.New("SASL.Username and SASL.Password are required when SASL is enabled and plugin is not used")
+			}
+		}
+	} else {
+		if c.Kafka.SASL.Plugin.Enable {
+			return errors.New("Kafka.SASL.Plugin.Enable must be disabled, when SASL is disabled")
+		}
 	}
 	if c.Kafka.KeepAlive < 0 {
 		return errors.New("KeepAlive must be greater or equal 0")

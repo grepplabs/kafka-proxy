@@ -45,6 +45,7 @@ type pluginMeta struct {
 
 func (f *pluginMeta) flagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("unsecured-jwt-info info settings", flag.ContinueOnError)
+	fs.Var(&f.claimSub, "claim-sub", "Allowed subject claim (user name)")
 	return fs
 }
 
@@ -134,8 +135,7 @@ func getVerifyResponseResponse(status int) (apis.VerifyResponse, error) {
 func main() {
 	pluginMeta := &pluginMeta{}
 	fs := pluginMeta.flagSet()
-	fs.Var(&pluginMeta.claimSub, "claim-sub", "Allowed subject claim (user name)")
-	fs.Parse(os.Args[1:])
+	_ = fs.Parse(os.Args[1:])
 
 	logrus.Infof("Unsecured JWT sub claims: %v", pluginMeta.claimSub)
 

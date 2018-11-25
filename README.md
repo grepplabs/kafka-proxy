@@ -34,11 +34,11 @@ See:
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.8/kafka-proxy_0.0.8_linux_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.0/kafka-proxy_0.1.0_linux_amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.0.8/kafka-proxy_0.0.8_darwin_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.0/kafka-proxy_0.1.0_darwin_amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -85,7 +85,7 @@ See:
           --dynamic-listeners-disable                      Disable dynamic listeners.
           --external-server-mapping stringArray            Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
           --forbidden-api-keys intSlice                    Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics
-          --forward-proxy string                           URL of the forward proxy. Supported schemas are http and socks5
+          --forward-proxy string                           URL of the forward proxy. Supported schemas are socks5 and http
       -h, --help                                           help for server
           --http-disable                                   Disable HTTP endpoints
           --http-health-path string                        Path on which to health endpoint (default "/health")
@@ -113,9 +113,15 @@ See:
           --proxy-listener-write-buffer-size int           Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
           --proxy-request-buffer-size int                  Request buffer size pro tcp connection (default 4096)
           --proxy-response-buffer-size int                 Response buffer size pro tcp connection (default 4096)
-          --sasl-enable                                    Connect using SASL/PLAIN
+          --sasl-enable                                    Connect using SASL
           --sasl-jaas-config-file string                   Location of JAAS config file with SASL username and password
           --sasl-password string                           SASL user password
+          --sasl-plugin-command string                     Path to authentication plugin binary
+          --sasl-plugin-enable                             Use plugin for SASL authentication
+          --sasl-plugin-log-level string                   Log level of the auth plugin (default "trace")
+          --sasl-plugin-mechanism string                   SASL mechanism used for proxy authentication: PLAIN or OAUTHBEARER (default "OAUTHBEARER")
+          --sasl-plugin-param stringArray                  Authentication plugin parameter
+          --sasl-plugin-timeout duration                   Authentication timeout (default 10s)
           --sasl-username string                           SASL user name
           --tls-ca-chain-cert-file string                  PEM encoded CA's certificate file
           --tls-client-cert-file string                    PEM encoded file with client certificate
@@ -123,8 +129,6 @@ See:
           --tls-client-key-password string                 Password to decrypt rsa private key
           --tls-enable                                     Whether or not to use TLS when connecting to the broker
           --tls-insecure-skip-verify                       It controls whether a client verifies the server's certificate chain and host name
-
-
 
 ### Usage example
 	
@@ -145,13 +149,28 @@ See:
 	                   --external-server-mapping "192.168.99.100:32402,127.0.0.1:32403" \
 	                   --forbidden-api-keys 20
     
+
+    export BOOTSTRAP_SERVER_MAPPING="192.168.99.100:32401,0.0.0.0:32402 192.168.99.100:32402,0.0.0.0:32403" && kafka-proxy server
+
+### SASL authentication initiated by proxy example
+
+SASL authentication is initiated by the proxy. SASL authentication is disabled on the clients and enabled on the Kafka brokers.   
+
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
                        --tls-enable --tls-insecure-skip-verify \
                        --sasl-enable --sasl-username myuser --sasl-password mysecret
 
-    export BOOTSTRAP_SERVER_MAPPING="192.168.99.100:32401,0.0.0.0:32402 192.168.99.100:32402,0.0.0.0:32403" && kafka-proxy server
+    make clean build plugin.unsecured-jwt-provider && build/kafka-proxy server \
+                             --sasl-enable \
+                             --sasl-plugin-enable \
+                             --sasl-plugin-mechanism "OAUTHBEARER" \
+                             --sasl-plugin-command build/unsecured-jwt-provider \
+                             --sasl-plugin-param "--claim-sub=alice" \
+                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
 
 ### Proxy authentication example
+
+SASL authentication is performed by the proxy. SASL authentication is enabled on the clients and disabled on the Kafka brokers.   
 
     make clean build plugin.auth-user && build/kafka-proxy server --proxy-listener-key-file "server-key.pem"  \
                              --proxy-listener-cert-file "server-cert.pem" \
