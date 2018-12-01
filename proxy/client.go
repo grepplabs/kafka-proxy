@@ -34,11 +34,11 @@ type Client struct {
 	stopRun  chan struct{}
 	stopOnce sync.Once
 
-	saslPlainAuth *SASLPlainAuth
-	authClient    *AuthClient
+	saslAuthByProxy SASLAuthByProxy
+	authClient      *AuthClient
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, passwordAuthenticator apis.PasswordAuthenticator, tokenProvider apis.TokenProvider, tokenInfo apis.TokenInfo) (*Client, error) {
+func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
@@ -60,31 +60,47 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			forbiddenApiKeys[int16(apiKey)] = struct{}{}
 		}
 	}
-	if c.Auth.Local.Enable && passwordAuthenticator == nil {
-		return nil, errors.New("Auth.Local.Enable is enabled but passwordAuthenticator is nil")
+	if c.Auth.Local.Enable && (localPasswordAuthenticator == nil && localTokenAuthenticator == nil) {
+		return nil, errors.New("Auth.Local.Enable is enabled but passwordAuthenticator and localTokenAuthenticator are nil")
 	}
 
-	if c.Auth.Gateway.Client.Enable && tokenProvider == nil {
+	if c.Auth.Gateway.Client.Enable && gatewayTokenProvider == nil {
 		return nil, errors.New("Auth.Gateway.Client.Enable is enabled but tokenProvider is nil")
 	}
-	if c.Auth.Gateway.Server.Enable && tokenInfo == nil {
+	if c.Auth.Gateway.Server.Enable && gatewayTokenInfo == nil {
 		return nil, errors.New("Auth.Gateway.Server.Enable is enabled but tokenInfo is nil")
 	}
+	var saslAuthByProxy SASLAuthByProxy
+	if c.Kafka.SASL.Plugin.Enable {
+		if c.Kafka.SASL.Plugin.Mechanism == SASLOAuthBearer && saslTokenProvider != nil {
+			saslAuthByProxy = &SASLOAuthBearerAuth{
+				clientID:      c.Kafka.ClientID,
+				writeTimeout:  c.Kafka.WriteTimeout,
+				readTimeout:   c.Kafka.ReadTimeout,
+				tokenProvider: saslTokenProvider,
+			}
+		} else {
+			return nil, errors.Errorf("SASLAuthByProxy plugin unsupported or plugin misconfiguration for mechanism '%s' ", c.Kafka.SASL.Plugin.Mechanism)
+		}
 
-	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
-		saslPlainAuth: &SASLPlainAuth{
+	} else {
+		saslAuthByProxy = &SASLPlainAuth{
 			clientID:     c.Kafka.ClientID,
 			writeTimeout: c.Kafka.WriteTimeout,
 			readTimeout:  c.Kafka.ReadTimeout,
 			username:     c.Kafka.SASL.Username,
 			password:     c.Kafka.SASL.Password,
-		},
+		}
+	}
+
+	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
+		saslAuthByProxy: saslAuthByProxy,
 		authClient: &AuthClient{
 			enabled:       c.Auth.Gateway.Client.Enable,
 			magic:         c.Auth.Gateway.Client.Magic,
 			method:        c.Auth.Gateway.Client.Method,
 			timeout:       c.Auth.Gateway.Client.Timeout,
-			tokenProvider: tokenProvider,
+			tokenProvider: gatewayTokenProvider,
 		},
 		processorConfig: ProcessorConfig{
 			MaxOpenRequests:       c.Kafka.MaxOpenRequests,
@@ -93,16 +109,18 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ResponseBufferSize:    c.Proxy.ResponseBufferSize,
 			ReadTimeout:           c.Kafka.ReadTimeout,
 			WriteTimeout:          c.Kafka.WriteTimeout,
-			LocalSasl: &LocalSasl{
-				enabled:            c.Auth.Local.Enable,
-				timeout:            c.Auth.Local.Timeout,
-				localAuthenticator: passwordAuthenticator},
+			LocalSasl: NewLocalSasl(LocalSaslParams{
+				enabled:               c.Auth.Local.Enable,
+				timeout:               c.Auth.Local.Timeout,
+				passwordAuthenticator: localPasswordAuthenticator,
+				tokenAuthenticator:    localTokenAuthenticator,
+			}),
 			AuthServer: &AuthServer{
 				enabled:   c.Auth.Gateway.Server.Enable,
 				magic:     c.Auth.Gateway.Server.Magic,
 				method:    c.Auth.Gateway.Server.Method,
 				timeout:   c.Auth.Gateway.Server.Timeout,
-				tokenInfo: tokenInfo,
+				tokenInfo: gatewayTokenInfo,
 			},
 			ForbiddenApiKeys: forbiddenApiKeys,
 		}}, nil
@@ -191,7 +209,7 @@ func (c *Client) handleConn(conn Conn) {
 	server, err := c.DialAndAuth(conn.BrokerAddress)
 	if err != nil {
 		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
-		conn.LocalConnection.Close()
+		_ = conn.LocalConnection.Close()
 		return
 	}
 	if tcpConn, ok := server.(*net.TCPConn); ok {
@@ -213,7 +231,7 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 		return nil, err
 	}
 	if err := conn.SetDeadline(time.Time{}); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	err = c.auth(conn)
@@ -226,22 +244,22 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 func (c *Client) auth(conn net.Conn) error {
 	if c.config.Auth.Gateway.Client.Enable {
 		if err := c.authClient.sendAndReceiveGatewayAuth(conn); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 		if err := conn.SetDeadline(time.Time{}); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 	}
 	if c.config.Kafka.SASL.Enable {
-		err := c.saslPlainAuth.sendAndReceiveSASLPlainAuth(conn)
+		err := c.saslAuthByProxy.sendAndReceiveSASLAuth(conn)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 		if err := conn.SetDeadline(time.Time{}); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 	}

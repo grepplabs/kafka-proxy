@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
-	"github.com/grepplabs/kafka-proxy/plugin/gateway-server/proto"
+	"github.com/grepplabs/kafka-proxy/plugin/token-info/proto"
 	"github.com/hashicorp/go-plugin"
 	"net/rpc"
 )

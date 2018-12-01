@@ -2,8 +2,8 @@ package googleidinfo
 
 import (
 	"flag"
-	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/grepplabs/kafka-proxy/pkg/registry"
 )
 
@@ -20,27 +20,8 @@ func (f *pluginMeta) flagSet() *flag.FlagSet {
 type pluginMeta struct {
 	timeout              int
 	certsRefreshInterval int
-	audience             arrayFlags
-	emailsRegex          arrayFlags
-}
-
-type arrayFlags []string
-
-func (i *arrayFlags) String() string {
-	return fmt.Sprintf("%v", *i)
-}
-
-func (i *arrayFlags) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
-
-func (i *arrayFlags) asMap() map[string]struct{} {
-	result := make(map[string]struct{})
-	for _, elem := range *i {
-		result[elem] = struct{}{}
-	}
-	return result
+	audience             util.ArrayFlags
+	emailsRegex          util.ArrayFlags
 }
 
 type Factory struct {

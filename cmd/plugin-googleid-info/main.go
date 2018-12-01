@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/grepplabs/kafka-proxy/pkg/libs/googleid-info"
-	"github.com/grepplabs/kafka-proxy/plugin/gateway-server/shared"
+	"github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
 	"os"

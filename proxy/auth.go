@@ -118,7 +118,7 @@ func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error 
 		return err
 	}
 	if !resp.Success {
-		return fmt.Errorf("verify token failed with status: %d", resp.Status)
+		return fmt.Errorf("gateway server verify token failed with status: %d", resp.Status)
 	}
 
 	logrus.Debugf("gateway handshake payload: %s", data)
