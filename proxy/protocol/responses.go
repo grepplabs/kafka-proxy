@@ -66,6 +66,16 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&array{name: "offline_replicas", ty: typeInt32},
 	)
 
+	partitionMetadataV7 := NewSchema("partition_metadata_v7",
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "partition", ty: typeInt32},
+		&field{name: "leader", ty: typeInt32},
+		&field{name: "leader_epoch", ty: typeInt32},
+		&array{name: "replicas", ty: typeInt32},
+		&array{name: "isr", ty: typeInt32},
+		&array{name: "offline_replicas", ty: typeInt32},
+	)
+
 	topicMetadataV1 := NewSchema("topic_metadata_v1",
 		&field{name: "error_code", ty: typeInt16},
 		&field{name: "topic", ty: typeStr},
@@ -78,6 +88,13 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&field{name: "topic", ty: typeStr},
 		&field{name: "is_internal", ty: typeBool},
 		&array{name: "partition_metadata", ty: partitionMetadataV2},
+	)
+
+	topicMetadataV7 := NewSchema("topic_metadata_v7",
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "topic", ty: typeStr},
+		&field{name: "is_internal", ty: typeBool},
+		&array{name: "partition_metadata", ty: partitionMetadataV7},
 	)
 
 	metadataResponseV1 := NewSchema("metadata_response_v1",
@@ -113,7 +130,15 @@ func createMetadataResponseSchemaVersions() []Schema {
 
 	metadataResponseV6 := metadataResponseV5
 
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6}
+	metadataResponseV7 := NewSchema("metadata_response_v7",
+		&field{name: "throttle_time_ms", ty: typeInt32},
+		&array{name: brokersKeyName, ty: metadataBrokerV1},
+		&field{name: "cluster_id", ty: typeNullableStr},
+		&field{name: "controller_id", ty: typeInt32},
+		&array{name: "topic_metadata", ty: topicMetadataV7},
+	)
+
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
