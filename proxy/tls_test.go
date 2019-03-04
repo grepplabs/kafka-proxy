@@ -27,7 +27,8 @@ func TestDefaultCipherSuites(t *testing.T) {
 
 	serverConfig, err := newTLSListenerConfig(c)
 	a.Nil(err)
-	a.Equal(len(defaultCipherSuites), len(serverConfig.CipherSuites))
+	// TLS_FALLBACK_SCSV is added as first
+	a.Equal(len(getPreferredDefaultCiphers())+1, len(serverConfig.CipherSuites))
 	a.Equal(len(defaultCurvePreferences), len(serverConfig.CurvePreferences))
 }
 
@@ -45,7 +46,8 @@ func TestEnabledCipherSuites(t *testing.T) {
 
 	serverConfig, err := newTLSListenerConfig(c)
 	a.Nil(err)
-	a.Equal(2, len(serverConfig.CipherSuites))
+	// TLS_FALLBACK_SCSV is added as first
+	a.Equal(3, len(serverConfig.CipherSuites))
 	a.Equal(1, len(serverConfig.CurvePreferences))
 }
 

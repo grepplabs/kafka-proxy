@@ -12,6 +12,7 @@ import (
 	"github.com/elazarl/goproxy/ext/auth"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
+	"golang.org/x/net/proxy"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -20,80 +21,90 @@ import (
 	"time"
 )
 
-func makeTLSPipe(conf *config.Config) (c1, c2 net.Conn, stop func(), err error) {
-	rawDialer := directDialer{
-		dialTimeout: 3 * time.Second,
-		keepAlive:   60 * time.Second,
-	}
+type testAcceptResult struct {
+	conn net.Conn
+	err  error
+}
 
-	clientConfig, err := newTLSClientConfig(conf)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	tlsDialer := tlsDialer{
-		timeout:   3 * time.Second,
-		rawDialer: rawDialer,
-		config:    clientConfig,
-	}
-	serverConfig, err := newTLSListenerConfig(conf)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	ln, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	// Start a connection between two endpoints.
-	var err1, err2 error
-	done := make(chan bool)
+func localPipe(listener net.Listener, dialer proxy.Dialer, timeout time.Duration) (net.Conn, net.Conn, error) {
+	acceptResultChannel := make(chan testAcceptResult, 1)
 	go func() {
-		c2, err2 = ln.Accept()
-		close(done)
+		conn, err := listener.Accept()
+		if err != nil {
+			acceptResultChannel <- testAcceptResult{
+				conn: conn,
+				err:  err,
+			}
+			return
+		}
 		// will force handshake completion
 		buf := make([]byte, 0)
-		c2.Read(buf)
+		_, err = conn.Read(buf)
 
-		tlscon, ok := c2.(*tls.Conn)
+		tlsconn, ok := conn.(*tls.Conn)
 		if ok {
-			state := tlscon.ConnectionState()
+			state := tlsconn.ConnectionState()
 			for _, v := range state.PeerCertificates {
 				_ = v
-				//fmt.Println(x509.MarshalPKIXPublicKey(v.PublicKey))
+				// fmt.Println(x509.MarshalPKIXPublicKey(v.PublicKey))
 			}
 		}
+		acceptResultChannel <- testAcceptResult{
+			conn: conn,
+			err:  err,
+		}
 	}()
-	c1, err1 = tlsDialer.Dial(ln.Addr().Network(), ln.Addr().String())
-	if err1 != nil {
-		ln.Close()
-		return nil, nil, nil, err1
+	addr := listener.Addr()
+	c1, err := dialer.Dial(addr.Network(), addr.String())
+	if err != nil {
+		return nil, nil, err
 	}
-	select {
-	case <-done:
-	case <-time.After(4 * time.Second):
-		ln.Close()
-		return nil, nil, nil, errors.New("Accept timeout ")
-	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
+	var acceptResult testAcceptResult
+	select {
+	case acceptResult = <-acceptResultChannel:
+	case <-timer.C:
+		return nil, nil, errors.New("accept request timeout")
+	}
+	return c1, acceptResult.conn, acceptResult.err
+}
+
+func makeTLSPipe(conf *config.Config) (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
+
+	serverConfig, err := newTLSListenerConfig(conf)
+	if err != nil {
+		return nil, nil, stop, err
+	}
+	clientConfig, err := newTLSClientConfig(conf)
+	if err != nil {
+		return nil, nil, stop, err
+	}
+	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
+	if err != nil {
+		return nil, nil, stop, err
+	}
+	tlsDialer := tlsDialer{
+		timeout: 3 * time.Second,
+		rawDialer: directDialer{
+			dialTimeout: 3 * time.Second,
+			keepAlive:   60 * time.Second,
+		},
+		config: clientConfig,
+	}
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		ln.Close()
+		_ = tlsListener.Close()
 	}
-
-	switch {
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
 type testCredentials struct {
@@ -104,35 +115,38 @@ func (s testCredentials) Valid(username, password string) bool {
 	return s.username == username && s.password == password
 }
 
-func makeTLSSocks5ProxyPipe(conf *config.Config, authenticator socks5.Authenticator, username, password string) (c1, c2 net.Conn, stop func(), err error) {
+func makeTLSSocks5ProxyPipe(conf *config.Config, authenticator socks5.Authenticator, username, password string) (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
 	socks5Conf := &socks5.Config{}
 	if authenticator != nil {
 		socks5Conf.AuthMethods = []socks5.Authenticator{authenticator}
 	}
-	server, err := socks5.New(socks5Conf)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	clientConfig, err := newTLSClientConfig(conf)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
 	serverConfig, err := newTLSListenerConfig(conf)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-
-	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	server, err := socks5.New(socks5Conf)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
+	}
+	proxyListener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, stop, err
+	}
+	stop = func() {
+		_ = proxyListener.Close()
 	}
 	socksDialer := socks5Dialer{
 		directDialer: directDialer{
 			dialTimeout: 2 * time.Second,
 			keepAlive:   60 * time.Second,
 		},
-		proxyNetwork: proxy.Addr().Network(),
-		proxyAddr:    proxy.Addr().String(),
+		proxyNetwork: proxyListener.Addr().Network(),
+		proxyAddr:    proxyListener.Addr().String(),
 		username:     username,
 		password:     password,
 	}
@@ -143,107 +157,65 @@ func makeTLSSocks5ProxyPipe(conf *config.Config, authenticator socks5.Authentica
 		config:    clientConfig,
 	}
 
-	target, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
+	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {
-		proxy.Close()
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	// Start a connection between two endpoints.
-	var err0, err1, err2 error
-	var c0 net.Conn
-	go func() {
-		c0, err0 = proxy.Accept()
-		if err0 == nil {
-			err0 = server.ServeConn(c0)
-		}
-	}()
-	done := make(chan bool)
-	go func() {
-		c2, err2 = target.Accept()
-		close(done)
-		if err2 != nil {
-			return
-		}
-		// will force handshake completion
-		buf := make([]byte, 0)
-		c2.Read(buf)
 
-		tlscon, ok := c2.(*tls.Conn)
-		if ok {
-			state := tlscon.ConnectionState()
-			for _, v := range state.PeerCertificates {
-				_ = v
-				//fmt.Println(x509.MarshalPKIXPublicKey(v.PublicKey))
-			}
+	go func() {
+		if proxyConn, proxyErr := proxyListener.Accept(); proxyErr == nil {
+			_ = server.ServeConn(proxyConn)
 		}
 	}()
+
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		target.Close()
-		proxy.Close()
+		_ = tlsListener.Close()
+		_ = proxyListener.Close()
 	}
-
-	c1, err1 = tlsDialer.Dial(target.Addr().Network(), target.Addr().String())
-	if err1 != nil {
-		target.Close()
-		return nil, nil, nil, err1
-	}
-	select {
-	case <-done:
-	case <-time.After(4 * time.Second):
-		target.Close()
-		return nil, nil, nil, errors.New("Accept timeout ")
-	}
-
-	switch {
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
-func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword string, username, password string) (c1, c2 net.Conn, stop func(), err error) {
+func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword string, username, password string) (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
 	server := goproxy.NewProxyHttpServer()
-
+	var err error
 	if proxyusername != "" && proxypassword != "" {
 		server.OnRequest().HandleConnect(auth.BasicConnect("", func(user, passwd string) bool {
 			return user == proxyusername && passwd == proxypassword
 		}))
 	}
-
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
 	clientConfig, err := newTLSClientConfig(conf)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
 	serverConfig, err := newTLSListenerConfig(conf)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-
-	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	proxyListener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
+	}
+	stop = func() {
+		_ = proxyListener.Close()
 	}
 	httpProxy := &httpProxy{
 		forwardDialer: directDialer{
 			dialTimeout: 2 * time.Second,
 			keepAlive:   60 * time.Second,
 		},
-		network:  proxy.Addr().Network(),
-		hostPort: proxy.Addr().String(),
+		network:  proxyListener.Addr().Network(),
+		hostPort: proxyListener.Addr().String(),
 		username: username,
 		password: password,
 	}
@@ -254,261 +226,140 @@ func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword stri
 		config:    clientConfig,
 	}
 
-	target, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
+	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {
-		proxy.Close()
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	// Start a connection between two endpoints.
-	var err1, err2 error
-	go func() {
-		http.Serve(proxy, server)
-	}()
-	done := make(chan bool)
-	go func() {
-		c2, err2 = target.Accept()
-		close(done)
-		if err2 != nil {
-			return
-		}
-		// will force handshake completion
-		buf := make([]byte, 0)
-		c2.Read(buf)
 
-		tlscon, ok := c2.(*tls.Conn)
-		if ok {
-			state := tlscon.ConnectionState()
-			for _, v := range state.PeerCertificates {
-				_ = v
-				//fmt.Println(x509.MarshalPKIXPublicKey(v.PublicKey))
-			}
-		}
+	go func() {
+		_ = http.Serve(proxyListener, server)
 	}()
+
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		target.Close()
-		proxy.Close()
+		_ = tlsListener.Close()
+		_ = proxyListener.Close()
 	}
-
-	c1, err1 = tlsDialer.Dial(target.Addr().Network(), target.Addr().String())
-	if err1 != nil {
-		target.Close()
-		return nil, nil, nil, err1
-	}
-	select {
-	case <-done:
-	case <-time.After(4 * time.Second):
-		target.Close()
-		return nil, nil, nil, errors.New("Accept timeout ")
-	}
-
-	switch {
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
-func makePipe() (c1, c2 net.Conn, stop func(), err error) {
+func makePipe() (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
+
 	dialer := directDialer{
 		dialTimeout: 2 * time.Second,
 		keepAlive:   60 * time.Second,
 	}
-	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
 
-	// Start a connection between two endpoints.
-	var err1, err2 error
-	done := make(chan bool)
-	go func() {
-		c2, err2 = ln.Accept()
-		close(done)
-	}()
-
-	c1, err1 = dialer.Dial(ln.Addr().Network(), ln.Addr().String())
+	c1, c2, err := localPipe(listener, dialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		ln.Close()
+		_ = listener.Close()
 	}
-
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		stop()
-		return nil, nil, nil, errors.New("Accept timeout")
-	}
-
-	switch {
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
-func makeSocks5ProxyPipe() (c1, c2 net.Conn, stop func(), err error) {
+func makeSocks5ProxyPipe() (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
 	server, err := socks5.New(&socks5.Config{})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	proxyListener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	target, err := net.Listen("tcp4", "127.0.0.1:0")
+	stop = func() {
+		_ = proxyListener.Close()
+	}
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		proxy.Close()
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
 	socksDialer := socks5Dialer{
 		directDialer: directDialer{
 			dialTimeout: 2 * time.Second,
 			keepAlive:   60 * time.Second,
 		},
-		proxyNetwork: proxy.Addr().Network(),
-		proxyAddr:    proxy.Addr().String(),
+		proxyNetwork: proxyListener.Addr().Network(),
+		proxyAddr:    proxyListener.Addr().String(),
 	}
-
-	var err0, err1, err2 error
-	var c0 net.Conn
 	go func() {
-		c0, err0 = proxy.Accept()
-		if err0 == nil {
-			err0 = server.ServeConn(c0)
+		if proxyConn, proxyErr := proxyListener.Accept(); proxyErr == nil {
+			_ = server.ServeConn(proxyConn)
 		}
 	}()
 
-	done := make(chan bool)
-	go func() {
-		c2, err2 = target.Accept()
-		close(done)
-	}()
-
-	c1, err1 = socksDialer.Dial(target.Addr().Network(), target.Addr().String())
-
+	c1, c2, err := localPipe(listener, socksDialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		target.Close()
-		proxy.Close()
+		_ = listener.Close()
+		_ = proxyListener.Close()
 	}
-
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		stop()
-		return nil, nil, nil, errors.New("Accept timeout")
-	}
-
-	switch {
-	case err0 != nil:
-		stop()
-		return nil, nil, nil, err0
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
-func makeHttpProxyPipe() (c1, c2 net.Conn, stop func(), err error) {
+func makeHttpProxyPipe() (net.Conn, net.Conn, func(), error) {
+	stop := func() {}
 	server := goproxy.NewProxyHttpServer()
 	//server.Verbose = true
 
+	proxyListener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	proxy, err := net.Listen("tcp4", "127.0.0.1:0")
+	stop = func() {
+		_ = proxyListener.Close()
+	}
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, stop, err
 	}
-	target, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		proxy.Close()
-		return nil, nil, nil, err
-	}
-	httpProxy := httpProxy{
+	httpProxyDialer := httpProxy{
 		forwardDialer: directDialer{
 			dialTimeout: 2 * time.Second,
 			keepAlive:   60 * time.Second,
 		},
-		network:  proxy.Addr().Network(),
-		hostPort: proxy.Addr().String(),
+		network:  proxyListener.Addr().Network(),
+		hostPort: proxyListener.Addr().String(),
 	}
 
-	var err0, err1, err2 error
 	go func() {
-		err0 = http.Serve(proxy, server)
+		_ = http.Serve(proxyListener, server)
 	}()
 
-	done := make(chan bool)
-	go func() {
-		c2, err2 = target.Accept()
-		close(done)
-	}()
-
-	c1, err1 = httpProxy.Dial(target.Addr().Network(), target.Addr().String())
-
+	c1, c2, err := localPipe(listener, httpProxyDialer.forwardDialer, 4*time.Second)
 	stop = func() {
-		if err1 == nil {
+		if c1 != nil {
 			c1.Close()
 		}
-		if err2 == nil {
+		if c1 != nil {
 			c2.Close()
 		}
-		target.Close()
-		proxy.Close()
+		_ = listener.Close()
+		_ = proxyListener.Close()
 	}
-
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		stop()
-		return nil, nil, nil, errors.New("Accept timeout")
-	}
-
-	switch {
-	case err0 != nil:
-		stop()
-		return nil, nil, nil, err0
-	case err1 != nil:
-		stop()
-		return nil, nil, nil, err1
-	case err2 != nil:
-		stop()
-		return nil, nil, nil, err2
-	default:
-		return c1, c2, stop, nil
-	}
+	return c1, c2, stop, err
 }
 
 func generateCert(catls *tls.Certificate, certFile *os.File, keyFile *os.File) error {
@@ -672,11 +523,11 @@ func NewCertsBundle() *CertsBundle {
 }
 
 func (bundle *CertsBundle) Close() {
-	os.Remove(bundle.CACert.Name())
-	os.Remove(bundle.CAKey.Name())
-	os.Remove(bundle.ServerCert.Name())
-	os.Remove(bundle.ServerKey.Name())
-	os.Remove(bundle.ClientCert.Name())
-	os.Remove(bundle.ClientKey.Name())
-	os.Remove(bundle.dirName)
+	_ = os.Remove(bundle.CACert.Name())
+	_ = os.Remove(bundle.CAKey.Name())
+	_ = os.Remove(bundle.ServerCert.Name())
+	_ = os.Remove(bundle.ServerKey.Name())
+	_ = os.Remove(bundle.ClientCert.Name())
+	_ = os.Remove(bundle.ClientKey.Name())
+	_ = os.Remove(bundle.dirName)
 }

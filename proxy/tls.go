@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/klauspost/cpuid"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"strings"
@@ -23,11 +24,20 @@ var (
 		"P521":   tls.CurveP521,
 	}
 
-	defaultCipherSuites = []uint16{
+	defaultCiphers = []uint16{
 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	}
+
+	defaultCiphersNonAESNI = []uint16{
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
@@ -76,6 +86,10 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	// for security, ensure TLS_FALLBACK_SCSV is always included first
+	if len(cipherSuites) == 0 || cipherSuites[0] != tls.TLS_FALLBACK_SCSV {
+		cipherSuites = append([]uint16{tls.TLS_FALLBACK_SCSV}, cipherSuites...)
+	}
 	curvePreferences, err := getCurvePreferences(opts.ListenerCurvePreferences)
 	if err != nil {
 		return nil, err
@@ -114,9 +128,22 @@ func getCipherSuites(enabledCipherSuites []string) ([]uint16, error) {
 		suites = append(suites, cipher)
 	}
 	if len(suites) == 0 {
-		return defaultCipherSuites, nil
+		return getPreferredDefaultCiphers(), nil
 	}
 	return suites, nil
+}
+
+// getPreferredDefaultCiphers returns an appropriate cipher suite to use, depending on
+// the hardware support available for AES-NI.
+//
+// See https://github.com/mholt/caddy/issues/1674
+func getPreferredDefaultCiphers() []uint16 {
+	if cpuid.CPU.AesNi() {
+		return defaultCiphers
+	}
+
+	// Return a cipher suite that prefers ChaCha20
+	return defaultCiphersNonAESNI
 }
 
 func getCurvePreferences(enabledCurvePreferences []string) ([]tls.CurveID, error) {
