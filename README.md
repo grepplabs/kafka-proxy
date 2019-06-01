@@ -24,6 +24,7 @@ Kafka API calls can be restricted to prevent some operations e.g. topic deletion
 
 
 See:
+* [Kafka Proxy with Amazon MKS](https://gist.github.com/everesio/262e11c6e5cebf56f1d5111c8cd7da3f)
 * [A Guide To The Kafka Protocol](https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol)
 * [Kafka protocol guide](http://kafka.apache.org/protocol.html)
 
