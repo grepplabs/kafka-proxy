@@ -48,7 +48,6 @@ type SASLPlainAuth struct {
 	password string
 }
 
-
 type SASLAuthByProxy interface {
 	sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error
 }
