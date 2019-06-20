@@ -72,7 +72,7 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	}
 	var saslAuthByProxy SASLAuthByProxy
 	if c.Kafka.SASL.Plugin.Enable {
-		if c.Kafka.SASL.Plugin.Mechanism == SASLOAuthBearer && saslTokenProvider != nil {
+                if c.Kafka.SASL.Plugin.Mechanism == SASLOAuthBearer && saslTokenProvider != nil {
 			saslAuthByProxy = &SASLOAuthBearerAuth{
 				clientID:      c.Kafka.ClientID,
 				writeTimeout:  c.Kafka.WriteTimeout,
@@ -83,7 +83,8 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			return nil, errors.Errorf("SASLAuthByProxy plugin unsupported or plugin misconfiguration for mechanism '%s' ", c.Kafka.SASL.Plugin.Mechanism)
 		}
 
-	} else {
+	} else if c.Kafka.SASL.Enable {
+            if c.Kafka.SASL.Method == SASLPlain {
 		saslAuthByProxy = &SASLPlainAuth{
 			clientID:     c.Kafka.ClientID,
 			writeTimeout: c.Kafka.WriteTimeout,
@@ -91,6 +92,18 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			username:     c.Kafka.SASL.Username,
 			password:     c.Kafka.SASL.Password,
 		}
+            } else if c.Kafka.SASL.Method == SASLSCRAM256 || c.Kafka.SASL.Method == SASLSCRAM512 {
+                saslAuthByProxy = &SASLSCRAMAuth {
+			clientID:     c.Kafka.ClientID,
+			writeTimeout: c.Kafka.WriteTimeout,
+			readTimeout:  c.Kafka.ReadTimeout,
+			username:     c.Kafka.SASL.Username,
+			password:     c.Kafka.SASL.Password,
+			mechanism: c.Kafka.SASL.Method,
+                        }
+            } else {
+                return nil, errors.Errorf("SASL Mechanism not valid '%s'", c.Kafka.SASL.Method)
+            }
 	}
 
 	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
