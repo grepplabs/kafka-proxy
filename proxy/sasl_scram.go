@@ -2,11 +2,14 @@ package proxy
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/binary"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/sirupsen/logrus"
 	"github.com/xdg/scram"
+	"hash"
 	"io"
 	"time"
 )
@@ -30,6 +33,11 @@ type SASLSCRAMAuth struct {
 	SCRAMAuthzID string
 }
 
+// Workaround for xdg-go not having accepted this pull request:
+// https://github.com/xdg-go/scram/pull/1/commits
+var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
+var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
+
 // Maps to Sarama sendAndReceiveSASLSCRAMv1
 func (b *SASLSCRAMAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error {
 
@@ -41,18 +49,17 @@ func (b *SASLSCRAMAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error 
 
 	var scramClient *scram.Client
 	if b.mechanism == "SCRAM-SHA-256" {
-		scramClient, err = scram.SHA256.NewClient(b.username, b.password, "")
+		scramClient, err = SHA256.NewClient(b.username, b.password, "")
 		if err != nil {
 			logrus.Debugf("Unable to make scram client for SCRAM-SHA-256: %v", err)
 			return err
 		}
 	} else if b.mechanism == "SCRAM-SHA-512" {
-		// Awaiting upstream acceptance in the scram library for this to work
-		// scramClient, err = scram.SHA512.NewClient(b.username, b.password, "")
-		//if err != nil {
-		//	logrus.Debugf("Unable to make scram client for SCRAM-SHA-512: %v", err)
-		//	return err
-		//}
+		scramClient, err = SHA512.NewClient(b.username, b.password, "")
+		if err != nil {
+			logrus.Debugf("Unable to make scram client for SCRAM-SHA-512: %v", err)
+			return err
+		}
 	} else {
 		return fmt.Errorf("Invalid SCRAM specification provided: %s. Expected one of [\"SCRAM-SHA-256\",\"SCRAM-SHA-512\"]", b.mechanism)
 	}
