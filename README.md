@@ -35,11 +35,11 @@ See:
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.2/kafka-proxy_0.1.2_linux_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.3/kafka-proxy_0.1.3_linux_amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.2/kafka-proxy_0.1.2_darwin_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.3/kafka-proxy_0.1.3_darwin_amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -116,6 +116,7 @@ See:
           --proxy-response-buffer-size int                 Response buffer size pro tcp connection (default 4096)
           --sasl-enable                                    Connect using SASL
           --sasl-jaas-config-file string                   Location of JAAS config file with SASL username and password
+          --sasl-method string                             SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512 (default "PLAIN")
           --sasl-password string                           SASL user password
           --sasl-plugin-command string                     Path to authentication plugin binary
           --sasl-plugin-enable                             Use plugin for SASL authentication
@@ -160,6 +161,15 @@ SASL authentication is initiated by the proxy. SASL authentication is disabled o
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
                        --tls-enable --tls-insecure-skip-verify \
                        --sasl-enable --sasl-username myuser --sasl-password mysecret
+
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.example.com:9092,0.0.0.0:30001" \
+                       --bootstrap-server-mapping "kafka-1.example.com:9092,0.0.0.0:30002" \
+                       --bootstrap-server-mapping "kafka-1.example.com:9093,0.0.0.0:30003" \
+                       --sasl-enable \
+                       --sasl-username "alice" \
+                       --sasl-password "alice-secret" \
+                       --sasl-method "SCRAM-SHA-512" \
+                       --log-level debug
 
     make clean build plugin.unsecured-jwt-provider && build/kafka-proxy server \
                              --sasl-enable \
