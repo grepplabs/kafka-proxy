@@ -120,6 +120,7 @@ type Config struct {
 			Username       string
 			Password       string
 			JaasConfigFile string
+			Method         string
 			Plugin         struct {
 				Enable     bool
 				Command    string

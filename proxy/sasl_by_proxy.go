@@ -16,6 +16,8 @@ import (
 const (
 	SASLPlain       = "PLAIN"
 	SASLOAuthBearer = "OAUTHBEARER"
+	SASLSCRAM256    = "SCRAM-SHA-256"
+	SASLSCRAM512    = "SCRAM-SHA-512"
 )
 
 type SASLHandshake struct {
@@ -117,8 +119,7 @@ func (b *SASLPlainAuth) sendSaslAuthenticateRequest(conn DeadlineReaderWriter) e
 }
 
 func (b *SASLHandshake) sendAndReceiveHandshake(conn DeadlineReaderWriter) error {
-	logrus.Debugf("Sending SaslHandshakeRequest")
-
+	logrus.Debugf("Sending SaslHandshakeRequest mechanism: %v  version: %v", b.mechanism, b.version)
 	req := &protocol.Request{
 		ClientID: b.clientID,
 		Body:     &protocol.SaslHandshakeRequestV0orV1{Version: b.version, Mechanism: b.mechanism},
@@ -165,6 +166,8 @@ func (b *SASLHandshake) sendAndReceiveHandshake(conn DeadlineReaderWriter) error
 	if res.Err != protocol.ErrNoError {
 		return errors.Wrap(res.Err, "Invalid SASL Mechanism")
 	}
+
+	logrus.Debugf("Successful SASL handshake. Available mechanisms: %v", res.EnabledMechanisms)
 	return nil
 }
 
