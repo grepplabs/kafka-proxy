@@ -38,8 +38,9 @@ type Config struct {
 		Enabled       bool
 	}
 	Log struct {
-		Format string
-		Level  string
+		Format         string
+		Level          string
+		LevelFieldName string
 	}
 	Proxy struct {
 		DefaultListenerIP       string

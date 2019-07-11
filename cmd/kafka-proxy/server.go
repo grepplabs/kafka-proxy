@@ -171,6 +171,8 @@ func initFlags() {
 	// Logging
 	Server.Flags().StringVar(&c.Log.Format, "log-format", "text", "Log format text or json")
 	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level debug, info, warning, error, fatal or panic")
+	Server.Flags().StringVar(&c.Log.LevelFieldName, "log-level-fieldname", "@level", "Log level fieldname for json format")
+
 
 	// Connect through Socks5 or HTTP CONNECT to Kafka
 	Server.Flags().StringVar(&c.ForwardProxy.Url, "forward-proxy", "", "URL of the forward proxy. Supported schemas are socks5 and http")
@@ -433,7 +435,7 @@ func SetLogger() {
 		formatter := &logrus.JSONFormatter{
 			FieldMap: logrus.FieldMap{
 				logrus.FieldKeyTime:  "@timestamp",
-				logrus.FieldKeyLevel: "@level",
+				logrus.FieldKeyLevel: c.Log.LevelFieldName,
 				logrus.FieldKeyMsg:   "@message",
 			},
 			TimestampFormat: time.RFC3339,
