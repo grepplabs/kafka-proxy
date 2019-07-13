@@ -35,11 +35,11 @@ See:
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.3/kafka-proxy_0.1.3_linux_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.4/kafka-proxy_0.1.4_linux_amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.3/kafka-proxy_0.1.3_darwin_amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.1.4/kafka-proxy_0.1.4_darwin_amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -102,6 +102,7 @@ See:
           --kafka-write-timeout duration                   How long to wait for a transmit (default 30s)
           --log-format string                              Log format text or json (default "text")
           --log-level string                               Log level debug, info, warning, error, fatal or panic (default "info")
+          --log-level-fieldname string                     Log level fieldname for json format (default "@level")
           --proxy-listener-ca-chain-cert-file string       PEM encoded CA's certificate file. If provided, client certificate is required and verified
           --proxy-listener-cert-file string                PEM encoded file with server certificate
           --proxy-listener-cipher-suites stringSlice       List of supported cipher suites
