@@ -83,6 +83,7 @@ See:
           --debug-enable                                   Enable Debug endpoint
           --debug-listen-address string                    Debug listen address (default "0.0.0.0:6060")
           --default-listener-ip string                     Default listener IP (default "127.0.0.1")
+          --dial-address-mapping stringArray               Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
           --dynamic-listeners-disable                      Disable dynamic listeners.
           --external-server-mapping stringArray            Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
           --forbidden-api-keys intSlice                    Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics
@@ -378,7 +379,7 @@ spec:
           secretName: tls-client-key-file
 ```
 
-### Connect to Kafka running in Kubernetes example
+### Connect to Kafka running in Kubernetes example (kafka proxy runs in cluster)
 
 ```yaml
 
@@ -484,8 +485,28 @@ spec:
 kubectl port-forward kafka-proxy-0 32400:32400 32401:32401 32402:32402
 ```
 
-Use localhost:32400, localhost:32401 and localhost:32402 as boostrap servers
+Use localhost:32400, localhost:32401 and localhost:32402 as bootstrap servers
 
+
+### Connect to Kafka running in Kubernetes example (kafka proxy runs locally)
+
+kafka.properties of one node Kafka
+
+```
+broker.id=0
+advertised.listeners=PLAINTEXT://kafka-0.kafka-headless.kafka:9092
+...
+```
+
+```bash
+kubectl port-forward -n kafka kafka-0 9092:9092
+```
+
+```bash
+kafka-proxy server --bootstrap-server-mapping "127.0.0.1:9092,0.0.0.0:19092" --dial-address-mapping "kafka-0.kafka-headless.kafka:9092,0.0.0.0:9092"
+```
+
+Use localhost:19092 as bootstrap servers
 
 ### Embedded third-party source code 
 

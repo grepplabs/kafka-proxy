@@ -24,6 +24,10 @@ type ListenerConfig struct {
 	ListenerAddress   string
 	AdvertisedAddress string
 }
+type DialAddressMapping struct {
+	SourceAddress      string
+	DestinationAddress string
+}
 
 type Config struct {
 	Http struct {
@@ -46,6 +50,7 @@ type Config struct {
 		DefaultListenerIP       string
 		BootstrapServers        []ListenerConfig
 		ExternalServers         []ListenerConfig
+		DialAddressMappings     []DialAddressMapping
 		DisableDynamicListeners bool
 		RequestBufferSize       int
 		ResponseBufferSize      int
@@ -146,8 +151,14 @@ func (c *Config) InitBootstrapServers(bootstrapServersMapping []string) (err err
 	c.Proxy.BootstrapServers, err = getListenerConfigs(bootstrapServersMapping)
 	return err
 }
+
 func (c *Config) InitExternalServers(externalServersMapping []string) (err error) {
 	c.Proxy.ExternalServers, err = getListenerConfigs(externalServersMapping)
+	return err
+}
+
+func (c *Config) InitDialAddressMappings(dialMappings []string) (err error) {
+	c.Proxy.DialAddressMappings, err = getDialAddressMappings(dialMappings)
 	return err
 }
 
@@ -161,6 +172,30 @@ func (c *Config) InitSASLCredentials() (err error) {
 		c.Kafka.SASL.Password = credentials.Password
 	}
 	return nil
+}
+func getDialAddressMappings(dialMapping []string) ([]DialAddressMapping, error) {
+	dialMappings := make([]DialAddressMapping, 0)
+	if dialMapping != nil {
+		for _, v := range dialMapping {
+			pair := strings.Split(v, ",")
+			if len(pair) != 2 {
+				return nil, errors.New("dial-mapping must be in form 'srchost:srcport,dsthost:dstport'")
+			}
+			srcHost, srcPort, err := util.SplitHostPort(pair[0])
+			if err != nil {
+				return nil, err
+			}
+			dstHost, dstPort, err := util.SplitHostPort(pair[1])
+			if err != nil {
+				return nil, err
+			}
+			dialMapping := DialAddressMapping{
+				SourceAddress:      net.JoinHostPort(srcHost, fmt.Sprint(srcPort)),
+				DestinationAddress: net.JoinHostPort(dstHost, fmt.Sprint(dstPort))}
+			dialMappings = append(dialMappings, dialMapping)
+		}
+	}
+	return dialMappings, nil
 }
 
 func getListenerConfigs(serversMapping []string) ([]ListenerConfig, error) {

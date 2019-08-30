@@ -98,7 +98,7 @@ func (b *SASLSCRAMAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error 
 
 		msg, err = scramConversation.Step(string(challenge))
 		if err != nil {
-			logrus.Debugf("SASL authentication failed", err)
+			logrus.Debugf("SASL authentication failed %s", err)
 			//Logger.Println("SASL authentication failed", err)
 			return err
 		}

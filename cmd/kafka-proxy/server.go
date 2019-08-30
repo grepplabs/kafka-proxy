@@ -40,6 +40,7 @@ var (
 
 	bootstrapServersMapping = make([]string, 0)
 	externalServersMapping  = make([]string, 0)
+	dialAddressMapping      = make([]string, 0)
 )
 
 var Server = &cobra.Command{
@@ -55,6 +56,9 @@ var Server = &cobra.Command{
 			return err
 		}
 		if err := c.InitExternalServers(getOrEnvStringSlice(externalServersMapping, "EXTERNAL_SERVER_MAPPING")); err != nil {
+			return err
+		}
+		if err := c.InitDialAddressMappings(getOrEnvStringSlice(dialAddressMapping, "DIAL_ADDRESS_MAPPING")); err != nil {
 			return err
 		}
 		if err := c.Validate(); err != nil {
@@ -81,6 +85,7 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Proxy.DefaultListenerIP, "default-listener-ip", "127.0.0.1", "Default listener IP")
 	Server.Flags().StringArrayVar(&bootstrapServersMapping, "bootstrap-server-mapping", []string{}, "Mapping of Kafka bootstrap server address to local address (host:port,host:port(,advhost:advport))")
 	Server.Flags().StringArrayVar(&externalServersMapping, "external-server-mapping", []string{}, "Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started")
+	Server.Flags().StringArrayVar(&dialAddressMapping, "dial-address-mapping", []string{}, "Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment")
 	Server.Flags().BoolVar(&c.Proxy.DisableDynamicListeners, "dynamic-listeners-disable", false, "Disable dynamic listeners.")
 
 	Server.Flags().IntVar(&c.Proxy.RequestBufferSize, "proxy-request-buffer-size", 4096, "Request buffer size pro tcp connection")
@@ -172,7 +177,6 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Log.Format, "log-format", "text", "Log format text or json")
 	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level debug, info, warning, error, fatal or panic")
 	Server.Flags().StringVar(&c.Log.LevelFieldName, "log-level-fieldname", "@level", "Log level fieldname for json format")
-
 
 	// Connect through Socks5 or HTTP CONNECT to Kafka
 	Server.Flags().StringVar(&c.ForwardProxy.Url, "forward-proxy", "", "URL of the forward proxy. Supported schemas are socks5 and http")

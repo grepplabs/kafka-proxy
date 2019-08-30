@@ -122,9 +122,11 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32) (l
 	p.lock.RUnlock()
 
 	if ok {
+		logrus.Debugf("Address mappings broker=%s, listener=%s, advertised=%s", listenerConfig.BrokerAddress, listenerConfig.ListenerAddress, listenerConfig.AdvertisedAddress)
 		return util.SplitHostPort(listenerConfig.AdvertisedAddress)
 	}
 	if !p.disableDynamicListeners {
+		logrus.Infof("Starting dynamic listener for broker %s", brokerAddress)
 		return p.ListenDynamicInstance(brokerAddress)
 	}
 	return "", 0, fmt.Errorf("net address mapping for %s:%d was not found", brokerHost, brokerPort)

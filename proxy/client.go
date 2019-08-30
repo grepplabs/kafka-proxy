@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"crypto/tls"
+	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/pkg/errors"
@@ -36,6 +37,8 @@ type Client struct {
 
 	saslAuthByProxy SASLAuthByProxy
 	authClient      *AuthClient
+
+	dialAddressMapping map[string]config.DialAddressMapping
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
@@ -105,6 +108,10 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			return nil, errors.Errorf("SASL Mechanism not valid '%s'", c.Kafka.SASL.Method)
 		}
 	}
+	dialAddressMapping, err := getAddressToDialAddressMapping(c)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
 		saslAuthByProxy: saslAuthByProxy,
@@ -136,7 +143,25 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 				tokenInfo: gatewayTokenInfo,
 			},
 			ForbiddenApiKeys: forbiddenApiKeys,
-		}}, nil
+		},
+		dialAddressMapping: dialAddressMapping,
+	}, nil
+}
+
+func getAddressToDialAddressMapping(cfg *config.Config) (map[string]config.DialAddressMapping, error) {
+	addressToDialAddressMapping := make(map[string]config.DialAddressMapping)
+
+	for _, v := range cfg.Proxy.DialAddressMappings {
+		if lc, ok := addressToDialAddressMapping[v.SourceAddress]; ok {
+			if lc.SourceAddress != v.SourceAddress || lc.DestinationAddress != v.DestinationAddress {
+				return nil, fmt.Errorf("dial address mapping %s configured twice: %v and %v", v.SourceAddress, v, lc)
+			}
+			continue
+		}
+		logrus.Infof("Dial address mapping src %s dst %s", v.SourceAddress, v.DestinationAddress)
+		addressToDialAddressMapping[v.SourceAddress] = v
+	}
+	return addressToDialAddressMapping, nil
 }
 
 func newDialer(c *config.Config, tlsConfig *tls.Config) (Dialer, error) {
@@ -219,9 +244,15 @@ func (c *Client) Close() {
 func (c *Client) handleConn(conn Conn) {
 	proxyConnectionsTotal.WithLabelValues(conn.BrokerAddress).Inc()
 
-	server, err := c.DialAndAuth(conn.BrokerAddress)
+	dialAddress := conn.BrokerAddress
+	if addressMapping, ok := c.dialAddressMapping[dialAddress]; ok {
+		dialAddress = addressMapping.DestinationAddress
+		logrus.Infof("Dial address changed from %s to %s", conn.BrokerAddress, dialAddress)
+	}
+
+	server, err := c.DialAndAuth(dialAddress)
 	if err != nil {
-		logrus.Infof("couldn't connect to %s: %v", conn.BrokerAddress, err)
+		logrus.Infof("couldn't connect to %s(%s): %v", dialAddress, conn.BrokerAddress, err)
 		_ = conn.LocalConnection.Close()
 		return
 	}
