@@ -97,6 +97,14 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&array{name: "partition_metadata", ty: partitionMetadataV7},
 	)
 
+	topicMetadataV8 := NewSchema("topic_metadata_v8",
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "name", ty: typeStr},
+		&field{name: "is_internal", ty: typeBool},
+		&array{name: "partition_metadata", ty: partitionMetadataV7},
+		&field{name: "topic_authorized_operations", ty: typeInt32},
+	)
+
 	metadataResponseV1 := NewSchema("metadata_response_v1",
 		&array{name: brokersKeyName, ty: metadataBrokerV1},
 		&field{name: "controller_id", ty: typeInt32},
@@ -138,7 +146,16 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&array{name: "topic_metadata", ty: topicMetadataV7},
 	)
 
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7}
+	metadataResponseV8 := NewSchema("metadata_response_v8",
+		&field{name: "throttle_time_ms", ty: typeInt32},
+		&array{name: brokersKeyName, ty: metadataBrokerV1},
+		&field{name: "cluster_id", ty: typeNullableStr},
+		&field{name: "controller_id", ty: typeInt32},
+		&array{name: "topic_metadata", ty: topicMetadataV8},
+		&field{name: "cluster_authorized_operations", ty: typeInt32},
+	)
+
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {

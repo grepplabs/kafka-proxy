@@ -489,8 +489,8 @@ Use localhost:32400, localhost:32401 and localhost:32402 as bootstrap servers
 
 
 ### Connect to Kafka running in Kubernetes example (kafka proxy runs locally)
-
-kafka.properties of one node Kafka
+####  one node Kafka cluster
+kafka.properties
 
 ```
 broker.id=0
@@ -504,6 +504,63 @@ kubectl port-forward -n kafka kafka-0 9092:9092
 
 ```bash
 kafka-proxy server --bootstrap-server-mapping "127.0.0.1:9092,0.0.0.0:19092" --dial-address-mapping "kafka-0.kafka-headless.kafka:9092,0.0.0.0:9092"
+```
+
+Use localhost:19092 as bootstrap servers
+
+#### 3 nodes Kafka cluster
+
+[strimzi 0.13.0 CRD](https://strimzi.io/)
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta1
+kind: Kafka
+metadata:
+  name: test-cluster
+  namespace: kafka
+spec:
+  kafka:
+    version: 2.3.0
+    replicas: 3
+    listeners:
+      plain: {}
+      tls: {}
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      num.partitions: 60
+      default.replication.factor: 3
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 20Gi
+          deleteClaim: true
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 5Gi
+      deleteClaim: true
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+```
+
+```bash
+kubectl port-forward -n kafka test-cluster-kafka-0 9092:9092
+kubectl port-forward -n kafka test-cluster-kafka-1 9093:9092
+kubectl port-forward -n kafka test-cluster-kafka-2 9094:9092
+
+kafka-proxy server --log-level debug \
+  --bootstrap-server-mapping "127.0.0.1:9092,0.0.0.0:19092" \
+  --bootstrap-server-mapping "127.0.0.1:9093,0.0.0.0:19093" \
+  --bootstrap-server-mapping "127.0.0.1:9094,0.0.0.0:19094" \
+  --dial-address-mapping "test-cluster-kafka-0.test-cluster-kafka-brokers.kafka.svc.cluster.local:9092,0.0.0.0:9092" \
+  --dial-address-mapping "test-cluster-kafka-1.test-cluster-kafka-brokers.kafka.svc.cluster.local:9092,0.0.0.0:9093" \
+  --dial-address-mapping "test-cluster-kafka-2.test-cluster-kafka-brokers.kafka.svc.cluster.local:9092,0.0.0.0:9094"
 ```
 
 Use localhost:19092 as bootstrap servers
