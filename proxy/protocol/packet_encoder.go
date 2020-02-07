@@ -20,6 +20,13 @@ type packetEncoder interface {
 	putInt32Array(in []int32) error
 	putInt64Array(in []int64) error
 
+	putVarintBytes(in []byte) error
+
+	putCompactString(in string) error
+	putCompactNullableString(in *string) error
+	putCompactArrayLength(in int) error
+	putCompactNullableArrayLength(in int) error
+
 	// Provide the current offset to record the batch size metric
 	offset() int
 }

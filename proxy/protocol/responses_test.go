@@ -1721,29 +1721,29 @@ func TestMetadataResponseV7(t *testing.T) {
 
 func TestMetadataResponseV8(t *testing.T) {
 	/*
-	Metadata Response (Version: 8) => throttle_time_ms [brokers] cluster_id controller_id [topics] cluster_authorized_operations
-	  throttle_time_ms => INT32
-	  brokers => node_id host port rack
-	    node_id => INT32
-	    host => STRING
-	    port => INT32
-	    rack => NULLABLE_STRING
-	  cluster_id => NULLABLE_STRING
-	  controller_id => INT32
-	  topics => error_code name is_internal [partitions] topic_authorized_operations
-	    error_code => INT16
-	    name => STRING
-	    is_internal => BOOLEAN
-	    partitions => error_code partition_index leader_id leader_epoch [replica_nodes] [isr_nodes] [offline_replicas]
-	      error_code => INT16
-	      partition_index => INT32
-	      leader_id => INT32
-	      leader_epoch => INT32
-	      replica_nodes => INT32
-	      isr_nodes => INT32
-	      offline_replicas => INT32
-	    topic_authorized_operations => INT32
-	  cluster_authorized_operations => INT32
+		Metadata Response (Version: 8) => throttle_time_ms [brokers] cluster_id controller_id [topics] cluster_authorized_operations
+		  throttle_time_ms => INT32
+		  brokers => node_id host port rack
+		    node_id => INT32
+		    host => STRING
+		    port => INT32
+		    rack => NULLABLE_STRING
+		  cluster_id => NULLABLE_STRING
+		  controller_id => INT32
+		  topics => error_code name is_internal [partitions] topic_authorized_operations
+		    error_code => INT16
+		    name => STRING
+		    is_internal => BOOLEAN
+		    partitions => error_code partition_index leader_id leader_epoch [replica_nodes] [isr_nodes] [offline_replicas]
+		      error_code => INT16
+		      partition_index => INT32
+		      leader_id => INT32
+		      leader_epoch => INT32
+		      replica_nodes => INT32
+		      isr_nodes => INT32
+		      offline_replicas => INT32
+		    topic_authorized_operations => INT32
+		  cluster_authorized_operations => INT32
 	*/
 
 	apiVersion := int16(8)
@@ -1791,7 +1791,7 @@ func TestMetadataResponseV8(t *testing.T) {
 		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
 		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02,
 		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x07,
-		0x00, 0x00, 0x00, 0x08,	// topic_authorized_operations 8
+		0x00, 0x00, 0x00, 0x08, // topic_authorized_operations 8
 		// topic_metadata[1]
 		0x00, 0x00,
 		0x00, 0x03, 'b', 'a', 'r',
@@ -1927,7 +1927,6 @@ func TestMetadataResponseV8(t *testing.T) {
 		"[partition_metadata]",
 		"topic_authorized_operations int32 4",
 		"cluster_authorized_operations int32 5",
-
 	}
 	a.Equal(expected, dc.AttrValues())
 }

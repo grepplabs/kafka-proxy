@@ -20,6 +20,13 @@ type packetDecoder interface {
 	getInt64Array() ([]int64, error)
 	getStringArray() ([]string, error)
 
+	getVarintBytes() ([]byte, error)
+
+	getCompactString() (string, error)
+	getCompactNullableString() (*string, error)
+	getCompactArrayLength() (int, error)
+	getCompactNullableArrayLength() (int, error)
+
 	// Subsets
 	remaining() int
 }

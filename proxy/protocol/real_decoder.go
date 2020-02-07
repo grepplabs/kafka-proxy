@@ -9,7 +9,9 @@ var errInvalidArrayLength = PacketDecodingError{"invalid array length"}
 var errInvalidStringLength = PacketDecodingError{"invalid string length"}
 var errVarintOverflow = PacketDecodingError{"varint overflow"}
 var errInvalidBool = PacketDecodingError{"invalid bool"}
-var errInvalidByteSliceLength = PacketDecodingError{"invalid byteslice length"}
+var errInvalidByteSliceLength = PacketDecodingError{"invalid byte slice length"}
+var errInvalidCompactLength = PacketDecodingError{"invalid compact length"}
+var errInvalidCompactNullableLength = PacketDecodingError{"invalid compact nullable length"}
 
 type realDecoder struct {
 	raw []byte
@@ -110,6 +112,17 @@ func (rd *realDecoder) getBytes() ([]byte, error) {
 		return nil, nil
 	}
 
+	return rd.getRawBytes(int(tmp))
+}
+
+func (rd *realDecoder) getVarintBytes() ([]byte, error) {
+	tmp, err := rd.getVarint()
+	if err != nil {
+		return nil, err
+	}
+	if tmp == -1 {
+		return nil, nil
+	}
 	return rd.getRawBytes(int(tmp))
 }
 
@@ -256,4 +269,68 @@ func (rd *realDecoder) getStringArray() ([]string, error) {
 // subsets
 func (rd *realDecoder) remaining() int {
 	return len(rd.raw) - rd.off
+}
+
+func (rd *realDecoder) getCompactLength() (int, error) {
+	length, err := rd.getVarint()
+	if err != nil {
+		return 0, err
+	}
+	n := int(length - 1)
+
+	switch {
+	case n < 0:
+		return 0, errInvalidCompactLength
+	case n > rd.remaining():
+		rd.off = len(rd.raw)
+		return 0, ErrInsufficientData
+	}
+	return n, nil
+}
+
+func (rd *realDecoder) getCompactNullableLength() (int, error) {
+	length, err := rd.getVarint()
+	if err != nil {
+		return 0, err
+	}
+	n := int(length - 1)
+
+	switch {
+	case n < -1:
+		return 0, errInvalidCompactNullableLength
+	case n > rd.remaining():
+		rd.off = len(rd.raw)
+		return 0, ErrInsufficientData
+	}
+	return n, nil
+}
+
+func (rd *realDecoder) getCompactString() (string, error) {
+
+	n, err := rd.getCompactLength()
+	if err != nil || n == 0 {
+		return "", err
+	}
+	tmpStr := string(rd.raw[rd.off : rd.off+n])
+	rd.off += n
+	return tmpStr, nil
+}
+
+func (rd *realDecoder) getCompactNullableString() (*string, error) {
+
+	n, err := rd.getCompactNullableLength()
+	if err != nil || n < 0 {
+		return nil, err
+	}
+	tmpStr := string(rd.raw[rd.off : rd.off+n])
+	rd.off += n
+	return &tmpStr, nil
+}
+
+func (rd *realDecoder) getCompactArrayLength() (int, error) {
+	return rd.getCompactLength()
+}
+
+func (rd *realDecoder) getCompactNullableArrayLength() (int, error) {
+	return rd.getCompactNullableLength()
 }

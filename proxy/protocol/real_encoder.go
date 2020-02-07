@@ -65,6 +65,15 @@ func (re *realEncoder) putBytes(in []byte) error {
 	return re.putRawBytes(in)
 }
 
+func (re *realEncoder) putVarintBytes(in []byte) error {
+	if in == nil {
+		re.putVarint(-1)
+		return nil
+	}
+	re.putVarint(int64(len(in)))
+	return re.putRawBytes(in)
+}
+
 func (re *realEncoder) putString(in string) error {
 	re.putInt16(int16(len(in)))
 	copy(re.raw[re.off:], in)
@@ -119,4 +128,29 @@ func (re *realEncoder) putInt64Array(in []int64) error {
 
 func (re *realEncoder) offset() int {
 	return re.off
+}
+
+func (re *realEncoder) putCompactString(in string) error {
+	re.putVarint(int64(len(in) + 1))
+	copy(re.raw[re.off:], in)
+	re.off += len(in)
+	return nil
+}
+
+func (re *realEncoder) putCompactNullableString(in *string) error {
+	if in == nil {
+		re.putVarint(0)
+		return nil
+	}
+	return re.putCompactString(*in)
+}
+
+func (pe *realEncoder) putCompactArrayLength(in int) error {
+	pe.putVarint(int64(in + 1))
+	return nil
+}
+
+func (pe *realEncoder) putCompactNullableArrayLength(in int) error {
+	pe.putVarint(int64(in + 1))
+	return nil
 }

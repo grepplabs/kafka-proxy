@@ -55,6 +55,14 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&field{name: "rack", ty: typeNullableStr},
 	)
 
+	metadataBrokerSchema9 := NewSchema("metadata_broker_schema9",
+		&field{name: "node_id", ty: typeInt32},
+		&field{name: hostKeyName, ty: typeCompactStr},
+		&field{name: portKeyName, ty: typeInt32},
+		&field{name: "rack", ty: typeCompactNullableStr},
+		&taggedFields{"broker_tagged_fields"},
+	)
+
 	partitionMetadataV1 := partitionMetadataV0
 
 	partitionMetadataV2 := NewSchema("partition_metadata_v2",
@@ -74,6 +82,17 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&array{name: "replicas", ty: typeInt32},
 		&array{name: "isr", ty: typeInt32},
 		&array{name: "offline_replicas", ty: typeInt32},
+	)
+
+	partitionMetadataSchema9 := NewSchema("partition_metadata_schema9",
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "partition", ty: typeInt32},
+		&field{name: "leader", ty: typeInt32},
+		&field{name: "leader_epoch", ty: typeInt32},
+		&compactArray{name: "replicas", ty: typeInt32},
+		&compactArray{name: "isr", ty: typeInt32},
+		&compactArray{name: "offline_replicas", ty: typeInt32},
+		&taggedFields{name: "partition_metadata_tagged_fields"},
 	)
 
 	topicMetadataV1 := NewSchema("topic_metadata_v1",
@@ -103,6 +122,15 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&field{name: "is_internal", ty: typeBool},
 		&array{name: "partition_metadata", ty: partitionMetadataV7},
 		&field{name: "topic_authorized_operations", ty: typeInt32},
+	)
+
+	topicMetadataSchema9 := NewSchema("topic_metadata_schema9",
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "name", ty: typeCompactStr},
+		&field{name: "is_internal", ty: typeBool},
+		&compactArray{name: "partition_metadata", ty: partitionMetadataSchema9},
+		&field{name: "topic_authorized_operations", ty: typeInt32},
+		&taggedFields{name: "topic_metadata_tagged_fields"},
 	)
 
 	metadataResponseV1 := NewSchema("metadata_response_v1",
@@ -155,13 +183,29 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&field{name: "cluster_authorized_operations", ty: typeInt32},
 	)
 
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8}
+	metadataResponseV9 := NewSchema("metadata_response_v9",
+		&field{name: "throttle_time_ms", ty: typeInt32},
+		&compactArray{name: brokersKeyName, ty: metadataBrokerSchema9},
+		&field{name: "cluster_id", ty: typeCompactNullableStr},
+		&field{name: "controller_id", ty: typeInt32},
+		&compactArray{name: "topic_metadata", ty: topicMetadataSchema9},
+		&field{name: "cluster_authorized_operations", ty: typeInt32},
+		&taggedFields{name: "response_tagged_fields"},
+	)
+
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
 	findCoordinatorBrokerV0 := NewSchema("find_coordinator_broker_v0",
 		&field{name: "node_id", ty: typeInt32},
 		&field{name: hostKeyName, ty: typeStr},
+		&field{name: portKeyName, ty: typeInt32},
+	)
+
+	findCoordinatorBrokerSchema9 := NewSchema("find_coordinator_broker_schema9",
+		&field{name: "node_id", ty: typeInt32},
+		&field{name: hostKeyName, ty: typeCompactStr},
 		&field{name: portKeyName, ty: typeInt32},
 	)
 
@@ -179,7 +223,15 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 
 	findCoordinatorResponseV2 := findCoordinatorResponseV1
 
-	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2}
+	findCoordinatorResponseV3 := NewSchema("find_coordinator_response_v3",
+		&field{name: "throttle_time_ms", ty: typeInt32},
+		&field{name: "error_code", ty: typeInt16},
+		&field{name: "error_message", ty: typeCompactNullableStr},
+		&field{name: coordinatorKeyName, ty: findCoordinatorBrokerSchema9},
+		&taggedFields{name: "response_tagged_fields"},
+	)
+
+	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3}
 }
 
 func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {

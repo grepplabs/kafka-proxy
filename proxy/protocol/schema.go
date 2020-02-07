@@ -3,15 +3,18 @@ package protocol
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"reflect"
 )
 
 var (
-	typeBool        = &Bool{}
-	typeInt16       = &Int16{}
-	typeInt32       = &Int32{}
-	typeStr         = &Str{}
-	typeNullableStr = &NullableStr{}
+	typeBool               = &Bool{}
+	typeInt16              = &Int16{}
+	typeInt32              = &Int32{}
+	typeStr                = &Str{}
+	typeNullableStr        = &NullableStr{}
+	typeCompactStr         = &CompactStr{}
+	typeCompactNullableStr = &CompactNullableStr{}
 )
 
 type EncoderDecoder interface {
@@ -125,7 +128,7 @@ func (f *Str) encode(pe packetEncoder, value interface{}) error {
 	return pe.putString(in)
 }
 
-// Field string
+// Field nullable string
 
 type NullableStr struct{}
 
@@ -147,6 +150,128 @@ func (f *NullableStr) encode(pe packetEncoder, value interface{}) error {
 	return pe.putNullableString(in)
 }
 
+// Field compact string
+
+type CompactStr struct {
+}
+
+func (f *CompactStr) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getCompactString()
+}
+
+func (f *CompactStr) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(string)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a string", value)}
+	}
+	return pe.putCompactString(in)
+}
+
+// Field compact nullable string
+
+type CompactNullableStr struct{}
+
+func (f *CompactNullableStr) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getCompactNullableString()
+}
+
+func (f *CompactNullableStr) encode(pe packetEncoder, value interface{}) error {
+	if value == nil {
+		if err := pe.putCompactNullableString(nil); err != nil {
+			return err
+		}
+	}
+
+	in, ok := value.(*string)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a *string", value)}
+	}
+	return pe.putCompactNullableString(in)
+}
+
+// Arrays helper
+
+func encodeArrayElements(in []interface{}, elementEncode func(pe packetEncoder, value interface{}) error, pe packetEncoder) (err error) {
+	for _, elem := range in {
+		err = elementEncode(pe, elem)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func decodeArrayElements(n int, elementDecode func(pd packetDecoder) (interface{}, error), pd packetDecoder) (interface{}, error) {
+	// We could allocate the capacity at once, but in case of malformed payload we could allocate too much memory.
+	result := make([]interface{}, 0)
+
+	for i := 0; i < n; i++ {
+		elem, err := elementDecode(pd)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, elem)
+	}
+	return result, nil
+}
+
+// Tagged fields
+
+type rawTaggedField struct {
+	tag  int64
+	data []byte
+}
+
+type taggedFields struct {
+	name string
+}
+
+func (f *taggedFields) decode(pd packetDecoder) (interface{}, error) {
+	numTaggedFields, err := pd.getVarint()
+	if err != nil {
+		return nil, err
+	}
+	if numTaggedFields == 0 {
+		result := make([]interface{}, 0)
+		return result, nil
+	}
+	result := make([]rawTaggedField, numTaggedFields)
+	for i := 0; i < int(numTaggedFields); i++ {
+		result[i].tag, err = pd.getVarint()
+		if err != nil {
+			return nil, err
+		}
+		result[i].data, err = pd.getVarintBytes()
+		if err != nil {
+			return nil, err
+		}
+
+	}
+	return result, nil
+}
+
+func (f *taggedFields) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]rawTaggedField)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a *string", value)}
+	}
+	pe.putVarint(int64(len(in)))
+	for _, rawTaggedField := range in {
+		pe.putVarint(rawTaggedField.tag)
+		err := pe.putVarintBytes(rawTaggedField.data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *taggedFields) GetName() string {
+	return f.name
+}
+
+// Array
+
 type array struct {
 	name string
 	ty   EncoderDecoder
@@ -157,41 +282,95 @@ func (f *array) decode(pd packetDecoder) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	// We could allocate the capacity at once, but in case of malformed payload we could allocate too much memory.
-	result := make([]interface{}, 0)
-
-	for i := 0; i < n; i++ {
-		elem, err := f.ty.decode(pd)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, elem)
-	}
-	return result, nil
+	return decodeArrayElements(n, f.ty.decode, pd)
 }
 
 func (f *array) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]interface{})
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []interface{}", value)}
+	}
+	err := pe.putArrayLength(len(in))
+	if err != nil {
+		return err
+	}
+	return encodeArrayElements(in, f.ty.encode, pe)
+}
 
+func (f *array) GetName() string {
+	return f.name
+}
+
+// Compact Array
+
+type compactArray struct {
+	name string
+	ty   EncoderDecoder
+}
+
+func (f *compactArray) decode(pd packetDecoder) (interface{}, error) {
+	n, err := pd.getCompactArrayLength()
+	if err != nil {
+		return nil, errors.Wrapf(err, "getCompactArrayLength field %s", f.name)
+	}
+	result, err := decodeArrayElements(n, f.ty.decode, pd)
+	if err != nil {
+		return nil, errors.Wrapf(err, "decodeArrayElements field %s", f.name)
+	}
+	return result, err
+}
+
+func (f *compactArray) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]interface{})
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []interface{}", value)}
+	}
+	err := pe.putCompactArrayLength(len(in))
+	if err != nil {
+		return err
+	}
+	return encodeArrayElements(in, f.ty.encode, pe)
+}
+
+func (f *compactArray) GetName() string {
+	return f.name
+}
+
+// Compact nullable Array
+
+type compactNullableArray struct {
+	name string
+	ty   EncoderDecoder
+}
+
+func (f *compactNullableArray) decode(pd packetDecoder) (interface{}, error) {
+	n, err := pd.getCompactNullableArrayLength()
+	if err != nil {
+		return nil, err
+	}
+	if n == -1 {
+		return nil, nil
+	}
+	return decodeArrayElements(n, f.ty.decode, pd)
+}
+
+func (f *compactNullableArray) encode(pe packetEncoder, value interface{}) error {
+	if value == nil {
+		return pe.putCompactNullableArrayLength(-1)
+	}
 	in, ok := value.([]interface{})
 	if !ok {
 		return SchemaEncodingError{fmt.Sprintf("value %T not a []interface{}", value)}
 	}
 
-	err := pe.putArrayLength(len(in))
+	err := pe.putCompactNullableArrayLength(len(in))
 	if err != nil {
 		return err
 	}
-
-	for _, elem := range in {
-		err = f.ty.encode(pe, elem)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return encodeArrayElements(in, f.ty.encode, pe)
 }
 
-func (f *array) GetName() string {
+func (f *compactNullableArray) GetName() string {
 	return f.name
 }
 

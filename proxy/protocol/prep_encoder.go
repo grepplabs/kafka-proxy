@@ -54,6 +54,15 @@ func (pe *prepEncoder) putBytes(in []byte) error {
 	return pe.putRawBytes(in)
 }
 
+func (pe *prepEncoder) putVarintBytes(in []byte) error {
+	if in == nil {
+		pe.putVarint(-1)
+		return nil
+	}
+	pe.putVarint(int64(len(in)))
+	return pe.putRawBytes(in)
+}
+
 func (pe *prepEncoder) putRawBytes(in []byte) error {
 	if len(in) > math.MaxInt32 {
 		return PacketEncodingError{fmt.Sprintf("byteslice too long (%d)", len(in))}
@@ -114,4 +123,46 @@ func (pe *prepEncoder) putInt64Array(in []int64) error {
 
 func (pe *prepEncoder) offset() int {
 	return pe.length
+}
+
+func (pe *prepEncoder) putCompactString(in string) error {
+	pe.putVarint(int64(len(in) + 1))
+	if len(in) > math.MaxInt16 {
+		return PacketEncodingError{fmt.Sprintf("string too long (%d)", len(in))}
+	}
+	pe.length += len(in)
+	return nil
+}
+
+func (pe *prepEncoder) putCompactNullableString(in *string) error {
+	if in == nil {
+		// A null string is represented with a length of 0.
+		pe.length += 1 // pe.putVarint(0) is always 1
+		return nil
+	}
+	return pe.putCompactString(*in)
+}
+
+func (pe *prepEncoder) putCompactArrayLength(in int) error {
+	switch {
+	case in > math.MaxInt16:
+		return PacketEncodingError{fmt.Sprintf("comact array too long (%d)", in)}
+	case in == -1:
+		return PacketEncodingError{fmt.Sprintf("comact array is null (%d)", in)}
+	case in < -1:
+		return PacketEncodingError{fmt.Sprintf("comact array invalid length (%d)", in)}
+	}
+	pe.putVarint(int64(in + 1))
+	return nil
+}
+
+func (pe *prepEncoder) putCompactNullableArrayLength(in int) error {
+	switch {
+	case in > math.MaxInt16:
+		return PacketEncodingError{fmt.Sprintf("comact array too long (%d)", in)}
+	case in < -1:
+		return PacketEncodingError{fmt.Sprintf("comact array invalid length (%d)", in)}
+	}
+	pe.putVarint(int64(in + 1))
+	return nil
 }

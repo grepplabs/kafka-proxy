@@ -305,7 +305,8 @@ func TestTLSMissingClientCert(t *testing.T) {
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 
 	_, _, _, err := makeTLSPipe(c)
-	a.EqualError(err, "remote error: tls: bad certificate")
+	a.NotNil(err)
+	a.Contains(err.Error(), "tls: client didn't provide a certificate")
 }
 
 func TestTLSBadClientCert(t *testing.T) {
@@ -325,9 +326,10 @@ func TestTLSBadClientCert(t *testing.T) {
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
 	c.Kafka.TLS.ClientKeyFile = bundle2.ClientKey.Name()
-
 	_, _, _, err := makeTLSPipe(c)
-	a.EqualError(err, "remote error: tls: bad certificate")
+
+	a.NotNil(err)
+	a.Contains(err.Error(), "tls: failed to verify client's certificate")
 }
 
 func pingPong(t *testing.T, c1, c2 net.Conn) {
