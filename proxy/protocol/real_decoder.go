@@ -61,7 +61,7 @@ func (rd *realDecoder) getInt64() (int64, error) {
 }
 
 func (rd *realDecoder) getVarint() (int64, error) {
-	tmp, n := binary.Varint(rd.raw[rd.off:])
+	tmp, n := binary.Uvarint(rd.raw[rd.off:])
 	if n == 0 {
 		rd.off = len(rd.raw)
 		return -1, ErrInsufficientData
@@ -71,7 +71,7 @@ func (rd *realDecoder) getVarint() (int64, error) {
 		return -1, errVarintOverflow
 	}
 	rd.off += n
-	return tmp, nil
+	return int64(tmp), nil
 }
 
 func (rd *realDecoder) getArrayLength() (int, error) {

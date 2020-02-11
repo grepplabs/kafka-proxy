@@ -30,7 +30,7 @@ func (pe *prepEncoder) putInt64(in int64) {
 
 func (pe *prepEncoder) putVarint(in int64) {
 	var buf [binary.MaxVarintLen64]byte
-	pe.length += binary.PutVarint(buf[:], in)
+	pe.length += binary.PutUvarint(buf[:], uint64(in))
 }
 
 func (pe *prepEncoder) putArrayLength(in int) error {

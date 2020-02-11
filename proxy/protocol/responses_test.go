@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +22,17 @@ var (
 		} else if brokerHost == "google.com" && brokerPort == 273 {
 			return "myhost2", 34002, nil
 		} else if brokerHost == "kafka.org" && brokerPort == 53503 {
+			return "myhost3", 34003, nil
+		}
+		return "", 0, errors.New("unexpected data")
+	}
+
+	testResponseModifier2 = func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+		if brokerHost == "localhost" && brokerPort == 19092 {
+			return "myhost1", 34001, nil
+		} else if brokerHost == "localhost" && brokerPort == 29092 {
+			return "myhost2", 34002, nil
+		} else if brokerHost == "localhost" && brokerPort == 39092 {
 			return "myhost3", 34003, nil
 		}
 		return "", 0, errors.New("unexpected data")
@@ -1930,6 +1942,122 @@ func TestMetadataResponseV8(t *testing.T) {
 	}
 	a.Equal(expected, dc.AttrValues())
 }
+
+func TestMetadataResponseV9(t *testing.T) {
+	apiVersion := int16(9)
+
+	bytes, err := hex.DecodeString("0000000004000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b40000000000010a6c6f63616c686f737400004a9400001763754b7373754b3052726d4950586164374259426b670000000202000010746573742d6e6f2d686561646572730002000000000000000000030000000002000000030200000003010000000000000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"brokers struct",
+		"node_id int32 3",
+		"host string localhost",
+		"port int32 39092",
+		"rack *string <nil>",
+		"brokers struct",
+		"node_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"cluster_id *string cuKssuK0RrmIPXad7BYBkg",
+		"controller_id int32 2",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string test-no-headers",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 0",
+		"leader int32 3",
+		"leader_epoch int32 0",
+		"[replicas]",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"[offline_replicas]",
+		"topic_authorized_operations int32 0",
+		"cluster_authorized_operations int32 0"}
+
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected = []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"brokers struct",
+		"node_id int32 3",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"brokers struct",
+		"node_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"cluster_id *string cuKssuK0RrmIPXad7BYBkg",
+		"controller_id int32 2",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string test-no-headers",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 0",
+		"leader int32 3",
+		"leader_epoch int32 0",
+		"[replicas]",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 3",
+		"[offline_replicas]",
+		"topic_authorized_operations int32 0",
+		"cluster_authorized_operations int32 0"}
+
+	a.Equal(expected, dc.AttrValues())
+}
+
 func TestFindCoordinatorResponseV0(t *testing.T) {
 	/*
 	   FindCoordinator Response (Version: 0) => error_code coordinator
@@ -2115,6 +2243,57 @@ func TestFindCoordinatorResponseV2(t *testing.T) {
 		"node_id int32 171",
 		"host string myhost1", // replaced
 		"port int32 34001",    // replaced
+	}
+	a.Equal(expected, dc.AttrValues())
+}
+
+func TestFindCoordinatorResponseV3(t *testing.T) {
+	apiVersion := int16(3)
+
+	// "00000000000f2254686520636f6f7264696e61746f72206973206e6f7420617661696c61626c652effffffff01ffffffff00"
+	bytes, err := hex.DecodeString("000000000000054e4f4e45000000030a6c6f63616c686f7374000098b400")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := assert.New(t)
+
+	schema := findCoordinatorResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+	dc := NewDecodeCheck()
+	dc.Traverse(s)
+
+	expected := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string NONE",
+		"coordinator struct",
+		"node_id int32 3",
+		"host string localhost",
+		"port int32 39092",
+	}
+	a.Equal(expected, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyFindCoordinator, apiVersion, testResponseModifier2)
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	dc.Traverse(s)
+	expected = []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string NONE",
+		"coordinator struct",
+		"node_id int32 3",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
 	}
 	a.Equal(expected, dc.AttrValues())
 }

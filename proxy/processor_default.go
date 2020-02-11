@@ -144,16 +144,25 @@ func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src De
 	if err != nil {
 		return true, err
 	}
+	responseHeaderTaggedFields, err := protocol.NewResponseHeaderTaggedFields(requestKeyVersion)
+	if err != nil {
+		return true, err
+	}
+	unknownTaggedFields, err := responseHeaderTaggedFields.MaybeRead(src)
+	if err != nil {
+		return true, err
+	}
+	readResponsesHeaderLength := int32(4 + len(unknownTaggedFields)) // 4 = Length + CorrelationID
 
 	responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, ctx.netAddressMappingFunc)
 	if err != nil {
 		return true, err
 	}
 	if responseModifier != nil {
-		if int32(responseHeader.Length) > protocol.MaxResponseSize {
+		if responseHeader.Length > protocol.MaxResponseSize {
 			return true, protocol.PacketDecodingError{Info: fmt.Sprintf("message of length %d too large", responseHeader.Length)}
 		}
-		resp := make([]byte, int(responseHeader.Length-4))
+		resp := make([]byte, int(responseHeader.Length-readResponsesHeaderLength))
 		if _, err = io.ReadFull(src, resp); err != nil {
 			return true, err
 		}
@@ -162,11 +171,14 @@ func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src De
 			return true, err
 		}
 		// add 4 bytes (CorrelationId) to the length
-		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: responseHeader.CorrelationID})
+		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + int(readResponsesHeaderLength)), CorrelationID: responseHeader.CorrelationID})
 		if err != nil {
 			return true, err
 		}
 		if _, err := dst.Write(newHeaderBuf); err != nil {
+			return false, err
+		}
+		if _, err := dst.Write(unknownTaggedFields); err != nil {
 			return false, err
 		}
 		if _, err := dst.Write(newResponseBuf); err != nil {
@@ -177,8 +189,11 @@ func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src De
 		if _, err := dst.Write(responseHeaderBuf); err != nil {
 			return false, err
 		}
-		// 4 bytes were written as responseHeaderBuf (CorrelationId)
-		if readErr, err = myCopyN(dst, src, int64(responseHeader.Length-4), ctx.buf); err != nil {
+		if _, err := dst.Write(unknownTaggedFields); err != nil {
+			return false, err
+		}
+		// 4 bytes were written as responseHeaderBuf (CorrelationId) + tagged fields
+		if readErr, err = myCopyN(dst, src, int64(responseHeader.Length-readResponsesHeaderLength), ctx.buf); err != nil {
 			return readErr, err
 		}
 	}

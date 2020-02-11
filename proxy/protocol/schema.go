@@ -232,8 +232,11 @@ func (f *taggedFields) decode(pd packetDecoder) (interface{}, error) {
 		return nil, err
 	}
 	if numTaggedFields == 0 {
-		result := make([]interface{}, 0)
+		result := make([]rawTaggedField, 0)
 		return result, nil
+	}
+	if numTaggedFields < 0 {
+		return nil, errors.Errorf("Negative number of tagged fields %d", numTaggedFields)
 	}
 	result := make([]rawTaggedField, numTaggedFields)
 	for i := 0; i < int(numTaggedFields); i++ {
@@ -253,7 +256,7 @@ func (f *taggedFields) decode(pd packetDecoder) (interface{}, error) {
 func (f *taggedFields) encode(pe packetEncoder, value interface{}) error {
 	in, ok := value.([]rawTaggedField)
 	if !ok {
-		return SchemaEncodingError{fmt.Sprintf("value %T not a *string", value)}
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []rawTaggedField", value)}
 	}
 	pe.putVarint(int64(len(in)))
 	for _, rawTaggedField := range in {

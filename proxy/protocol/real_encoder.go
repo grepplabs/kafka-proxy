@@ -32,7 +32,7 @@ func (re *realEncoder) putInt64(in int64) {
 }
 
 func (re *realEncoder) putVarint(in int64) {
-	re.off += binary.PutVarint(re.raw[re.off:], in)
+	re.off += binary.PutUvarint(re.raw[re.off:], uint64(in))
 }
 
 func (re *realEncoder) putArrayLength(in int) error {
