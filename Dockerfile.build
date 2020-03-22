@@ -7,7 +7,7 @@ WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
 RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean build
 
-FROM alpine:3.7
+FROM alpine:3.11
 
 RUN apk add --no-cache ca-certificates
 
