@@ -1,10 +1,11 @@
 package server
 
 import (
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupBootstrapServersMappingTest() {
@@ -157,7 +158,7 @@ func TestSameClientCertEnabledWithRequiredFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--tls-same-client-cert-enable", "",
+		"--same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		"--tls-enable", "",
 		"--tls-client-cert-file", "client.crt",
@@ -175,14 +176,14 @@ func TestSameClientCertEnabledWithRequiredFlags(t *testing.T) {
 
 func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 
-	expectedErrorMsg := "ClientCertFile is required on Kafka TLS and TLS must be enabled on both Proxy and Kafka connections when SameClientCertEnable is enabled"
+	expectedErrorMsg := "SameClientCertEnable requires TLS to be enabled on both proxy and kafka connections and client cert file on kafka connection"
 
 	disabledProxyTLS := []string{"cobra.test",
 		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--tls-same-client-cert-enable", "",
+		"--same-client-cert-enable", "",
 		"--tls-enable", "",
 		"--tls-client-cert-file", "client.crt",
 		//other necessary tls arguments
@@ -195,7 +196,7 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--tls-same-client-cert-enable", "",
+		"--same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		//other necessary tls arguments
 		"--proxy-listener-key-file", "server.pem",
@@ -207,7 +208,7 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--tls-same-client-cert-enable", "",
+		"--same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		"--tls-enable", "",
 		//other necessary tls arguments
