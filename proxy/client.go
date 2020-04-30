@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
@@ -39,6 +40,8 @@ type Client struct {
 	authClient      *AuthClient
 
 	dialAddressMapping map[string]config.DialAddressMapping
+
+	kafkaClientCert *x509.Certificate
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
@@ -46,6 +49,15 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 	if err != nil {
 		return nil, err
 	}
+
+	var kafkaClientCert *x509.Certificate = nil
+	if c.Kafka.TLS.SameClientCertEnable {
+		kafkaClientCert, err = parseCertificate(c.Kafka.TLS.ClientCertFile)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dialer, err := newDialer(c, tlsConfig)
 	if err != nil {
 		return nil, err
@@ -145,6 +157,7 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			ForbiddenApiKeys: forbiddenApiKeys,
 		},
 		dialAddressMapping: dialAddressMapping,
+		kafkaClientCert:    kafkaClientCert,
 	}, nil
 }
 
@@ -242,6 +255,17 @@ func (c *Client) Close() {
 }
 
 func (c *Client) handleConn(conn Conn) {
+	localConn := conn.LocalConnection
+	if c.kafkaClientCert != nil {
+		err := handshakeAsTLSAndValidateClientCert(localConn, c.kafkaClientCert, c.config.Kafka.DialTimeout)
+
+		if err != nil {
+			logrus.Info(err.Error())
+			_ = localConn.Close()
+			return
+		}
+	}
+
 	proxyConnectionsTotal.WithLabelValues(conn.BrokerAddress).Inc()
 
 	dialAddress := conn.BrokerAddress

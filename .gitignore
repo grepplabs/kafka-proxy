@@ -63,3 +63,7 @@ Session.vim
 *~
 # Auto-generated tag files
 tags
+
+#IntelliJ
+kafka-proxy.iml
+vendor/

@@ -147,3 +147,93 @@ func TestExternalServersMappingFromEnv(t *testing.T) {
 	a.Equal(c.Proxy.ExternalServers[1].AdvertisedAddress, "kafka-5.grepplabs.com:9092")
 
 }
+
+func TestSameClientCertEnabledWithRequiredFlags(t *testing.T) {
+
+	setupBootstrapServersMappingTest()
+
+	args := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		//same client enabled attributes
+		"--same-client-cert-enable", "",
+		"--proxy-listener-tls-enable", "",
+		"--tls-enable", "",
+		"--tls-client-cert-file", "client.crt",
+		//other necessary tls arguments
+		"--proxy-listener-key-file", "server.pem",
+		"--proxy-listener-cert-file", "server.crt",
+	}
+
+	_ = Server.ParseFlags(args)
+	err := Server.PreRunE(nil, args)
+	a := assert.New(t)
+
+	a.Nil(err)
+}
+
+func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
+
+	expectedErrorMsg := "SameClientCertEnable requires TLS to be enabled on both proxy and kafka connections and client cert file on kafka connection"
+
+	disabledProxyTLS := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		//same client enabled attributes
+		"--same-client-cert-enable", "",
+		"--tls-enable", "",
+		"--tls-client-cert-file", "client.crt",
+		//other necessary tls arguments
+		"--proxy-listener-key-file", "server.pem",
+		"--proxy-listener-cert-file", "server.crt",
+	}
+
+	disabledTLS := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		//same client enabled attributes
+		"--same-client-cert-enable", "",
+		"--proxy-listener-tls-enable", "",
+		//other necessary tls arguments
+		"--proxy-listener-key-file", "server.pem",
+		"--proxy-listener-cert-file", "server.crt",
+	}
+
+	missingTLSClientCert := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		//same client enabled attributes
+		"--same-client-cert-enable", "",
+		"--proxy-listener-tls-enable", "",
+		"--tls-enable", "",
+		//other necessary tls arguments
+		"--proxy-listener-key-file", "server.pem",
+		"--proxy-listener-cert-file", "server.crt",
+	}
+
+	t.Run("DisabledProxyTLS", func(t *testing.T) {
+		serverPreRunFailure(t, disabledProxyTLS, expectedErrorMsg)
+	})
+
+	t.Run("DisabledTLS", func(t *testing.T) {
+		serverPreRunFailure(t, disabledTLS, expectedErrorMsg)
+	})
+
+	t.Run("MissingTLSClientCert", func(t *testing.T) {
+		serverPreRunFailure(t, missingTLSClientCert, expectedErrorMsg)
+	})
+}
+
+func serverPreRunFailure(t *testing.T, cmdLineFlags []string, expectedErrorMsg string) {
+	setupBootstrapServersMappingTest()
+
+	_ = Server.ParseFlags(cmdLineFlags)
+	err := Server.PreRunE(nil, cmdLineFlags)
+	a := assert.New(t)
+
+	a.Equal(err.Error(), expectedErrorMsg)
+}

@@ -75,6 +75,32 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:a5200282cd07d920ad0499556b1e864401b6df768e90d38068cfbb313a0b763f"
+  name = "github.com/grepplabs/kafka-proxy"
+  packages = [
+    "cmd/kafka-proxy",
+    "cmd/tools",
+    "config",
+    "pkg/apis",
+    "pkg/libs/googleid",
+    "pkg/libs/googleid-info",
+    "pkg/libs/googleid-provider",
+    "pkg/libs/util",
+    "pkg/registry",
+    "plugin/local-auth/proto",
+    "plugin/local-auth/shared",
+    "plugin/token-info/proto",
+    "plugin/token-info/shared",
+    "plugin/token-provider/proto",
+    "plugin/token-provider/shared",
+    "proxy",
+    "proxy/protocol",
+  ]
+  pruneopts = "UT"
+  revision = "1072f207f43ebaaef8bfb9b62a983934efff2fa0"
+  version = "v0.2.0"
+
+[[projects]]
   branch = "master"
   digest = "1:07671f8997086ed115824d1974507d2b147d1e0463675ea5dbf3be89b1c2c563"
   name = "github.com/hashicorp/errwrap"
@@ -533,6 +559,23 @@
     "github.com/elazarl/goproxy/ext/auth",
     "github.com/fsnotify/fsnotify",
     "github.com/golang/protobuf/proto",
+    "github.com/grepplabs/kafka-proxy/cmd/kafka-proxy",
+    "github.com/grepplabs/kafka-proxy/cmd/tools",
+    "github.com/grepplabs/kafka-proxy/config",
+    "github.com/grepplabs/kafka-proxy/pkg/apis",
+    "github.com/grepplabs/kafka-proxy/pkg/libs/googleid",
+    "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-info",
+    "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-provider",
+    "github.com/grepplabs/kafka-proxy/pkg/libs/util",
+    "github.com/grepplabs/kafka-proxy/pkg/registry",
+    "github.com/grepplabs/kafka-proxy/plugin/local-auth/proto",
+    "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared",
+    "github.com/grepplabs/kafka-proxy/plugin/token-info/proto",
+    "github.com/grepplabs/kafka-proxy/plugin/token-info/shared",
+    "github.com/grepplabs/kafka-proxy/plugin/token-provider/proto",
+    "github.com/grepplabs/kafka-proxy/plugin/token-provider/shared",
+    "github.com/grepplabs/kafka-proxy/proxy",
+    "github.com/grepplabs/kafka-proxy/proxy/protocol",
     "github.com/hashicorp/go-hclog",
     "github.com/hashicorp/go-multierror",
     "github.com/hashicorp/go-plugin",
