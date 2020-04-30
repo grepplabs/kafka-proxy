@@ -1,10 +1,11 @@
 package server
 
 import (
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupBootstrapServersMappingTest() {
