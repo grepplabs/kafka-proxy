@@ -47,16 +47,17 @@ type Config struct {
 		LevelFieldName string
 	}
 	Proxy struct {
-		DefaultListenerIP       string
-		BootstrapServers        []ListenerConfig
-		ExternalServers         []ListenerConfig
-		DialAddressMappings     []DialAddressMapping
-		DisableDynamicListeners bool
-		RequestBufferSize       int
-		ResponseBufferSize      int
-		ListenerReadBufferSize  int // SO_RCVBUF
-		ListenerWriteBufferSize int // SO_SNDBUF
-		ListenerKeepAlive       time.Duration
+		DefaultListenerIP        string
+		BootstrapServers         []ListenerConfig
+		ExternalServers          []ListenerConfig
+		DialAddressMappings      []DialAddressMapping
+		DisableDynamicListeners  bool
+		DynamicSequentialMinPort int
+		RequestBufferSize        int
+		ResponseBufferSize       int
+		ListenerReadBufferSize   int // SO_RCVBUF
+		ListenerWriteBufferSize  int // SO_SNDBUF
+		ListenerKeepAlive        time.Duration
 
 		TLS struct {
 			Enable                   bool
