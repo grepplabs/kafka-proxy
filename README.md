@@ -85,6 +85,7 @@ See:
           --default-listener-ip string                     Default listener IP (default "127.0.0.1")
           --dial-address-mapping stringArray               Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
           --dynamic-listeners-disable                      Disable dynamic listeners.
+          --dynamic-sequential-min-port int                If set to non-zero, makes the dynamic listener use a sequential port starting with this value rather than a random port every time.
           --external-server-mapping stringArray            Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
           --forbidden-api-keys intSlice                    Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics
           --forward-proxy string                           URL of the forward proxy. Supported schemas are socks5 and http

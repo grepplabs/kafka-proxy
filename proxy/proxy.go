@@ -22,7 +22,8 @@ type Listeners struct {
 
 	listenFunc ListenFunc
 
-	disableDynamicListeners bool
+	disableDynamicListeners  bool
+	dynamicSequentialMinPort int
 
 	brokerToListenerConfig map[string]config.ListenerConfig
 	lock                   sync.RWMutex
@@ -60,12 +61,13 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 	}
 
 	return &Listeners{
-		defaultListenerIP:       defaultListenerIP,
-		connSrc:                 make(chan Conn, 1),
-		brokerToListenerConfig:  brokerToListenerConfig,
-		tcpConnOptions:          tcpConnOptions,
-		listenFunc:              listenFunc,
-		disableDynamicListeners: cfg.Proxy.DisableDynamicListeners,
+		defaultListenerIP:        defaultListenerIP,
+		connSrc:                  make(chan Conn, 1),
+		brokerToListenerConfig:   brokerToListenerConfig,
+		tcpConnOptions:           tcpConnOptions,
+		listenFunc:               listenFunc,
+		disableDynamicListeners:  cfg.Proxy.DisableDynamicListeners,
+		dynamicSequentialMinPort: cfg.Proxy.DynamicSequentialMinPort,
 	}, nil
 }
 
@@ -140,7 +142,10 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 		return v.AdvertisedAddress, 0, nil
 	}
 
-	defaultListenerAddress := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(0))
+	defaultListenerAddress := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(p.dynamicSequentialMinPort))
+	if p.dynamicSequentialMinPort != 0 {
+		p.dynamicSequentialMinPort += 1
+	}
 
 	cfg := config.ListenerConfig{ListenerAddress: defaultListenerAddress, BrokerAddress: brokerAddress}
 	l, err := listenInstance(p.connSrc, cfg, p.tcpConnOptions, p.listenFunc)
