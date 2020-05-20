@@ -185,7 +185,6 @@ func newTLSClientConfig(conf *config.Config) (*tls.Config, error) {
 			return nil, err
 		}
 		cfg.Certificates = []tls.Certificate{cert}
-		cfg.BuildNameToCertificate()
 	}
 
 	if opts.CAChainCertFile != "" {

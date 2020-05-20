@@ -329,7 +329,7 @@ func TestTLSBadClientCert(t *testing.T) {
 	_, _, _, err := makeTLSPipe(c)
 
 	a.NotNil(err)
-	a.Contains(err.Error(), "tls: failed to verify client's certificate")
+	a.Contains(err.Error(), "tls: failed to verify client certificate")
 }
 
 func pingPong(t *testing.T, c1, c2 net.Conn) {
