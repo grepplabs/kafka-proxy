@@ -10,6 +10,11 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+const (
+	// https://accounts.google.com/.well-known/openid-configuration
+	tokenEndpoint = "https://www.googleapis.com/oauth2/v4/token"
+)
+
 type ServiceAccountTokenSource struct {
 	// ClientID is the application's ID.
 	ClientID string `json:"client_id"`
