@@ -35,11 +35,11 @@ See:
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.1/kafka-proxy-v0.2.1-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.2/kafka-proxy-v0.2.2-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.1/kafka-proxy-v0.2.1-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.2/kafka-proxy-v0.2.2-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -105,6 +105,8 @@ See:
           --log-format string                              Log format text or json (default "text")
           --log-level string                               Log level debug, info, warning, error, fatal or panic (default "info")
           --log-level-fieldname string                     Log level fieldname for json format (default "@level")
+          --log-msg-fieldname string                       Message fieldname for json format (default "@message")
+          --log-time-fieldname string                      Time fieldname for json format (default "@timestamp")
           --proxy-listener-ca-chain-cert-file string       PEM encoded CA's certificate file. If provided, client certificate is required and verified
           --proxy-listener-cert-file string                PEM encoded file with server certificate
           --proxy-listener-cipher-suites stringSlice       List of supported cipher suites

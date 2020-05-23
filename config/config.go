@@ -45,6 +45,8 @@ type Config struct {
 		Format         string
 		Level          string
 		LevelFieldName string
+		TimeFiledName  string
+		MsgFiledName   string
 	}
 	Proxy struct {
 		DefaultListenerIP        string
