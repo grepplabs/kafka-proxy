@@ -175,7 +175,7 @@ func TestSameClientCertEnabledWithRequiredFlags(t *testing.T) {
 
 func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 
-	expectedErrorMsg := "SameClientCertEnable requires TLS to be enabled on both proxy and kafka connections and client cert file on kafka connection"
+	expectedErrorMsg := "ClientCertFile is required on Kafka TLS and TLS must be enabled on both Proxy and Kafka connections when SameClientCertEnable is enabled"
 
 	disabledProxyTLS := []string{"cobra.test",
 		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
