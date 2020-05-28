@@ -23,6 +23,7 @@ notifications:
 
 script:
   - go build .
+  - go test ./...
   - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"; fi`
   - echo "docker tag $TAG"
   - docker build -t $REPO:$TAG -f Dockerfile .
