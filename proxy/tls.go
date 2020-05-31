@@ -8,7 +8,9 @@ import (
 	"github.com/klauspost/cpuid"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"net"
 	"strings"
+	"time"
 )
 
 var (
@@ -58,6 +60,8 @@ var (
 		"ECDHE-RSA-3DES-EDE-CBC-SHA":         tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
 		"RSA-3DES-EDE-CBC-SHA":               tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 	}
+
+	zeroTime = time.Time{}
 )
 
 func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
@@ -223,4 +227,80 @@ func decryptPEM(pemData []byte, password string) ([]byte, error) {
 		return pem.EncodeToMemory(block), nil
 	}
 	return pemData, nil
+}
+
+func parseCertificate(certFile string) (*x509.Certificate, error) {
+
+	content, readErr := ioutil.ReadFile(certFile)
+
+	if readErr != nil {
+		return nil, errors.Errorf("Failed to read file from location '%s'", certFile)
+	}
+
+	block, _ := pem.Decode(content)
+
+	cert, parseErr := x509.ParseCertificate(block.Bytes)
+
+	if parseErr != nil {
+		return nil, errors.Errorf("Failed to parse certificate file from location '%s'", certFile)
+	}
+
+	return cert, nil
+}
+
+func handshakeAsTLSAndValidateClientCert(conn net.Conn, expectedCert *x509.Certificate, handshakeTimeout time.Duration) error {
+	tlsConn, ok := conn.(*tls.Conn)
+	if !ok {
+		return errors.New("Unable to cast connection to TLS when validating client cert")
+	}
+
+	err := handshakeTLSConn(tlsConn, handshakeTimeout)
+	if err != nil {
+		return err
+	}
+
+	actualClientCert := filterClientCertificate(tlsConn.ConnectionState().PeerCertificates)
+
+	result := validateClientCert(actualClientCert, expectedCert)
+
+	return result
+}
+
+func handshakeTLSConn(tlsConn *tls.Conn, timeout time.Duration) error {
+	err := tlsConn.SetDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return errors.Errorf("Failed to set deadline with handshake timeout in seconds %f on connection: %v", timeout.Seconds(), err)
+	}
+
+	err = tlsConn.Handshake()
+	if err != nil {
+		return errors.Errorf("TLS handshake failed when exchanging client certificates: %v", err)
+	}
+
+	err = tlsConn.SetDeadline(zeroTime)
+	if err != nil {
+		return errors.Errorf("Failed to reset deadline on connection: %v", err)
+	}
+
+	return err
+}
+
+func filterClientCertificate(peerCertificates []*x509.Certificate) *x509.Certificate {
+	for _, v := range peerCertificates {
+		if !v.IsCA {
+			return v
+		}
+	}
+	return nil
+}
+
+func validateClientCert(actualClientCert *x509.Certificate, expectedCert *x509.Certificate) error {
+	if actualClientCert == nil {
+		return errors.New("Client cert not found in TLS connection")
+	}
+
+	if !actualClientCert.Equal(expectedCert) {
+		return errors.New("Client cert sent by proxy client does not match brokers client cert (tls-client-cert-file)")
+	}
+	return nil
 }

@@ -26,7 +26,7 @@ type testAcceptResult struct {
 	err  error
 }
 
-func localPipe(listener net.Listener, dialer proxy.Dialer, timeout time.Duration) (net.Conn, net.Conn, error) {
+func localPipe(listener net.Listener, dialer proxy.Dialer, timeout time.Duration, expectedClientCert *x509.Certificate) (net.Conn, net.Conn, error) {
 	acceptResultChannel := make(chan testAcceptResult, 1)
 	go func() {
 		conn, err := listener.Accept()
@@ -37,6 +37,19 @@ func localPipe(listener net.Listener, dialer proxy.Dialer, timeout time.Duration
 			}
 			return
 		}
+
+		if expectedClientCert != nil {
+			err = handshakeAsTLSAndValidateClientCert(conn, expectedClientCert, timeout)
+
+			if err != nil {
+				acceptResultChannel <- testAcceptResult{
+					conn: conn,
+					err:  err,
+				}
+				return
+			}
+		}
+
 		// will force handshake completion
 		buf := make([]byte, 0)
 		_, err = conn.Read(buf)
@@ -71,7 +84,7 @@ func localPipe(listener net.Listener, dialer proxy.Dialer, timeout time.Duration
 	return c1, acceptResult.conn, acceptResult.err
 }
 
-func makeTLSPipe(conf *config.Config) (net.Conn, net.Conn, func(), error) {
+func makeTLSPipe(conf *config.Config, expectedClientCert *x509.Certificate) (net.Conn, net.Conn, func(), error) {
 	stop := func() {}
 
 	serverConfig, err := newTLSListenerConfig(conf)
@@ -81,6 +94,10 @@ func makeTLSPipe(conf *config.Config) (net.Conn, net.Conn, func(), error) {
 	clientConfig, err := newTLSClientConfig(conf)
 	if err != nil {
 		return nil, nil, stop, err
+	}
+	var clientCertToCheck *x509.Certificate = nil
+	if conf.Kafka.TLS.SameClientCertEnable {
+		clientCertToCheck = expectedClientCert
 	}
 	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {
@@ -94,7 +111,7 @@ func makeTLSPipe(conf *config.Config) (net.Conn, net.Conn, func(), error) {
 		},
 		config: clientConfig,
 	}
-	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second, clientCertToCheck)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()
@@ -168,7 +185,7 @@ func makeTLSSocks5ProxyPipe(conf *config.Config, authenticator socks5.Authentica
 		}
 	}()
 
-	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second, nil)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()
@@ -235,7 +252,7 @@ func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword stri
 		_ = http.Serve(proxyListener, server)
 	}()
 
-	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second)
+	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second, nil)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()
@@ -261,7 +278,7 @@ func makePipe() (net.Conn, net.Conn, func(), error) {
 		return nil, nil, stop, err
 	}
 
-	c1, c2, err := localPipe(listener, dialer, 4*time.Second)
+	c1, c2, err := localPipe(listener, dialer, 4*time.Second, nil)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()
@@ -305,7 +322,7 @@ func makeSocks5ProxyPipe() (net.Conn, net.Conn, func(), error) {
 		}
 	}()
 
-	c1, c2, err := localPipe(listener, socksDialer, 4*time.Second)
+	c1, c2, err := localPipe(listener, socksDialer, 4*time.Second, nil)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()
@@ -348,7 +365,7 @@ func makeHttpProxyPipe() (net.Conn, net.Conn, func(), error) {
 		_ = http.Serve(proxyListener, server)
 	}()
 
-	c1, c2, err := localPipe(listener, httpProxyDialer.forwardDialer, 4*time.Second)
+	c1, c2, err := localPipe(listener, httpProxyDialer.forwardDialer, 4*time.Second, nil)
 	stop = func() {
 		if c1 != nil {
 			c1.Close()

@@ -116,12 +116,13 @@ type Config struct {
 		ConnectionWriteBufferSize int // SO_SNDBUF
 
 		TLS struct {
-			Enable             bool
-			InsecureSkipVerify bool
-			ClientCertFile     string
-			ClientKeyFile      string
-			ClientKeyPassword  string
-			CAChainCertFile    string
+			Enable               bool
+			InsecureSkipVerify   bool
+			ClientCertFile       string
+			ClientKeyFile        string
+			ClientKeyPassword    string
+			CAChainCertFile      string
+			SameClientCertEnable bool
 		}
 
 		SASL struct {
@@ -317,6 +318,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Proxy.TLS.Enable && (c.Proxy.TLS.ListenerKeyFile == "" || c.Proxy.TLS.ListenerCertFile == "") {
 		return errors.New("ListenerKeyFile and ListenerCertFile are required when Proxy TLS is enabled")
+	}
+	if c.Kafka.TLS.SameClientCertEnable && (!c.Kafka.TLS.Enable || c.Kafka.TLS.ClientCertFile == "" || !c.Proxy.TLS.Enable) {
+		return errors.New("ClientCertFile is required on Kafka TLS and TLS must be enabled on both Proxy and Kafka connections when SameClientCertEnable is enabled")
 	}
 	if c.Auth.Local.Enable && c.Auth.Local.Command == "" {
 		return errors.New("Command is required when Auth.Local.Enable is enabled")

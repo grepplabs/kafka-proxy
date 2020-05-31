@@ -137,6 +137,7 @@ See:
           --tls-client-key-password string                 Password to decrypt rsa private key
           --tls-enable                                     Whether or not to use TLS when connecting to the broker
           --tls-insecure-skip-verify                       It controls whether a client verifies the server's certificate chain and host name
+          --same-client-cert-enable                        Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate matches brokers client cert (tls-client-cert-file)
 
 ### Usage example
 	
@@ -213,6 +214,22 @@ SASL authentication is performed by the proxy. SASL authentication is enabled on
                              --auth-local-param "--claim-sub=alice" \
                              --auth-local-param "--claim-sub=bob" \
                              --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
+                             
+### Same client certificate check enabled example
+
+Validate that client certificate used by proxy client is exactly the same as client certificate in authentication initiated by proxy 
+                       
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9093,0.0.0.0:32399" \
+       --tls-enable \
+       --tls-client-cert-file client.crt \
+       --tls-client-key-file client.pem \
+       --tls-client-key-password changeit \
+       --proxy-listener-tls-enable \
+       --proxy-listener-key-file server.pem \
+       --proxy-listener-cert-file server.crt \
+       --proxy-listener-key-password changeit \
+       --proxy-listener-ca-chain-cert-file ca.crt \
+       --same-client-cert-enable
 
 ### Kafka Gateway example
 

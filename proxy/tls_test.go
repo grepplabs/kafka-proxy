@@ -61,7 +61,7 @@ func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 
-	_, _, _, err := makeTLSPipe(c)
+	_, _, _, err := makeTLSPipe(c, nil)
 	a.EqualError(err, "x509: certificate signed by unknown authority")
 }
 
@@ -80,7 +80,7 @@ func TestTLSUnknownAuthorityWrongCAChainCert(t *testing.T) {
 	// different bundle -> incorrect cert
 	c.Kafka.TLS.CAChainCertFile = bundle2.ServerCert.Name()
 
-	_, _, _, err := makeTLSPipe(c)
+	_, _, _, err := makeTLSPipe(c, nil)
 	a.EqualError(err, "x509: certificate signed by unknown authority")
 }
 
@@ -95,7 +95,7 @@ func TestTLSInsecureSkipVerify(t *testing.T) {
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 	c.Kafka.TLS.InsecureSkipVerify = true
 
-	c1, c2, stop, err := makeTLSPipe(c)
+	c1, c2, stop, err := makeTLSPipe(c, nil)
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -114,7 +114,7 @@ func TestTLSSelfSigned(t *testing.T) {
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 	c.Kafka.TLS.CAChainCertFile = bundle.ServerCert.Name()
 
-	c1, c2, stop, err := makeTLSPipe(c)
+	c1, c2, stop, err := makeTLSPipe(c, nil)
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -260,7 +260,7 @@ func TestTLSVerifyClientCertDifferentCAs(t *testing.T) {
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
 	c.Kafka.TLS.ClientKeyFile = bundle2.ClientKey.Name()
 
-	c1, c2, stop, err := makeTLSPipe(c)
+	c1, c2, stop, err := makeTLSPipe(c, nil)
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -283,7 +283,7 @@ func TestTLSVerifyClientCertSameCAs(t *testing.T) {
 	c.Kafka.TLS.ClientCertFile = bundle1.ClientCert.Name()
 	c.Kafka.TLS.ClientKeyFile = bundle1.ClientKey.Name()
 
-	c1, c2, stop, err := makeTLSPipe(c)
+	c1, c2, stop, err := makeTLSPipe(c, nil)
 	if err != nil {
 		a.FailNow(err.Error())
 	}
@@ -304,7 +304,7 @@ func TestTLSMissingClientCert(t *testing.T) {
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 
-	_, _, _, err := makeTLSPipe(c)
+	_, _, _, err := makeTLSPipe(c, nil)
 	a.NotNil(err)
 	a.Contains(err.Error(), "tls: client didn't provide a certificate")
 }
@@ -326,10 +326,88 @@ func TestTLSBadClientCert(t *testing.T) {
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
 	c.Kafka.TLS.ClientKeyFile = bundle2.ClientKey.Name()
-	_, _, _, err := makeTLSPipe(c)
+	_, _, _, err := makeTLSPipe(c, nil)
 
 	a.NotNil(err)
 	a.Contains(err.Error(), "tls: failed to verify client certificate")
+}
+
+func TestTLSVerifySameClientCert(t *testing.T) {
+
+	sameCertToCompare := true
+	differentCertToCompare := false
+
+	bundle1 := NewCertsBundle()
+	defer bundle1.Close()
+
+	bundle2 := NewCertsBundle()
+	defer bundle2.Close()
+
+	t.Run("SameClientCertDisabledWithSameClientCerts", func(t *testing.T) {
+		c, clientCertFileToCheck := configWithCertToCompare(bundle1, bundle2, sameCertToCompare)
+		c.Kafka.TLS.SameClientCertEnable = false
+		successfulPingPong(t, c, clientCertFileToCheck)
+	})
+
+	t.Run("SameClientCertDisabledWithDifferentClientCerts", func(t *testing.T) {
+		c, clientCertFileToCheck := configWithCertToCompare(bundle1, bundle2, differentCertToCompare)
+		c.Kafka.TLS.SameClientCertEnable = false
+		successfulPingPong(t, c, clientCertFileToCheck)
+	})
+
+	t.Run("SameClientCertEnabledWithSameClientCerts", func(t *testing.T) {
+		c, clientCertFileToCheck := configWithCertToCompare(bundle1, bundle2, sameCertToCompare)
+		c.Kafka.TLS.SameClientCertEnable = true
+		successfulPingPong(t, c, clientCertFileToCheck)
+	})
+
+	t.Run("SameClientCertEnabledWithDifferentClientCerts", func(t *testing.T) {
+		c, clientCertFileToCheck := configWithCertToCompare(bundle1, bundle2, differentCertToCompare)
+		c.Kafka.TLS.SameClientCertEnable = true
+		pipelineSetupFailure(t, c, clientCertFileToCheck, "Client cert sent by proxy client does not match brokers client cert (tls-client-cert-file)")
+	})
+}
+
+func configWithCertToCompare(bundle1 *CertsBundle, bundle2 *CertsBundle, sameCertToCompare bool) (*config.Config, string) {
+	c := new(config.Config)
+
+	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle2.CACert.Name() // client CA
+
+	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle2.ClientKey.Name() //client cert
+
+	if sameCertToCompare {
+		return c, bundle2.ClientCert.Name()
+	}
+
+	return c, bundle1.ClientCert.Name()
+}
+
+func successfulPingPong(t *testing.T, conf *config.Config, clientCertFileToCheck string) {
+	a := assert.New(t)
+
+	clientCertToCheck, _ := parseCertificate(clientCertFileToCheck)
+
+	c1, c2, stop, err := makeTLSPipe(conf, clientCertToCheck)
+	if err != nil {
+		a.FailNow(err.Error())
+	}
+	defer stop()
+	pingPong(t, c1, c2)
+}
+
+func pipelineSetupFailure(t *testing.T, conf *config.Config, clientCertFileToCheck string, expectedErrMsg string) {
+	a := assert.New(t)
+
+	expectedClientCert, _ := parseCertificate(clientCertFileToCheck)
+
+	_, _, _, err := makeTLSPipe(conf, expectedClientCert)
+
+	a.NotNil(err)
+	a.Equal(err.Error(), expectedErrMsg)
 }
 
 func pingPong(t *testing.T, c1, c2 net.Conn) {
