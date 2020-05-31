@@ -157,7 +157,7 @@ func TestSameClientCertEnabledWithRequiredFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--same-client-cert-enable", "",
+		"--tls-same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		"--tls-enable", "",
 		"--tls-client-cert-file", "client.crt",
@@ -182,7 +182,7 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--same-client-cert-enable", "",
+		"--tls-same-client-cert-enable", "",
 		"--tls-enable", "",
 		"--tls-client-cert-file", "client.crt",
 		//other necessary tls arguments
@@ -195,7 +195,7 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--same-client-cert-enable", "",
+		"--tls-same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		//other necessary tls arguments
 		"--proxy-listener-key-file", "server.pem",
@@ -207,7 +207,7 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
 		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
 		//same client enabled attributes
-		"--same-client-cert-enable", "",
+		"--tls-same-client-cert-enable", "",
 		"--proxy-listener-tls-enable", "",
 		"--tls-enable", "",
 		//other necessary tls arguments

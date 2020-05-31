@@ -137,7 +137,7 @@ See:
           --tls-client-key-password string                 Password to decrypt rsa private key
           --tls-enable                                     Whether or not to use TLS when connecting to the broker
           --tls-insecure-skip-verify                       It controls whether a client verifies the server's certificate chain and host name
-          --same-client-cert-enable                        Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate matches brokers client cert (tls-client-cert-file)
+          --tls-same-client-cert-enable                    Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)
 
 ### Usage example
 	
@@ -229,7 +229,7 @@ Validate that client certificate used by proxy client is exactly the same as cli
        --proxy-listener-cert-file server.crt \
        --proxy-listener-key-password changeit \
        --proxy-listener-ca-chain-cert-file ca.crt \
-       --same-client-cert-enable
+       --tls-same-client-cert-enable
 
 ### Kafka Gateway example
 
