@@ -74,7 +74,10 @@ plugin.unsecured-jwt-provider:
 plugin.oidc-provider:
 	CGO_ENABLED=0 go build -o build/oidc-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-oidc-provider/main.go
 
-all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider plugin.google-id-info plugin.unsecured-jwt-info plugin.unsecured-jwt-provider plugin.oidc-provider
+plugin.opa-provider:
+	CGO_ENABLED=0 go build -o build/opa-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-opa-provider/main.go
+
+all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider plugin.google-id-info plugin.unsecured-jwt-info plugin.unsecured-jwt-provider plugin.oidc-provider plugin.opa-provider
 
 clean:
 	@rm -rf build

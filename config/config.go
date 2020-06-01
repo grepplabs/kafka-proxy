@@ -84,6 +84,12 @@ type Config struct {
 			}
 		}
 	}
+	Authz struct {
+		Enable     bool
+		Command    string
+		Parameters []string
+		LogLevel   string
+	}
 	Auth struct {
 		Local struct {
 			Enable     bool
@@ -346,6 +352,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Auth.Local.Enable && c.Auth.Local.Timeout <= 0 {
 		return errors.New("Auth.Local.Timeout must be greater than 0")
+	}
+	if c.Authz.Enable && c.Auth.Local.Enable == false {
+		return errors.New("Auth.Local.Enable is required when Authz.Enable is true")
+	}
+	if c.Authz.Enable && c.Authz.Command == "" {
+		return errors.New("Command is required when Authz.Enable is enabled")
 	}
 	if c.Auth.Gateway.Client.Enable && (c.Auth.Gateway.Client.Command == "" || c.Auth.Gateway.Client.Method == "" || c.Auth.Gateway.Client.Magic == 0) {
 		return errors.New("Command, Method and Magic are required when Auth.Gateway.Client.Enable is enabled")

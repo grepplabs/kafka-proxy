@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"errors"
+	"time"
+
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
-	"time"
 )
 
 const (
@@ -38,10 +39,12 @@ type ProcessorConfig struct {
 	ResponseBufferSize    int
 	WriteTimeout          time.Duration
 	ReadTimeout           time.Duration
+	Authz                 *Authz
 	LocalSasl             *LocalSasl
 	AuthServer            *AuthServer
 	ForbiddenApiKeys      map[int16]struct{}
 	ProducerAcks0Disabled bool
+	SrcAddress            string
 }
 
 type processor struct {
@@ -55,6 +58,7 @@ type processor struct {
 	writeTimeout          time.Duration
 	readTimeout           time.Duration
 
+	authz      *Authz
 	localSasl  *LocalSasl
 	authServer *AuthServer
 
@@ -63,6 +67,7 @@ type processor struct {
 	brokerAddress string
 	// producer will never send request with acks=0
 	producerAcks0Disabled bool
+	srcAddress    string
 }
 
 func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
@@ -103,6 +108,8 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		readTimeout:                readTimeout,
 		writeTimeout:               writeTimeout,
 		brokerAddress:              brokerAddress,
+		srcAddress:                 cfg.SrcAddress,
+		authz:                      cfg.Authz,
 		localSasl:                  cfg.LocalSasl,
 		authServer:                 cfg.AuthServer,
 		forbiddenApiKeys:           cfg.ForbiddenApiKeys,
@@ -125,8 +132,10 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 		nextResponseHandlerChannel: p.nextResponseHandlerChannel,
 		timeout:                    p.writeTimeout,
 		brokerAddress:              p.brokerAddress,
+		srcAddress:                 p.srcAddress,
 		forbiddenApiKeys:           p.forbiddenApiKeys,
 		buf:                        make([]byte, p.requestBufferSize),
+		authz:                      p.authz,
 		localSasl:                  p.localSasl,
 		localSaslDone:              false, // sequential processing - mutex is required
 		producerAcks0Disabled:      p.producerAcks0Disabled,
@@ -142,9 +151,11 @@ type RequestsLoopContext struct {
 
 	timeout          time.Duration
 	brokerAddress    string
+	srcAddress       string
 	forbiddenApiKeys map[int16]struct{}
 	buf              []byte // bufSize
 
+	authz         *Authz
 	localSasl     *LocalSasl
 	localSaslDone bool
 

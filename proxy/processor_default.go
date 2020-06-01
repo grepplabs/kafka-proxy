@@ -2,13 +2,16 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"github.com/grepplabs/kafka-proxy/proxy/protocol"
-	"github.com/sirupsen/logrus"
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
+	"github.com/grepplabs/kafka-proxy/proxy/protocol"
+	"github.com/sirupsen/logrus"
 )
 
 type DefaultRequestHandler struct {
@@ -55,6 +58,33 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		if ctx.localSaslDone {
 			if requestKeyVersion.ApiKey == apiKeySaslHandshake {
 				return false, errors.New("SASL Auth was already done")
+			}
+
+			if ctx.authz.enabled {
+				authzRequest := apis.AuthzRequest{
+					UserInfo:   ctx.localSasl.UserInfo,
+					Apikey:     int32(requestKeyVersion.ApiKey),
+					Apiversion: int32(requestKeyVersion.ApiVersion),
+					DstIp:      ctx.brokerAddress,
+					SrcIp:      ctx.srcAddress,
+				}
+
+				authResponse, err := ctx.authz.authzProvider.Authorize(context.Background(), authzRequest)
+
+				if err != nil {
+					return false, fmt.Errorf("Problem when calling authorization: %v", err)
+				}
+
+				if !authResponse.Success {
+					err := fmt.Errorf(
+						"Authorization failed status: %d, apikey: %d, dstip: %s, srcip: %s",
+						authResponse.Status,
+						int32(requestKeyVersion.ApiKey),
+						ctx.brokerAddress,
+						ctx.srcAddress,
+					)
+					return false, err
+				}
 			}
 		} else {
 			switch requestKeyVersion.ApiKey {

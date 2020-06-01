@@ -3,10 +3,12 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"github.com/grepplabs/kafka-proxy/pkg/apis"
-	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"strconv"
 	"strings"
+
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
+	"github.com/grepplabs/kafka-proxy/proxy/protocol"
+	"github.com/sirupsen/logrus"
 )
 
 type errLocalAuthFailed struct {
@@ -18,7 +20,7 @@ func (e errLocalAuthFailed) Error() string {
 }
 
 type LocalSaslAuth interface {
-	doLocalAuth(saslAuthBytes []byte) (err error)
+	doLocalAuth(saslAuthBytes []byte) (err error, userInfo string)
 }
 
 type LocalSaslPlain struct {
@@ -32,29 +34,31 @@ func NewLocalSaslPlain(localAuthenticator apis.PasswordAuthenticator) *LocalSasl
 }
 
 // implements LocalSaslAuth
-func (p *LocalSaslPlain) doLocalAuth(saslAuthBytes []byte) (err error) {
+func (p *LocalSaslPlain) doLocalAuth(saslAuthBytes []byte) (err error, userInfo string) {
 	tokens := strings.Split(string(saslAuthBytes), "\x00")
 	if len(tokens) != 3 {
-		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens))
+		return fmt.Errorf("invalid SASL/PLAIN request: expected 3 tokens, got %d", len(tokens)), ""
 	}
 	if p.localAuthenticator == nil {
-		return protocol.PacketDecodingError{Info: "Listener authenticator is not set"}
+		return protocol.PacketDecodingError{Info: "Listener authenticator is not set"}, ""
 	}
 
-	// logrus.Infof("user: %s , password: %s", tokens[1], tokens[2])
+	logrus.Infof("Authenticating user: %s", tokens[1])
+
 	ok, status, err := p.localAuthenticator.Authenticate(tokens[1], tokens[2])
 	if err != nil {
 		proxyLocalAuthTotal.WithLabelValues("error", "1").Inc()
-		return err
+		return err, ""
 	}
 	proxyLocalAuthTotal.WithLabelValues(strconv.FormatBool(ok), strconv.Itoa(int(status))).Inc()
 
 	if !ok {
 		return errLocalAuthFailed{
 			user: tokens[1],
-		}
+		}, tokens[1]
 	}
-	return nil
+
+	return nil, tokens[1]
 }
 
 type LocalSaslOauth struct {
@@ -70,17 +74,17 @@ func NewLocalSaslOauth(tokenAuthenticator apis.TokenInfo) *LocalSaslOauth {
 }
 
 // implements LocalSaslAuth
-func (p *LocalSaslOauth) doLocalAuth(saslAuthBytes []byte) (err error) {
+func (p *LocalSaslOauth) doLocalAuth(saslAuthBytes []byte) (err error, userInfo string) {
 	token, _, _, err := p.saslOAuthBearer.GetClientInitialResponse(saslAuthBytes)
 	if err != nil {
-		return err
+		return err, ""
 	}
 	resp, err := p.tokenAuthenticator.VerifyToken(context.Background(), apis.VerifyRequest{Token: token})
 	if err != nil {
-		return err
+		return err, ""
 	}
 	if !resp.Success {
-		return fmt.Errorf("local oauth verify token failed with status: %d", resp.Status)
+		return fmt.Errorf("local oauth verify token failed with status: %d", resp.Status), ""
 	}
-	return nil
+	return nil, token
 }

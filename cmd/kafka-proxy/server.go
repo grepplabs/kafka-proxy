@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
+	authzprovider "github.com/grepplabs/kafka-proxy/plugin/authz-provider/shared"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	tokeninfo "github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	tokenprovider "github.com/grepplabs/kafka-proxy/plugin/token-provider/shared"
@@ -123,6 +124,11 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Auth.Local.LogLevel, "auth-local-log-level", "trace", "Log level of the auth plugin")
 	Server.Flags().DurationVar(&c.Auth.Local.Timeout, "auth-local-timeout", 10*time.Second, "Authentication timeout")
 
+	Server.Flags().BoolVar(&c.Authz.Enable, "authz-enable", false, "Enable authorization performed by listener, works only with auth-local-enable true")
+	Server.Flags().StringVar(&c.Authz.Command, "authz-command", "", "Path to authorization plugin binary")
+	Server.Flags().StringArrayVar(&c.Authz.Parameters, "authz-param", []string{}, "Authorization plugin parameter")
+	Server.Flags().StringVar(&c.Authz.LogLevel, "authz-log-level", "trace", "Log level of the authz plugin")
+
 	Server.Flags().BoolVar(&c.Auth.Gateway.Client.Enable, "auth-gateway-client-enable", false, "Enable gateway client authentication")
 	Server.Flags().StringVar(&c.Auth.Gateway.Client.Command, "auth-gateway-client-command", "", "Path to authentication plugin binary")
 	Server.Flags().StringArrayVar(&c.Auth.Gateway.Client.Parameters, "auth-gateway-client-param", []string{}, "Authentication plugin parameter")
@@ -209,6 +215,8 @@ func Run(_ *cobra.Command, _ []string) {
 
 	var localPasswordAuthenticator apis.PasswordAuthenticator
 	var localTokenAuthenticator apis.TokenInfo
+	var authzProvider apis.AuthzProvider
+
 	if c.Auth.Local.Enable {
 		switch c.Auth.Local.Mechanism {
 		case "PLAIN":
@@ -266,6 +274,30 @@ func Run(_ *cobra.Command, _ []string) {
 			}
 		default:
 			logrus.Fatal(errors.New("unsupported local auth mechanism"))
+		}
+
+		if c.Authz.Enable {
+			client := NewPluginClient(authzprovider.Handshake, authzprovider.PluginMap, c.Authz.LogLevel, c.Authz.Command, c.Authz.Parameters)
+			defer client.Kill()
+
+			rpcClient, err := client.Client()
+
+			if err != nil {
+				logrus.Fatal(err)
+			}
+
+			raw, err := rpcClient.Dispense("authz")
+
+			if err != nil {
+				logrus.Fatal(err)
+			}
+
+			authzProviderCast, ok := raw.(apis.AuthzProvider)
+			authzProvider = authzProviderCast
+
+			if !ok {
+				logrus.Fatal(errors.New("unsupported AuthzProvider plugin type"))
+			}
 		}
 	}
 
@@ -369,14 +401,29 @@ func Run(_ *cobra.Command, _ []string) {
 		connset := proxy.NewConnSet()
 		prometheus.MustRegister(proxy.NewCollector(connset))
 		listeners, err := proxy.NewListeners(c)
+
 		if err != nil {
 			logrus.Fatal(err)
 		}
+
 		connSrc, err := listeners.ListenInstances(c.Proxy.BootstrapServers)
+
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, localPasswordAuthenticator, localTokenAuthenticator, saslTokenProvider, gatewayTokenProvider, gatewayTokenInfo)
+
+		proxyClient, err := proxy.NewClient(
+			connset,
+			c,
+			listeners.GetNetAddressMapping,
+			localPasswordAuthenticator,
+			localTokenAuthenticator,
+			saslTokenProvider,
+			gatewayTokenProvider,
+			gatewayTokenInfo,
+			authzProvider,
+		)
+
 		if err != nil {
 			logrus.Fatal(err)
 		}

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
+
 	"io"
 	"time"
 )
@@ -15,6 +17,7 @@ type LocalSasl struct {
 	enabled             bool
 	timeout             time.Duration
 	localAuthenticators map[string]LocalSaslAuth
+	UserInfo            string
 }
 
 type LocalSaslParams struct {
@@ -164,7 +167,8 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 			return err
 		}
 
-		authErr := localSaslAuth.doLocalAuth(saslAuthReqV0.SaslAuthBytes)
+		authErr, userInfo := localSaslAuth.doLocalAuth(saslAuthReqV0.SaslAuthBytes)
+		p.UserInfo = userInfo
 
 		var saslAuthResV0 *protocol.SaslAuthenticateResponseV0
 		if authErr == nil {
@@ -197,7 +201,8 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 			return err
 		}
 
-		authErr := localSaslAuth.doLocalAuth(saslAuthReqV1.SaslAuthBytes)
+		authErr, userInfo := localSaslAuth.doLocalAuth(saslAuthReqV1.SaslAuthBytes)
+		p.UserInfo = userInfo
 
 		var saslAuthResV1 *protocol.SaslAuthenticateResponseV1
 		if authErr == nil {
@@ -230,7 +235,8 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 			return err
 		}
 
-		authErr := localSaslAuth.doLocalAuth(saslAuthReqV2.SaslAuthBytes)
+		authErr, userInfo := localSaslAuth.doLocalAuth(saslAuthReqV2.SaslAuthBytes)
+		p.UserInfo = userInfo
 
 		var saslAuthResV2 *protocol.SaslAuthenticateResponseV2
 		if authErr == nil {
@@ -288,9 +294,14 @@ func (p *LocalSasl) receiveAndSendAuthV0(conn DeadlineReaderWriter, localSaslAut
 		return errors.New("localSaslAuth is nil")
 	}
 
-	if err = localSaslAuth.doLocalAuth(saslAuthBytes); err != nil {
+	err, userInfo := localSaslAuth.doLocalAuth(saslAuthBytes)
+
+	if err != nil {
 		return err
 	}
+
+	p.UserInfo = userInfo
+
 	// If the credentials are valid, we would write a 4 byte response filled with null characters.
 	// Otherwise, the closes the connection i.e. return error
 	header := make([]byte, 4)
