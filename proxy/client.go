@@ -45,7 +45,16 @@ type Client struct {
 	kafkaClientCert *x509.Certificate
 }
 
-func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
+func NewClient(
+	conns *ConnSet,
+	c *config.Config,
+	netAddressMappingFunc config.NetAddressMappingFunc,
+	localPasswordAuthenticator apis.PasswordAuthenticator,
+	localTokenAuthenticator apis.TokenInfo,
+	saslTokenProvider apis.TokenProvider,
+	gatewayTokenProvider apis.TokenProvider,
+	gatewayTokenInfo apis.TokenInfo,
+	authzProvider apis.AuthzProvider) (*Client, error) {
 	tlsConfig, err := newTLSClientConfig(c)
 	if err != nil {
 		return nil, err
@@ -76,8 +85,13 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			forbiddenApiKeys[int16(apiKey)] = struct{}{}
 		}
 	}
+
 	if c.Auth.Local.Enable && (localPasswordAuthenticator == nil && localTokenAuthenticator == nil) {
 		return nil, errors.New("Auth.Local.Enable is enabled but passwordAuthenticator and localTokenAuthenticator are nil")
+	}
+
+	if c.Authz.Enable && authzProvider == nil {
+		return nil, errors.New("Authz..Enable is enabled but authzProvider is nil")
 	}
 
 	if c.Auth.Gateway.Client.Enable && gatewayTokenProvider == nil {
@@ -148,6 +162,10 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 				passwordAuthenticator: localPasswordAuthenticator,
 				tokenAuthenticator:    localTokenAuthenticator,
 			}),
+			Authz: &Authz{
+				authzProvider: authzProvider,
+				enabled:       c.Authz.Enable,
+			},
 			AuthServer: &AuthServer{
 				enabled:   c.Auth.Gateway.Server.Enable,
 				magic:     c.Auth.Gateway.Server.Magic,
@@ -289,6 +307,7 @@ func (c *Client) handleConn(conn Conn) {
 	}
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
 	localDesc := "local connection on " + conn.LocalConnection.LocalAddr().String() + " from " + conn.LocalConnection.RemoteAddr().String() + " (" + conn.BrokerAddress + ")"
+	c.processorConfig.SrcAddress = conn.LocalConnection.RemoteAddr().String()
 	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, localDesc)
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		logrus.Info(err)

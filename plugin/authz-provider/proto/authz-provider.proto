@@ -1,0 +1,18 @@
+syntax = "proto3";
+package proto;
+
+message AuthzRequest {
+    int32 apikey =1;
+    string user_info = 3;
+    string src_ip = 4;
+    string dst_ip = 5;
+}
+
+message AuthzResponse {
+    bool success = 1;
+    int32 status = 2;
+}
+
+service AuthzProvider {
+    rpc Authorize(AuthzRequest) returns (AuthzResponse);
+}
