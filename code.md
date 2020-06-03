@@ -18,8 +18,8 @@ build/kafka-proxy server \
 
 {
 "client_id": "fafa",
-"client_secret": "5a5c850e-e1bc-4677-b432-42bb833bd72f",
-"token_url": "http://192.168.128.4:8080/auth/realms/master/protocol/openid-connect/token",
+"client_secret": "a7415107-57aa-4714-ab79-63aad1307970",
+"token_url": "http://localhost:8080/auth/realms/master/protocol/openid-connect/token",
 "scopes": ["email"]
 }
 
@@ -27,11 +27,11 @@ build/kafka-proxy server \
                          --auth-local-enable \
                          --auth-local-command build/unsecured-jwt-info \
                          --auth-local-mechanism "OAUTHBEARER" \
-                         --bootstrap-server-mapping "192.168.128.4:9094,127.0.0.1:4000" \
+                         --bootstrap-server-mapping "172.31.0.3:9094,127.0.0.1:4000" \
                          --http-disable \
                          --authz-enable \
                          --authz-command build/opa-provider \
-                         --authz-param "--authz-url=http://192.168.128.5:8181/v1/data/example/authz/allow"
+                         --authz-param "--authz-url=http://localhost:8181/v1/data/example/authz/allow"
 
 policy upload must be with data-binary
 

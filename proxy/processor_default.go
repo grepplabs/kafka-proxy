@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
@@ -24,6 +25,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	// logrus.Println("Await Kafka request")
 
 	// waiting for first bytes or EOF - reset deadlines
+	var payload []byte = nil
 	if err = src.SetReadDeadline(time.Time{}); err != nil {
 		return true, err
 	}
@@ -67,6 +69,26 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					Apiversion: int32(requestKeyVersion.ApiVersion),
 					DstIp:      ctx.brokerAddress,
 					SrcIp:      ctx.srcAddress,
+				}
+
+				topicApiKeys := map[int16]bool{
+					0: true,
+					1: true,
+					2: true,
+					3: true,
+					8: true,
+					9: true,
+				}
+
+				if _, ok := topicApiKeys[requestKeyVersion.ApiKey]; ok {
+					topics, pay, err := getRequestTopic(keyVersionBuf, src)
+					payload = pay
+
+					if err != nil {
+						return false, err
+					}
+
+					authzRequest.Topics = strings.Join(topics, ";")
 				}
 
 				authResponse, err := ctx.authz.authzProvider.Authorize(context.Background(), authzRequest)
@@ -115,7 +137,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		}
 	}
 
-	mustReply, readBytes, err := handler.mustReply(requestKeyVersion, src, ctx)
+	mustReply, _, err := handler.mustReply(requestKeyVersion, src, ctx)
 	if err != nil {
 		return true, err
 	}
@@ -141,16 +163,18 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	if _, err = dst.Write(keyVersionBuf); err != nil {
 		return false, err
 	}
-	// write - send to broker
-	if len(readBytes) > 0 {
-		if _, err = dst.Write(readBytes); err != nil {
+
+	if payload != nil {
+		if _, err = dst.Write(payload); err != nil {
 			return false, err
 		}
+	} else {
+		// 4 bytes were written as keyVersionBuf (ApiKey, ApiVersion)
+		if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-4), ctx.buf); err != nil {
+			return readErr, err
+		}
 	}
-	// 4 bytes were written as keyVersionBuf (ApiKey, ApiVersion)
-	if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-int32(4+len(readBytes))), ctx.buf); err != nil {
-		return readErr, err
-	}
+
 	if requestKeyVersion.ApiKey == apiKeySaslHandshake {
 		if requestKeyVersion.ApiVersion == 0 {
 			return false, ctx.putNextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler)
