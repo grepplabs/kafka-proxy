@@ -6,6 +6,7 @@ message AuthzRequest {
     string user_info = 3;
     string src_ip = 4;
     string dst_ip = 5;
+    string topics = 6;
 }
 
 message AuthzResponse {

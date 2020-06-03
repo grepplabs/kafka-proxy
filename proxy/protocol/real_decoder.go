@@ -20,6 +20,15 @@ type realDecoder struct {
 
 // primitives
 
+func (rd *realDecoder) skipBytes(skip int) error {
+	if rd.remaining() < skip {
+		rd.off = len(rd.raw)
+		return ErrInsufficientData
+	}
+	rd.off += skip
+	return nil
+}
+
 func (rd *realDecoder) getInt8() (int8, error) {
 	if rd.remaining() < 1 {
 		rd.off = len(rd.raw)

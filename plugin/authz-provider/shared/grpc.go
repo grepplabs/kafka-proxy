@@ -21,6 +21,7 @@ func (m *GRPCClient) Authorize(ctx context.Context, request apis.AuthzRequest) (
 			UserInfo: request.UserInfo,
 			SrcIp:    request.SrcIp,
 			DstIp:    request.DstIp,
+			Topics:   request.Topics,
 		},
 	)
 
@@ -44,6 +45,7 @@ func (m *GRPCServer) Authorize(
 			UserInfo: request.UserInfo,
 			SrcIp:    request.SrcIp,
 			DstIp:    request.DstIp,
+			Topics:   request.Topics,
 		},
 	)
 

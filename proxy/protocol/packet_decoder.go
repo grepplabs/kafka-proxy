@@ -5,6 +5,7 @@ package protocol
 // not about how a string is represented in Kafka.
 type packetDecoder interface {
 	// Primitives
+	skipBytes(skip int) error
 	getInt8() (int8, error)
 	getInt16() (int16, error)
 	getInt32() (int32, error)

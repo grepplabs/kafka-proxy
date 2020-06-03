@@ -53,3 +53,70 @@ func (r *Request) decode(pd packetDecoder) (err error) {
 	}
 	return r.Body.decode(pd)
 }
+
+type TopicRequestInterface interface {
+	GetTopics() []string
+}
+
+type RequestTypeFactory struct{}
+
+func (*RequestTypeFactory) Produce(requestKeyVersion *RequestKeyVersion) (req ProtocolBody, err error) {
+	switch requestKeyVersion.ApiKey {
+	case 0:
+		factory := &ProduceRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 1:
+		factory := &FetchRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 2:
+		factory := &ListOffsetsRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 3:
+		factory := &TopicMetadataRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 8:
+		factory := &OffsetCommitRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 9:
+		factory := &OffsetFetchRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	default:
+		return nil, fmt.Errorf("Unsupported apikey for producing RequestType %d", requestKeyVersion.ApiKey)
+	}
+}
