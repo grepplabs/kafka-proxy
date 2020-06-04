@@ -7,27 +7,49 @@ go get github.com/golang/protobuf/protoc-gen-go
 generate with services
 ~/.protoc/protoc -I=plugin/authz/proto --go_out=plugins=grpc:plugin/authz/proto plugin/authz/proto/authz.proto
 
-build/kafka-proxy server \
-                         --sasl-enable \
-                         --sasl-plugin-enable \
-                         --sasl-plugin-mechanism "OAUTHBEARER" \
-                         --sasl-plugin-command build/oidc-provider \
-                         --sasl-plugin-param "--credentials-file=/tmp/creds.json" \
-                         --bootstrap-server-mapping "127.0.0.1:4000,0.0.0.0:3000" \
-                         --http-disable
+client1:
 
 {
-"client_id": "fafa",
-"client_secret": "a7415107-57aa-4714-ab79-63aad1307970",
+"client_id": "client1",
+"client_secret": "21d0ef5f-6e70-4f51-be4a-208b69efef17",
 "token_url": "http://localhost:8080/auth/realms/master/protocol/openid-connect/token",
 "scopes": ["email"]
 }
 
 build/kafka-proxy server \
+                         --sasl-enable \
+                         --sasl-plugin-enable \
+                         --sasl-plugin-mechanism "OAUTHBEARER" \
+                         --sasl-plugin-command build/oidc-provider \
+                         --sasl-plugin-param "--credentials-file=/tmp/creds1.json" \
+                         --bootstrap-server-mapping "127.0.0.1:4000,0.0.0.0:2000" \
+                         --http-disable
+
+client2:
+
+{
+"client_id": "client2",
+"client_secret": "cb9aab22-e389-4ecd-af7d-417ee1bc52a2",
+"token_url": "http://localhost:8080/auth/realms/master/protocol/openid-connect/token",
+"scopes": ["email"]
+}
+
+build/kafka-proxy server \
+                        --sasl-enable \
+                        --sasl-plugin-enable \
+                        --sasl-plugin-mechanism "OAUTHBEARER" \
+                        --sasl-plugin-command build/oidc-provider \
+                        --sasl-plugin-param "--credentials-file=/tmp/creds2.json" \
+                        --bootstrap-server-mapping "127.0.0.1:4000,0.0.0.0:3000" \
+                        --http-disable
+
+Proxy Server:
+
+build/kafka-proxy server \
                          --auth-local-enable \
                          --auth-local-command build/unsecured-jwt-info \
                          --auth-local-mechanism "OAUTHBEARER" \
-                         --bootstrap-server-mapping "172.31.0.3:9094,127.0.0.1:4000" \
+                         --bootstrap-server-mapping "172.31.0.5:9094,127.0.0.1:4000" \
                          --http-disable \
                          --authz-enable \
                          --authz-command build/opa-provider \
