@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,8 +42,17 @@ type AuthzProviderOptions struct {
 	AuthzUrl string
 }
 
-type OpaAutzRequest struct {
-	Input apis.AuthzRequest `json:"input"`
+type OpaAuthzInput struct {
+	Apikey     int32    `json:"api_key"`
+	Apiversion int32    `json:"api_version"`
+	UserInfo   string   `json:"user_info"`
+	SrcIp      string   `json:"src_ip"`
+	DstIp      string   `json:"dst_ip"`
+	Topics     []string `json:"topics"`
+}
+
+type OpaAuthzRequest struct {
+	Input OpaAuthzInput `json:"input"`
 }
 
 type OpaAuthzResponse struct {
@@ -63,8 +73,16 @@ func NewAuthzProvider(options AuthzProviderOptions) (*AuthzProvider, error) {
 func (p *AuthzProvider) Authorize(parent context.Context, req apis.AuthzRequest) (apis.AuthzResponse, error) {
 	ctx, cancel := context.WithTimeout(parent, p.timeout)
 	defer cancel()
-	opaReq := OpaAutzRequest{}
-	opaReq.Input = req
+	opaInput := OpaAuthzInput{
+		Apikey:     req.Apikey,
+		Apiversion: req.Apiversion,
+		UserInfo:   req.UserInfo,
+		SrcIp:      req.SrcIp,
+		DstIp:      req.DstIp,
+		Topics:     strings.Split(req.Topics, ";"),
+	}
+	opaReq := OpaAuthzRequest{}
+	opaReq.Input = opaInput
 
 	mReq, err := json.Marshal(opaReq)
 
