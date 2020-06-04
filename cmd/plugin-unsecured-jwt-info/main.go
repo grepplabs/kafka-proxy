@@ -7,14 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
-	"os"
-	"strings"
-	"time"
 )
 
 const (
@@ -36,16 +37,19 @@ var (
 )
 
 type UnsecuredJWTVerifier struct {
-	claimSub map[string]struct{}
+	claimSub  map[string]struct{}
+	algorithm map[string]struct{}
 }
 
 type pluginMeta struct {
-	claimSub util.ArrayFlags
+	claimSub  util.ArrayFlags
+	algorithm util.ArrayFlags
 }
 
 func (f *pluginMeta) flagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("unsecured-jwt-info info settings", flag.ContinueOnError)
 	fs.Var(&f.claimSub, "claim-sub", "Allowed subject claim (user name)")
+	fs.Var(&f.algorithm, "algorithm", "Allowed algorithm")
 	return fs
 }
 
@@ -59,10 +63,11 @@ func (v UnsecuredJWTVerifier) VerifyToken(ctx context.Context, request apis.Veri
 	if err != nil {
 		return getVerifyResponseResponse(StatusParseJWTFailed)
 	}
-	if header.Algorithm != AlgorithmNone {
-		return getVerifyResponseResponse(StatusWrongAlgorithm)
+	if len(v.algorithm) != 0 {
+		if _, ok := v.algorithm[header.Algorithm]; !ok {
+			return getVerifyResponseResponse(StatusUnauthorized)
+		}
 	}
-
 	if len(v.claimSub) != 0 {
 		if _, ok := v.claimSub[claimSet.Sub]; !ok {
 			return getVerifyResponseResponse(StatusUnauthorized)
@@ -140,7 +145,8 @@ func main() {
 	logrus.Infof("Unsecured JWT sub claims: %v", pluginMeta.claimSub)
 
 	unsecuredJWTVerifier := &UnsecuredJWTVerifier{
-		claimSub: pluginMeta.claimSub.AsMap(),
+		claimSub:  pluginMeta.claimSub.AsMap(),
+		algorithm: pluginMeta.algorithm.AsMap(),
 	}
 
 	plugin.Serve(&plugin.ServeConfig{
