@@ -97,6 +97,15 @@ func (pe *prepEncoder) putString(in string) error {
 	return nil
 }
 
+func (pe *prepEncoder) putVarintString(in string) error {
+	pe.length += 8
+	if len(in) > math.MaxInt64 {
+		return PacketEncodingError{fmt.Sprintf("string too long (%d)", len(in))}
+	}
+	pe.length += len(in)
+	return nil
+}
+
 func (pe *prepEncoder) putStringArray(in []string) error {
 	err := pe.putArrayLength(len(in))
 	if err != nil {

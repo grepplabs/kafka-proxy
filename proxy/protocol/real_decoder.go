@@ -178,8 +178,38 @@ func (rd *realDecoder) getStringLength() (int, error) {
 	return n, nil
 }
 
+func (rd *realDecoder) getVarintStringLength() (int, error) {
+	length, err := rd.getVarint()
+	if err != nil {
+		return 0, err
+	}
+
+	n := int(length)
+
+	switch {
+	case n < -1:
+		return 0, errInvalidStringLength
+	case n > rd.remaining():
+		rd.off = len(rd.raw)
+		return 0, ErrInsufficientData
+	}
+
+	return n, nil
+}
+
 func (rd *realDecoder) getString() (string, error) {
 	n, err := rd.getStringLength()
+	if err != nil || n == -1 {
+		return "", err
+	}
+
+	tmpStr := string(rd.raw[rd.off : rd.off+n])
+	rd.off += n
+	return tmpStr, nil
+}
+
+func (rd *realDecoder) getVarintString() (string, error) {
+	n, err := rd.getVarintStringLength()
 	if err != nil || n == -1 {
 		return "", err
 	}
