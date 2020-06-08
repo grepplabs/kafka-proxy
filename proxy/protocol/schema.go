@@ -9,7 +9,11 @@ import (
 )
 
 var (
+	typeVarint             = &Varint{}
 	typeBool               = &Bool{}
+	typeBytes              = &Bytes{}
+	typeVarintBytes        = &VarintBytes{}
+	typeVarintString       = &VarintString{}
 	typeInt8               = &Int8{}
 	typeInt16              = &Int16{}
 	typeInt32              = &Int32{}
@@ -77,6 +81,23 @@ func (f *boundField) GetDef() Field {
 
 // Field bool
 
+type Varint struct{}
+
+func (f *Varint) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getVarint()
+}
+
+func (f *Varint) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(int64)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a int64", value)}
+	}
+	pe.putVarint(in)
+	return nil
+}
+
+// Field bool
+
 type Bool struct{}
 
 func (f *Bool) decode(pd packetDecoder) (interface{}, error) {
@@ -102,6 +123,93 @@ func (f *Bool) GetFieldsByName() map[string]*boundField {
 
 func (f *Bool) GetName() string {
 	return "bool"
+}
+
+// Field bytes
+
+type Bytes struct{}
+
+func (f *Bytes) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getBytes()
+}
+
+func (f *Bytes) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]byte)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []bytes", value)}
+	}
+	pe.putBytes(in)
+	return nil
+}
+
+func (f *Bytes) GetFields() []boundField {
+	return nil
+}
+
+func (f *Bytes) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Bytes) GetName() string {
+	return "bytes"
+}
+
+// Field VarintBytes
+
+type VarintBytes struct{}
+
+func (f *VarintBytes) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getVarintBytes()
+}
+
+func (f *VarintBytes) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]byte)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []bytes", value)}
+	}
+	pe.putVarintBytes(in)
+	return nil
+}
+
+func (f *VarintBytes) GetFields() []boundField {
+	return nil
+}
+
+func (f *VarintBytes) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *VarintBytes) GetName() string {
+	return "varintbytes"
+}
+
+// Field VarintString
+
+type VarintString struct{}
+
+func (f *VarintString) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getVarintString()
+}
+
+func (f *VarintString) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(string)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []bytes", value)}
+	}
+	pe.putVarintString(in)
+	return nil
+}
+
+func (f *VarintString) GetFields() []boundField {
+	return nil
+}
+
+func (f *VarintString) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *VarintString) GetName() string {
+	return "varintstring"
 }
 
 // Field int8
@@ -370,6 +478,39 @@ func decodeArrayElements(n int, elementDecode func(pd packetDecoder) (interface{
 	return result, nil
 }
 
+// MessageSet helper
+
+func encodeMessageSetElements(in []interface{}, elementEncode func(pe packetEncoder, value interface{}) error, pe packetEncoder) (err error) {
+	for _, elem := range in {
+		err = elementEncode(pe, elem)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func decodeMessageSetElements(size int32, elementDecode func(pd packetDecoder) (interface{}, error), pd packetDecoder) (interface{}, error) {
+	// We could allocate the capacity at once, but in case of malformed payload we could allocate too much memory.
+	result := make([]interface{}, 0)
+	rem := int(size)
+
+	if rem != pd.remaining() {
+		return 0, ErrInsufficientData
+	}
+
+	for pd.remaining() != 0 {
+		elem, err := elementDecode(pd)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, elem)
+	}
+
+	return result, nil
+}
+
 // Tagged fields
 
 type rawTaggedField struct {
@@ -464,6 +605,41 @@ func (f *array) GetName() string {
 }
 
 func (f *array) GetSchema() Schema {
+	return f.ty
+}
+
+// MessageSet
+
+type messageSet struct {
+	name string
+	size int32
+	ty   Schema
+}
+
+func (f *messageSet) decode(pd packetDecoder) (interface{}, error) {
+	size, err := pd.getInt32()
+	if err != nil {
+		return nil, err
+	}
+	return decodeMessageSetElements(size, f.ty.decode, pd)
+}
+
+func (f *messageSet) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.([]interface{})
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a []interface{}", value)}
+	}
+
+	pe.putInt32(f.size)
+
+	return encodeMessageSetElements(in, f.ty.encode, pe)
+}
+
+func (f *messageSet) GetName() string {
+	return f.name
+}
+
+func (f *messageSet) GetSchema() Schema {
 	return f.ty
 }
 

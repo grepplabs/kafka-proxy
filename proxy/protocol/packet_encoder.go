@@ -21,6 +21,7 @@ type packetEncoder interface {
 	putInt64Array(in []int64) error
 
 	putVarintBytes(in []byte) error
+	putVarintString(in string) error
 
 	putCompactBytes(in []byte) error
 	putCompactString(in string) error
