@@ -10,8 +10,10 @@ import (
 
 var (
 	typeBool               = &Bool{}
+	typeInt8               = &Int8{}
 	typeInt16              = &Int16{}
 	typeInt32              = &Int32{}
+	typeInt64              = &Int64{}
 	typeStr                = &Str{}
 	typeNullableStr        = &NullableStr{}
 	typeCompactStr         = &CompactStr{}
@@ -102,6 +104,34 @@ func (f *Bool) GetName() string {
 	return "bool"
 }
 
+// Field int8
+
+type Int8 struct{}
+
+func (f *Int8) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getInt8()
+}
+func (f *Int8) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(int8)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a int8", value)}
+	}
+	pe.putInt8(in)
+	return nil
+}
+
+func (f *Int8) GetFields() []boundField {
+	return nil
+}
+
+func (f *Int8) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Int8) GetName() string {
+	return "int8"
+}
+
 // Field int16
 
 type Int16 struct{}
@@ -157,6 +187,35 @@ func (f *Int32) GetFieldsByName() map[string]*boundField {
 
 func (f *Int32) GetName() string {
 	return "int32"
+}
+
+// Field int64
+
+type Int64 struct{}
+
+func (f *Int64) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getInt64()
+}
+
+func (f *Int64) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(int64)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a int64", value)}
+	}
+	pe.putInt64(in)
+	return nil
+}
+
+func (f *Int64) GetFields() []boundField {
+	return nil
+}
+
+func (f *Int64) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Int64) GetName() string {
+	return "int64"
 }
 
 // Field string
@@ -541,6 +600,26 @@ func (s *Struct) GetSchema() Schema {
 
 // NewSchema creates new schema. It panics when a duplicate field is provided
 func NewSchema(name string, fs ...Field) Schema {
+
+	s := &schema{name: name, fields: make([]boundField, 0), fieldsByName: make(map[string]*boundField)}
+
+	for i, f := range fs {
+		if _, ok := s.fieldsByName[f.GetName()]; ok {
+			panic(fmt.Sprintf("Schema contains a duplicate field: %s", f.GetName()))
+		}
+		bf := boundField{
+			def:    f,
+			index:  i,
+			schema: s,
+		}
+		s.fields = append(s.fields, bf)
+		s.fieldsByName[f.GetName()] = &bf
+	}
+	return s
+}
+
+// NewSchemaStruct creates new schema struct. It panics when a duplicate field is provided
+func NewSchemaStruct(name string, fs ...Field) *schema {
 
 	s := &schema{name: name, fields: make([]boundField, 0), fieldsByName: make(map[string]*boundField)}
 

@@ -165,16 +165,17 @@ func (r *FetchRequestV1) decode(pd packetDecoder) (err error) {
 		}
 
 		for j := int32(1); j <= numPart; j++ {
+			// partition
 			_, err = pd.getInt32()
 			if err != nil {
 				return err
 			}
-
+			// fetch_offset
 			_, err = pd.getInt64()
 			if err != nil {
 				return err
 			}
-
+			// partition_max_bytes
 			_, err = pd.getInt32()
 			if err != nil {
 				return err
@@ -729,10 +730,19 @@ func (r *FetchRequestV7) decode(pd packetDecoder) (err error) {
 		if err != nil {
 			return err
 		}
-		// partition
-		_, err = pd.getInt32()
+
+		// get length of forgot partition array
+		forgotNumPart, err := pd.getInt32()
 		if err != nil {
 			return err
+		}
+
+		for i := int32(1); i <= forgotNumPart; i++ {
+			// partition
+			_, err = pd.getInt32()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -851,10 +861,19 @@ func (r *FetchRequestV8) decode(pd packetDecoder) (err error) {
 		if err != nil {
 			return err
 		}
-		// partition
-		_, err = pd.getInt32()
+
+		// get length of forgot partition array
+		forgotNumPart, err := pd.getInt32()
 		if err != nil {
 			return err
+		}
+
+		for i := int32(1); i <= forgotNumPart; i++ {
+			// partition
+			_, err = pd.getInt32()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -978,10 +997,19 @@ func (r *FetchRequestV9) decode(pd packetDecoder) (err error) {
 		if err != nil {
 			return err
 		}
-		// partition
-		_, err = pd.getInt32()
+
+		// get length of forgot partition array
+		forgotNumPart, err := pd.getInt32()
 		if err != nil {
 			return err
+		}
+
+		for i := int32(1); i <= forgotNumPart; i++ {
+			// partition
+			_, err = pd.getInt32()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1105,10 +1133,19 @@ func (r *FetchRequestV10) decode(pd packetDecoder) (err error) {
 		if err != nil {
 			return err
 		}
-		// partition
-		_, err = pd.getInt32()
+
+		// get length of forgot partition array
+		forgotNumPart, err := pd.getInt32()
 		if err != nil {
 			return err
+		}
+
+		for i := int32(1); i <= forgotNumPart; i++ {
+			// partition
+			_, err = pd.getInt32()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1232,10 +1269,19 @@ func (r *FetchRequestV11) decode(pd packetDecoder) (err error) {
 		if err != nil {
 			return err
 		}
-		// partition
-		_, err = pd.getInt32()
+
+		// get length of forgot partition array
+		forgotNumPart, err := pd.getInt32()
 		if err != nil {
 			return err
+		}
+
+		for i := int32(1); i <= forgotNumPart; i++ {
+			// partition
+			_, err = pd.getInt32()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
