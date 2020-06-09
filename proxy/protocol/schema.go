@@ -13,7 +13,6 @@ var (
 	typeBool               = &Bool{}
 	typeBytes              = &Bytes{}
 	typeVarintBytes        = &VarintBytes{}
-	typeVarintString       = &VarintString{}
 	typeInt8               = &Int8{}
 	typeInt16              = &Int16{}
 	typeInt32              = &Int32{}
@@ -94,6 +93,18 @@ func (f *Varint) encode(pe packetEncoder, value interface{}) error {
 	}
 	pe.putVarint(in)
 	return nil
+}
+
+func (f *Varint) GetFields() []boundField {
+	return nil
+}
+
+func (f *Varint) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Varint) GetName() string {
+	return "varint"
 }
 
 // Field bool
@@ -181,35 +192,6 @@ func (f *VarintBytes) GetFieldsByName() map[string]*boundField {
 
 func (f *VarintBytes) GetName() string {
 	return "varintbytes"
-}
-
-// Field VarintString
-
-type VarintString struct{}
-
-func (f *VarintString) decode(pd packetDecoder) (interface{}, error) {
-	return pd.getVarintString()
-}
-
-func (f *VarintString) encode(pe packetEncoder, value interface{}) error {
-	in, ok := value.(string)
-	if !ok {
-		return SchemaEncodingError{fmt.Sprintf("value %T not a []bytes", value)}
-	}
-	pe.putVarintString(in)
-	return nil
-}
-
-func (f *VarintString) GetFields() []boundField {
-	return nil
-}
-
-func (f *VarintString) GetFieldsByName() map[string]*boundField {
-	return nil
-}
-
-func (f *VarintString) GetName() string {
-	return "varintstring"
 }
 
 // Field int8
