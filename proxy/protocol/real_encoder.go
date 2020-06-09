@@ -88,13 +88,6 @@ func (re *realEncoder) putString(in string) error {
 	return nil
 }
 
-func (re *realEncoder) putVarintString(in string) error {
-	re.putVarint(int64(len(in)))
-	copy(re.raw[re.off:], in)
-	re.off += len(in)
-	return nil
-}
-
 func (re *realEncoder) putNullableString(in *string) error {
 	if in == nil {
 		re.putInt16(-1)
