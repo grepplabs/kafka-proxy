@@ -49,6 +49,7 @@ type OpaAuthzInput struct {
 	SrcIp      string   `json:"src_ip"`
 	DstIp      string   `json:"dst_ip"`
 	Topics     []string `json:"topics"`
+	ClientId   string   `json:"client_id"`
 }
 
 type OpaAuthzRequest struct {
@@ -80,6 +81,7 @@ func (p *AuthzProvider) Authorize(parent context.Context, req apis.AuthzRequest)
 		SrcIp:      req.SrcIp,
 		DstIp:      req.DstIp,
 		Topics:     strings.Split(req.Topics, ";"),
+		ClientId:   req.ClientId,
 	}
 	opaReq := OpaAuthzRequest{}
 	opaReq.Input = opaInput

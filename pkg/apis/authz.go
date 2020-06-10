@@ -12,6 +12,7 @@ type AuthzRequest struct {
 	SrcIp      string `json:"src_ip"`
 	DstIp      string `json:"dst_ip"`
 	Topics     string `json:"topics"`
+	ClientId   string `json:"client_id"`
 }
 
 // AuthzResponse - authorization response
