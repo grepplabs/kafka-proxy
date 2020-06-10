@@ -71,7 +71,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					SrcIp:      ctx.srcAddress,
 				}
 
-				topicApiKeys := map[int16]bool{
+				decodedApiKeys := map[int16]bool{
 					0: true,
 					1: true,
 					2: true,
@@ -80,15 +80,17 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					9: true,
 				}
 
-				if _, ok := topicApiKeys[requestKeyVersion.ApiKey]; ok {
-					topics, pay, err := getRequestTopic(keyVersionBuf, src)
+				if _, ok := decodedApiKeys[requestKeyVersion.ApiKey]; ok {
+					req, reqBody, pay, err := getPartialDecodedRequest(keyVersionBuf, src)
 					payload = pay
+					topics := reqBody.(protocol.TopicRequestInterface).GetTopics()
 
 					if err != nil {
 						return false, err
 					}
 
 					authzRequest.Topics = strings.Join(topics, ";")
+					authzRequest.ClientId = req.ClientID
 				}
 
 				authResponse, err := ctx.authz.authzProvider.Authorize(context.Background(), authzRequest)
@@ -99,11 +101,14 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 
 				if !authResponse.Success {
 					err := fmt.Errorf(
-						"Authorization failed status: %d, apikey: %d, dstip: %s, srcip: %s",
+						"Authorization failed status: %d, apiversion: %d, apikey: %d, dstip: %s, srcip: %s, topics: %s, clientId: %s",
 						authResponse.Status,
+						int32(requestKeyVersion.ApiVersion),
 						int32(requestKeyVersion.ApiKey),
 						ctx.brokerAddress,
 						ctx.srcAddress,
+						authzRequest.Topics,
+						authzRequest.ClientId,
 					)
 					return false, err
 				}
