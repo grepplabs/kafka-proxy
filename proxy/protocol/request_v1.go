@@ -116,6 +116,24 @@ func (*RequestTypeFactory) Produce(requestKeyVersion *RequestKeyVersion) (req Pr
 		}
 
 		return req, nil
+	case 19:
+		factory := &CreateTopicsRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 20:
+		factory := &DeleteTopicsRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
 	default:
 		return nil, fmt.Errorf("Unsupported apikey for producing RequestType %d", requestKeyVersion.ApiKey)
 	}
