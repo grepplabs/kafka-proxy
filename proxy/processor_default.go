@@ -80,6 +80,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					9:  true,
 					19: true,
 					20: true,
+					37: true,
 				}
 
 				if _, ok := decodedApiKeys[requestKeyVersion.ApiKey]; ok {

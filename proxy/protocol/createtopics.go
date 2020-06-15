@@ -17,7 +17,7 @@ func (f *CreateTopicsRequestFactory) Produce(requestKeyVersion *RequestKeyVersio
 	case 4:
 		return &CreateTopicsRequestV4{}, nil
 	default:
-		return nil, fmt.Errorf("Not supported fetch request %d", requestKeyVersion.ApiVersion)
+		return nil, fmt.Errorf("Not supported create topics request %d", requestKeyVersion.ApiVersion)
 	}
 }
 

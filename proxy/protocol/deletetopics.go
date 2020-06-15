@@ -15,7 +15,7 @@ func (f *DeleteTopicsRequestFactory) Produce(requestKeyVersion *RequestKeyVersio
 	case 3:
 		return &DeleteTopicsRequestV3{}, nil
 	default:
-		return nil, fmt.Errorf("Not supported topic metadata request %d", requestKeyVersion.ApiVersion)
+		return nil, fmt.Errorf("Not supported topic delete request %d", requestKeyVersion.ApiVersion)
 	}
 }
 
