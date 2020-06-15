@@ -5,7 +5,9 @@ https://stackoverflow.com/questions/60578892/protoc-gen-go-grpc-program-not-foun
 go get github.com/golang/protobuf/protoc-gen-go
 
 generate with services
-~/.protoc/protoc -I=plugin/authz/proto --go_out=plugins=grpc:plugin/authz/proto plugin/authz/proto/authz.proto
+~/.protoc/protoc -I=plugin/authz-provider/proto --go_out=plugins=grpc:plugin/authz-provider/proto plugin/authz-provider/proto/authz.proto
+
+tail -f /var/log/syslog|docker run -i --network=host confluentinc/cp-kafkacat kafkacat -b localhost:2000 -t client1topic -P
 
 client1:
 
