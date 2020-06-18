@@ -3,12 +3,13 @@ package protocol
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -2667,7 +2668,7 @@ func NewDecodeCheck() *decodeCheck {
 }
 
 func (t *decodeCheck) Traverse(s *Struct) error {
-	for i, _ := range s.schema.fields {
+	for i, _ := range s.GetSchema().GetFields() {
 		arg := s.values[i]
 		if err := t.value(s, arg, i); err != nil {
 			return err
@@ -2677,7 +2678,7 @@ func (t *decodeCheck) Traverse(s *Struct) error {
 }
 
 func (t *decodeCheck) value(s *Struct, arg interface{}, sindex int) error {
-	name := s.schema.fields[sindex].def.GetName()
+	name := s.GetSchema().GetFields()[sindex].GetDef().GetName()
 
 	switch v := arg.(type) {
 	case bool:
