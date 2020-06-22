@@ -3,10 +3,10 @@ package proxy
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
+	"github.com/pkg/errors"
 	"io"
 	"time"
 )
@@ -142,11 +142,11 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 	if err = protocol.Decode(keyVersionBuf, requestKeyVersion); err != nil {
 		return err
 	}
-	if !(requestKeyVersion.ApiKey == 36 && requestKeyVersion.ApiVersion == 0) {
-		return errors.New("SaslAuthenticate version 0 is expected")
+	if requestKeyVersion.ApiKey != 36 {
+		return errors.Errorf("SaslAuthenticate is expected, but got apiKey %d", requestKeyVersion.ApiKey)
 	}
 
-	if int32(requestKeyVersion.Length) > protocol.MaxRequestSize {
+	if requestKeyVersion.Length > protocol.MaxRequestSize {
 		return protocol.PacketDecodingError{Info: fmt.Sprintf("sasl authenticate message of length %d too large", requestKeyVersion.Length)}
 	}
 
@@ -156,39 +156,76 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 	}
 	payload := bytes.Join([][]byte{keyVersionBuf[4:], resp}, nil)
 
-	saslAuthReqV0 := &protocol.SaslAuthenticateRequestV0{}
-	req := &protocol.Request{Body: saslAuthReqV0}
-	if err = protocol.Decode(payload, req); err != nil {
-		return err
-	}
+	switch requestKeyVersion.ApiVersion {
+	case 0:
+		saslAuthReqV0 := &protocol.SaslAuthenticateRequestV0{}
+		req := &protocol.Request{Body: saslAuthReqV0}
+		if err = protocol.Decode(payload, req); err != nil {
+			return err
+		}
 
-	authErr := localSaslAuth.doLocalAuth(saslAuthReqV0.SaslAuthBytes)
+		authErr := localSaslAuth.doLocalAuth(saslAuthReqV0.SaslAuthBytes)
 
-	var saslAuthResV0 *protocol.SaslAuthenticateResponseV0
-	if authErr == nil {
-		// Length of SaslAuthBytes !=0 for OAUTHBEARER causes that java SaslClientAuthenticator in INTERMEDIATE state will sent SaslAuthenticate(36) second time
-		saslAuthResV0 = &protocol.SaslAuthenticateResponseV0{Err: protocol.ErrNoError, SaslAuthBytes: make([]byte, 0)}
-	} else {
-		errMsg := authErr.Error()
-		saslAuthResV0 = &protocol.SaslAuthenticateResponseV0{Err: protocol.ErrSASLAuthenticationFailed, ErrMsg: &errMsg, SaslAuthBytes: make([]byte, 0)}
-	}
+		var saslAuthResV0 *protocol.SaslAuthenticateResponseV0
+		if authErr == nil {
+			// Length of SaslAuthBytes !=0 for OAUTHBEARER causes that java SaslClientAuthenticator in INTERMEDIATE state will sent SaslAuthenticate(36) second time
+			saslAuthResV0 = &protocol.SaslAuthenticateResponseV0{Err: protocol.ErrNoError, SaslAuthBytes: make([]byte, 0)}
+		} else {
+			errMsg := authErr.Error()
+			saslAuthResV0 = &protocol.SaslAuthenticateResponseV0{Err: protocol.ErrSASLAuthenticationFailed, ErrMsg: &errMsg, SaslAuthBytes: make([]byte, 0)}
+		}
+		newResponseBuf, err := protocol.Encode(saslAuthResV0)
+		if err != nil {
+			return err
+		}
 
-	newResponseBuf, err := protocol.Encode(saslAuthResV0)
-	if err != nil {
-		return err
-	}
-	newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
-	if err != nil {
-		return err
-	}
-	if _, err := conn.Write(newHeaderBuf); err != nil {
-		return err
-	}
-	if _, err := conn.Write(newResponseBuf); err != nil {
-		return err
-	}
-	return authErr
+		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
+		if err != nil {
+			return err
+		}
+		if _, err := conn.Write(newHeaderBuf); err != nil {
+			return err
+		}
+		if _, err := conn.Write(newResponseBuf); err != nil {
+			return err
+		}
+		return authErr
+	case 1:
+		saslAuthReqV1 := &protocol.SaslAuthenticateRequestV1{}
+		req := &protocol.Request{Body: saslAuthReqV1}
+		if err = protocol.Decode(payload, req); err != nil {
+			return err
+		}
 
+		authErr := localSaslAuth.doLocalAuth(saslAuthReqV1.SaslAuthBytes)
+
+		var saslAuthResV1 *protocol.SaslAuthenticateResponseV1
+		if authErr == nil {
+			// Length of SaslAuthBytes !=0 for OAUTHBEARER causes that java SaslClientAuthenticator in INTERMEDIATE state will sent SaslAuthenticate(36) second time
+			saslAuthResV1 = &protocol.SaslAuthenticateResponseV1{Err: protocol.ErrNoError, SaslAuthBytes: make([]byte, 0), SessionLifetimeMs: 0}
+		} else {
+			errMsg := authErr.Error()
+			saslAuthResV1 = &protocol.SaslAuthenticateResponseV1{Err: protocol.ErrSASLAuthenticationFailed, ErrMsg: &errMsg, SaslAuthBytes: make([]byte, 0), SessionLifetimeMs: 0}
+		}
+		newResponseBuf, err := protocol.Encode(saslAuthResV1)
+		if err != nil {
+			return err
+		}
+
+		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
+		if err != nil {
+			return err
+		}
+		if _, err := conn.Write(newHeaderBuf); err != nil {
+			return err
+		}
+		if _, err := conn.Write(newResponseBuf); err != nil {
+			return err
+		}
+		return authErr
+	default:
+		return errors.Errorf("SaslAuthenticate version 0 or 1 is expected, apiVersion %d", requestKeyVersion.ApiVersion)
+	}
 }
 
 func (p *LocalSasl) receiveAndSendAuthV0(conn DeadlineReaderWriter, localSaslAuth LocalSaslAuth) (err error) {
