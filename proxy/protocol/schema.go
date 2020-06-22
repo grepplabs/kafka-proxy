@@ -3,8 +3,9 @@ package protocol
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -25,10 +26,14 @@ type EncoderDecoder interface {
 type Field interface {
 	EncoderDecoder
 	GetName() string
+	GetSchema() Schema
 }
 
 type Schema interface {
 	EncoderDecoder
+	GetFields() []boundField
+	GetFieldsByName() map[string]*boundField
+	GetName() string
 }
 
 type schema struct {
@@ -40,7 +45,7 @@ type schema struct {
 //
 type field struct {
 	name string
-	ty   EncoderDecoder
+	ty   Schema
 }
 
 func (f *field) decode(pd packetDecoder) (interface{}, error) {
@@ -53,12 +58,19 @@ func (f *field) encode(pe packetEncoder, value interface{}) error {
 func (f *field) GetName() string {
 	return f.name
 }
+func (f *field) GetSchema() Schema {
+	return f.ty
+}
 
 // bound field
 type boundField struct {
 	def    Field
 	index  int
 	schema *schema
+}
+
+func (f *boundField) GetDef() Field {
+	return f.def
 }
 
 // Field bool
@@ -78,6 +90,18 @@ func (f *Bool) encode(pe packetEncoder, value interface{}) error {
 	return nil
 }
 
+func (f *Bool) GetFields() []boundField {
+	return nil
+}
+
+func (f *Bool) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Bool) GetName() string {
+	return "bool"
+}
+
 // Field int16
 
 type Int16 struct{}
@@ -92,6 +116,18 @@ func (f *Int16) encode(pe packetEncoder, value interface{}) error {
 	}
 	pe.putInt16(in)
 	return nil
+}
+
+func (f *Int16) GetFields() []boundField {
+	return nil
+}
+
+func (f *Int16) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Int16) GetName() string {
+	return "int16"
 }
 
 // Field int32
@@ -111,6 +147,18 @@ func (f *Int32) encode(pe packetEncoder, value interface{}) error {
 	return nil
 }
 
+func (f *Int32) GetFields() []boundField {
+	return nil
+}
+
+func (f *Int32) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Int32) GetName() string {
+	return "int32"
+}
+
 // Field string
 
 type Str struct {
@@ -126,6 +174,18 @@ func (f *Str) encode(pe packetEncoder, value interface{}) error {
 		return SchemaEncodingError{fmt.Sprintf("value %T not a string", value)}
 	}
 	return pe.putString(in)
+}
+
+func (f *Str) GetFields() []boundField {
+	return nil
+}
+
+func (f *Str) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Str) GetName() string {
+	return "str"
 }
 
 // Field nullable string
@@ -150,6 +210,18 @@ func (f *NullableStr) encode(pe packetEncoder, value interface{}) error {
 	return pe.putNullableString(in)
 }
 
+func (f *NullableStr) GetFields() []boundField {
+	return nil
+}
+
+func (f *NullableStr) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *NullableStr) GetName() string {
+	return "nullablestr"
+}
+
 // Field compact string
 
 type CompactStr struct {
@@ -165,6 +237,18 @@ func (f *CompactStr) encode(pe packetEncoder, value interface{}) error {
 		return SchemaEncodingError{fmt.Sprintf("value %T not a string", value)}
 	}
 	return pe.putCompactString(in)
+}
+
+func (f *CompactStr) GetFields() []boundField {
+	return nil
+}
+
+func (f *CompactStr) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *CompactStr) GetName() string {
+	return "compactstr"
 }
 
 // Field compact nullable string
@@ -187,6 +271,18 @@ func (f *CompactNullableStr) encode(pe packetEncoder, value interface{}) error {
 		return SchemaEncodingError{fmt.Sprintf("value %T not a *string", value)}
 	}
 	return pe.putCompactNullableString(in)
+}
+
+func (f *CompactNullableStr) GetFields() []boundField {
+	return nil
+}
+
+func (f *CompactNullableStr) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *CompactNullableStr) GetName() string {
+	return "compactnullablestr"
 }
 
 // Arrays helper
@@ -273,11 +369,15 @@ func (f *taggedFields) GetName() string {
 	return f.name
 }
 
+func (f *taggedFields) GetSchema() Schema {
+	return nil
+}
+
 // Array
 
 type array struct {
 	name string
-	ty   EncoderDecoder
+	ty   Schema
 }
 
 func (f *array) decode(pd packetDecoder) (interface{}, error) {
@@ -304,11 +404,15 @@ func (f *array) GetName() string {
 	return f.name
 }
 
+func (f *array) GetSchema() Schema {
+	return f.ty
+}
+
 // Compact Array
 
 type compactArray struct {
 	name string
-	ty   EncoderDecoder
+	ty   Schema
 }
 
 func (f *compactArray) decode(pd packetDecoder) (interface{}, error) {
@@ -337,6 +441,9 @@ func (f *compactArray) encode(pe packetEncoder, value interface{}) error {
 
 func (f *compactArray) GetName() string {
 	return f.name
+}
+func (f *compactArray) GetSchema() Schema {
+	return f.ty
 }
 
 // Compact nullable Array
@@ -378,14 +485,14 @@ func (f *compactNullableArray) GetName() string {
 }
 
 type Struct struct {
-	schema *schema
+	schema Schema
 	values []interface{}
 }
 
 func (s Struct) String() string {
 	var buffer bytes.Buffer
-	buffer.WriteString(s.schema.name + "{")
-	for i, field := range s.schema.fields {
+	buffer.WriteString(s.GetSchema().GetName() + "{")
+	for i, field := range s.GetSchema().GetFields() {
 		if i != 0 {
 			buffer.WriteString(",")
 		}
@@ -397,7 +504,7 @@ func (s Struct) String() string {
 }
 
 func (s Struct) Get(name string) interface{} {
-	bf := s.schema.fieldsByName[name]
+	bf := s.GetSchema().GetFieldsByName()[name]
 	if bf == nil || bf.index >= len(s.values) {
 		return nil
 	}
@@ -406,26 +513,30 @@ func (s Struct) Get(name string) interface{} {
 
 func (s *Struct) Replace(name string, value interface{}) error {
 	if value == nil {
-		return fmt.Errorf("field %s value in struct %s : new value must not be nil", name, s.schema.name)
+		return fmt.Errorf("field %s value in struct %s : new value must not be nil", name, s.GetSchema().GetName())
 	}
-	bf := s.schema.fieldsByName[name]
+	bf := s.GetSchema().GetFieldsByName()[name]
 	if bf == nil {
-		return fmt.Errorf("field %s value in struct %s : name not found", name, s.schema.name)
+		return fmt.Errorf("field %s value in struct %s : name not found", name, s.GetSchema().GetName())
 	}
 	if bf.index >= len(s.values) {
-		return fmt.Errorf("field %s value in struct %s : index %d gte %d", name, s.schema.name, bf.index, len(s.values))
+		return fmt.Errorf("field %s value in struct %s : index %d gte %d", name, s.GetSchema().GetName(), bf.index, len(s.values))
 	}
 	v := s.values[bf.index]
 	if v == nil {
-		return fmt.Errorf("field %s value in struct %s : old value not found", name, s.schema.name)
+		return fmt.Errorf("field %s value in struct %s : old value not found", name, s.GetSchema().GetName())
 	}
 	oldKind := reflect.TypeOf(v).Kind()
 	newKind := reflect.TypeOf(value).Kind()
 	if oldKind != newKind {
-		return fmt.Errorf("field %s value in struct %s : kinds differ %v to %v", name, s.schema.name, oldKind, newKind)
+		return fmt.Errorf("field %s value in struct %s : kinds differ %v to %v", name, s.GetSchema().GetName(), oldKind, newKind)
 	}
 	s.values[bf.index] = value
 	return nil
+}
+
+func (s *Struct) GetSchema() Schema {
+	return s.schema
 }
 
 // NewSchema creates new schema. It panics when a duplicate field is provided
@@ -453,11 +564,11 @@ func (s *schema) encode(pe packetEncoder, value interface{}) error {
 	if !ok {
 		return SchemaEncodingError{fmt.Sprintf("value %T not a *Struct", value)}
 	}
-	if len(in.values) != len(s.fields) {
-		return SchemaEncodingError{fmt.Sprintf("length difference: values %d, struct fields %d", len(in.values), len(s.fields))}
+	if len(in.values) != len(s.GetFields()) {
+		return SchemaEncodingError{fmt.Sprintf("length difference: values %d, struct fields %d", len(in.values), len(s.GetFields()))}
 	}
 	for i, value := range in.values {
-		if err := s.fields[i].def.encode(pe, value); err != nil {
+		if err := s.GetFields()[i].def.encode(pe, value); err != nil {
 			return err
 		}
 	}
@@ -467,7 +578,7 @@ func (s *schema) encode(pe packetEncoder, value interface{}) error {
 func (s *schema) decode(pd packetDecoder) (interface{}, error) {
 	values := make([]interface{}, 0)
 
-	for _, field := range s.fields {
+	for _, field := range s.GetFields() {
 		value, err := field.def.decode(pd)
 		if err != nil {
 			return nil, err
@@ -475,6 +586,16 @@ func (s *schema) decode(pd packetDecoder) (interface{}, error) {
 		values = append(values, value)
 	}
 	return &Struct{schema: s, values: values}, nil
+}
+
+func (s *schema) GetFields() []boundField {
+	return s.fields
+}
+func (s *schema) GetFieldsByName() map[string]*boundField {
+	return s.fieldsByName
+}
+func (s *schema) GetName() string {
+	return s.name
 }
 
 func DecodeSchema(buf []byte, schema Schema) (*Struct, error) {

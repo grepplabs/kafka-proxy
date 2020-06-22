@@ -4,13 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/klauspost/cpuid"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/klauspost/cpuid"
+	"github.com/pkg/errors"
 )
 
 var (
