@@ -2,11 +2,12 @@ package oidc
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetServiceAccountIDToken(t *testing.T) {

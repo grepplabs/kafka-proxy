@@ -89,7 +89,7 @@ func (p *TokenRefresher) refreshTick() {
 		err := p.tryRefresh()
 
 		if err != nil {
-			logrus.Errorf("refreshing of google-id-token failed : %v", err)
+			logrus.Errorf("refreshing of oidc-token failed : %v", err)
 		}
 	}
 }
