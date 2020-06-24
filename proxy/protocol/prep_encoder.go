@@ -71,6 +71,15 @@ func (pe *prepEncoder) putRawBytes(in []byte) error {
 	return nil
 }
 
+func (pe *prepEncoder) putCompactBytes(in []byte) error {
+	pe.putVarint(int64(len(in) + 1))
+	if len(in) > math.MaxInt16 {
+		return PacketEncodingError{fmt.Sprintf("compact bytes too long (%d)", len(in))}
+	}
+	pe.length += len(in)
+	return nil
+}
+
 func (pe *prepEncoder) putNullableString(in *string) error {
 	if in == nil {
 		pe.length += 2

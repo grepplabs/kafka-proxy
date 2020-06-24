@@ -22,6 +22,7 @@ type packetDecoder interface {
 
 	getVarintBytes() ([]byte, error)
 
+	getCompactBytes() ([]byte, error)
 	getCompactString() (string, error)
 	getCompactNullableString() (*string, error)
 	getCompactArrayLength() (int, error)

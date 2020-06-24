@@ -223,8 +223,43 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 			return err
 		}
 		return authErr
+	case 2:
+		saslAuthReqV2 := &protocol.SaslAuthenticateRequestV2{}
+		// TODO: protocol.RequestV2 => ReadTagBuffer after client_id
+		req := &protocol.Request{Body: saslAuthReqV2}
+		if err = protocol.Decode(payload, req); err != nil {
+			return err
+		}
+
+		authErr := localSaslAuth.doLocalAuth(saslAuthReqV2.SaslAuthBytes)
+
+		var saslAuthResV2 *protocol.SaslAuthenticateResponseV2
+		if authErr == nil {
+			// Length of SaslAuthBytes !=0 for OAUTHBEARER causes that java SaslClientAuthenticator in INTERMEDIATE state will sent SaslAuthenticate(36) second time
+			saslAuthResV2 = &protocol.SaslAuthenticateResponseV2{Err: protocol.ErrNoError, SaslAuthBytes: make([]byte, 0), SessionLifetimeMs: 0}
+		} else {
+			errMsg := authErr.Error()
+			saslAuthResV2 = &protocol.SaslAuthenticateResponseV2{Err: protocol.ErrSASLAuthenticationFailed, ErrMsg: &errMsg, SaslAuthBytes: make([]byte, 0), SessionLifetimeMs: 0}
+		}
+		newResponseBuf, err := protocol.Encode(saslAuthResV2)
+		if err != nil {
+			return err
+		}
+
+		// TODO: Response Header v2
+		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
+		if err != nil {
+			return err
+		}
+		if _, err := conn.Write(newHeaderBuf); err != nil {
+			return err
+		}
+		if _, err := conn.Write(newResponseBuf); err != nil {
+			return err
+		}
+		return authErr
 	default:
-		return errors.Errorf("SaslAuthenticate version 0 or 1 is expected, apiVersion %d", requestKeyVersion.ApiVersion)
+		return errors.Errorf("SaslAuthenticate version 0,1 or 2 is expected, apiVersion %d", requestKeyVersion.ApiVersion)
 	}
 }
 

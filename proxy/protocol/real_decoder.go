@@ -139,6 +139,17 @@ func (rd *realDecoder) getRawBytes(length int) ([]byte, error) {
 	return rd.raw[start:rd.off], nil
 }
 
+func (rd *realDecoder) getCompactBytes() ([]byte, error) {
+
+	n, err := rd.getCompactLength()
+	if err != nil || n == 0 {
+		return []byte{}, err
+	}
+	tmp := rd.raw[rd.off : rd.off+n]
+	rd.off += n
+	return tmp, nil
+}
+
 func (rd *realDecoder) getStringLength() (int, error) {
 	length, err := rd.getInt16()
 	if err != nil {
