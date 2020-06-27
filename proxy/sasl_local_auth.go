@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+type errLocalAuthFailed struct {
+	user string
+}
+
+func (e errLocalAuthFailed) Error() string {
+	return fmt.Sprintf("user %s authentication failed", e.user)
+}
+
 type LocalSaslAuth interface {
 	doLocalAuth(saslAuthBytes []byte) (err error)
 }
@@ -42,7 +50,9 @@ func (p *LocalSaslPlain) doLocalAuth(saslAuthBytes []byte) (err error) {
 	proxyLocalAuthTotal.WithLabelValues(strconv.FormatBool(ok), strconv.Itoa(int(status))).Inc()
 
 	if !ok {
-		return fmt.Errorf("user %s authentication failed", tokens[1])
+		return errLocalAuthFailed{
+			user: tokens[1],
+		}
 	}
 	return nil
 }

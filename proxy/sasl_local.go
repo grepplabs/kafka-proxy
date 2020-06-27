@@ -225,8 +225,7 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 		return authErr
 	case 2:
 		saslAuthReqV2 := &protocol.SaslAuthenticateRequestV2{}
-		// TODO: protocol.RequestV2 => ReadTagBuffer after client_id
-		req := &protocol.Request{Body: saslAuthReqV2}
+		req := &protocol.RequestV2{Body: saslAuthReqV2}
 		if err = protocol.Decode(payload, req); err != nil {
 			return err
 		}
@@ -245,9 +244,8 @@ func (p *LocalSasl) receiveAndSendAuthV1(conn DeadlineReaderWriter, localSaslAut
 		if err != nil {
 			return err
 		}
-
-		// TODO: Response Header v2
-		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeader{Length: int32(len(newResponseBuf) + 4), CorrelationID: req.CorrelationID})
+		// 2 (Length) + 2 (CorrelationID) + 1 (empty TaggedFields)
+		newHeaderBuf, err := protocol.Encode(&protocol.ResponseHeaderV1{Length: int32(len(newResponseBuf) + 5), CorrelationID: req.CorrelationID})
 		if err != nil {
 			return err
 		}

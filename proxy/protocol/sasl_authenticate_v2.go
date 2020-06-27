@@ -1,35 +1,22 @@
 package protocol
 
-import "fmt"
-
 type SaslAuthenticateRequestV2 struct {
-	SaslAuthBytes   []byte
-	RawTaggedFields []rawTaggedField
+	SaslAuthBytes []byte
+	TaggedFields  TaggedFields
 }
 
 func (r *SaslAuthenticateRequestV2) encode(pe packetEncoder) error {
 	if err := pe.putCompactBytes(r.SaslAuthBytes); err != nil {
 		return err
 	}
-	tf := &taggedFields{}
-	return tf.encode(pe, r.RawTaggedFields)
+	return r.TaggedFields.encode(pe)
 }
 
 func (r *SaslAuthenticateRequestV2) decode(pd packetDecoder) (err error) {
 	if r.SaslAuthBytes, err = pd.getCompactBytes(); err != nil {
 		return err
 	}
-	tf := &taggedFields{}
-	taggedFields, err := tf.decode(pd)
-	if err != nil {
-		return err
-	}
-	if rawTaggedFields, ok := taggedFields.([]rawTaggedField); ok {
-		r.RawTaggedFields = rawTaggedFields
-	} else {
-		return PacketDecodingError{fmt.Sprintf("taggedFields type %v", taggedFields)}
-	}
-	return nil
+	return r.TaggedFields.decode(pd)
 }
 
 func (r *SaslAuthenticateRequestV2) key() int16 {
@@ -45,7 +32,7 @@ type SaslAuthenticateResponseV2 struct {
 	ErrMsg            *string
 	SaslAuthBytes     []byte
 	SessionLifetimeMs int64
-	RawTaggedFields   []rawTaggedField
+	TaggedFields      TaggedFields
 }
 
 func (r *SaslAuthenticateResponseV2) encode(pe packetEncoder) error {
@@ -60,8 +47,7 @@ func (r *SaslAuthenticateResponseV2) encode(pe packetEncoder) error {
 	}
 	pe.putInt64(r.SessionLifetimeMs)
 
-	tf := &taggedFields{}
-	return tf.encode(pe, r.RawTaggedFields)
+	return r.TaggedFields.encode(pe)
 }
 
 func (r *SaslAuthenticateResponseV2) decode(pd packetDecoder) error {
@@ -80,16 +66,5 @@ func (r *SaslAuthenticateResponseV2) decode(pd packetDecoder) error {
 	if r.SessionLifetimeMs, err = pd.getInt64(); err != nil {
 		return err
 	}
-	tf := &taggedFields{}
-	taggedFields, err := tf.decode(pd)
-	if err != nil {
-		return err
-	}
-	if rawTaggedFields, ok := taggedFields.([]rawTaggedField); ok {
-		r.RawTaggedFields = rawTaggedFields
-	} else {
-		return PacketDecodingError{fmt.Sprintf("taggedFields type %v", taggedFields)}
-	}
-
-	return nil
+	return r.TaggedFields.decode(pd)
 }
