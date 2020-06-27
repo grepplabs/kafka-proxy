@@ -4,13 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"net"
-	"sync"
-	"time"
 )
 
 // Conn represents a connection from a client to a specific instance.
