@@ -1,11 +1,63 @@
 package protocol
 
 import (
+	"bytes"
 	"github.com/pkg/errors"
 	"math"
 	"math/rand"
 	"testing"
 )
+
+func TestEncodeDecodeCompactBytes(t *testing.T) {
+	tt := []struct {
+		name string
+		lens []int
+	}{
+		{name: "empty string", lens: []int{0}},
+		{name: "empty strings", lens: []int{0, 0}},
+		{name: "len 1", lens: []int{1}},
+		{name: "lens 1", lens: []int{1, 1}},
+		{name: "len 2", lens: []int{2}},
+		{name: "len 3", lens: []int{3}},
+		{name: "len 4", lens: []int{4}},
+		{name: "len 16", lens: []int{16}},
+		{name: "len 63", lens: []int{63}},
+		{name: "len 64", lens: []int{64}},
+		{name: "len 128", lens: []int{128}},
+		{name: "len 8191", lens: []int{8191}},
+		{name: "len 8192", lens: []int{8192}},
+		{name: "len 32767", lens: []int{math.MaxInt16}},
+		{name: "lens 32767", lens: []int{math.MaxInt16, math.MaxInt16}},
+		{name: "different values", lens: []int{0, 1, 2, 3, 4, 16, 64, 127, 128, 8191, 8192, 8191, 128, 127, 64, 16, 4, 3, 2, 1, 0}},
+	}
+	for _, tc := range tt {
+		values := make([][]byte, 0)
+		for _, l := range tc.lens {
+			value := RandStringRunes(l)
+			values = append(values, []byte(value))
+		}
+		request := &CompactBytesHolder{
+			values: values,
+		}
+		buf, err := Encode(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := &CompactBytesHolder{}
+		err = Decode(buf, response)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(request.values) != len(response.values) {
+			t.Fatalf("Values array lengths differ: expected %v, actual %v", request.values, response.values)
+		}
+		for i := range request.values {
+			if bytes.Compare(request.values[i], response.values[i]) != 0 {
+				t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
+			}
+		}
+	}
+}
 
 func TestEncodeDecodeCompactString(t *testing.T) {
 	tt := []struct {
@@ -238,6 +290,35 @@ func TestEncodeDecodeCompactNullableArray(t *testing.T) {
 			}
 		}
 	}
+}
+
+type CompactBytesHolder struct {
+	values [][]byte
+}
+
+func (r *CompactBytesHolder) encode(pe packetEncoder) (err error) {
+	for _, value := range r.values {
+		err = pe.putCompactBytes(value)
+		if err != nil {
+			return err
+		}
+	}
+	return
+}
+
+func (r *CompactBytesHolder) decode(pd packetDecoder) (err error) {
+	r.values = make([][]byte, 0)
+	var value []byte
+	for ok := true; ok; ok = pd.remaining() > 0 {
+		if value, err = pd.getCompactBytes(); err != nil {
+			return err
+		}
+		r.values = append(r.values, value)
+	}
+	if pd.remaining() != 0 {
+		return errors.Errorf("remaining bytes %d", pd.remaining())
+	}
+	return
 }
 
 type CompactStringsHolder struct {
