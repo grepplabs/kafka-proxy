@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
-	"github.com/oklog/oklog/pkg/group"
+	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -350,7 +350,7 @@ func Run(_ *cobra.Command, _ []string) {
 		}
 	}
 
-	var g group.Group
+	var g run.Group
 	{
 		// All active connections are stored in this variable.
 		connset := proxy.NewConnSet()

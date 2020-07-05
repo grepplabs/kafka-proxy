@@ -222,8 +222,8 @@ func TestTLSThroughSocks5ProxyWithBadCredentials(t *testing.T) {
 	}
 	_, _, _, err := makeTLSSocks5ProxyPipe(c, authenticator, "test-user", "bad-password")
 	a.NotNil(err)
-	a.True(strings.HasPrefix(err.Error(), "proxy: SOCKS5 proxy at"))
-	a.True(strings.HasSuffix(err.Error(), "rejected username/password"))
+	a.True(strings.HasPrefix(err.Error(), "socks connect"))
+	a.True(strings.HasSuffix(err.Error(), "username/password authentication failed"))
 }
 
 func TestTLSThroughHttpProxyWithBadCredentials(t *testing.T) {
