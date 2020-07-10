@@ -16,6 +16,7 @@ const (
 	defaultReadTimeout        = 30 * time.Second
 	minOpenRequests           = 16
 
+	apiKeyProduce        = int16(0)
 	apiKeySaslHandshake  = int16(17)
 	apiKeyApiApiVersions = int16(18)
 

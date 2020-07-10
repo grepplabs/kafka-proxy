@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
@@ -20,8 +21,12 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	// logrus.Println("Await Kafka request")
 
 	// waiting for first bytes or EOF - reset deadlines
-	src.SetReadDeadline(time.Time{})
-	dst.SetWriteDeadline(time.Time{})
+	if err = src.SetReadDeadline(time.Time{}); err != nil {
+		return true, err
+	}
+	if err = dst.SetWriteDeadline(time.Time{}); err != nil {
+		return true, err
+	}
 
 	keyVersionBuf := make([]byte, 8) // Size => int32 + ApiKey => int16 + ApiVersion => int16
 
@@ -67,8 +72,9 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					return true, fmt.Errorf("only saslHandshake version 0 and 1 are supported, got version %d", requestKeyVersion.ApiVersion)
 				}
 				ctx.localSaslDone = true
-				src.SetDeadline(time.Time{})
-
+				if err = src.SetDeadline(time.Time{}); err != nil {
+					return false, err
+				}
 				// defaultRequestHandler was consumed but due to local handling enqueued defaultResponseHandler will not be.
 				return false, ctx.putNextRequestHandler(defaultRequestHandler)
 			case apiKeyApiApiVersions:
@@ -79,9 +85,16 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		}
 	}
 
-	// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
-	if err = sendRequestKeyVersion(ctx.openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
+	mustReply, readBytes, err := handler.mustReply(requestKeyVersion, src)
+	if err != nil {
 		return true, err
+	}
+
+	// send inFlightRequest to channel before myCopyN to prevent race condition in proxyResponses
+	if mustReply {
+		if err = sendRequestKeyVersion(ctx.openRequestsChannel, openRequestSendTimeout, requestKeyVersion); err != nil {
+			return true, err
+		}
 	}
 
 	requestDeadline := time.Now().Add(ctx.timeout)
@@ -98,8 +111,14 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	if _, err = dst.Write(keyVersionBuf); err != nil {
 		return false, err
 	}
+	// write - send to broker
+	if len(readBytes) > 0 {
+		if _, err = dst.Write(readBytes); err != nil {
+			return false, err
+		}
+	}
 	// 4 bytes were written as keyVersionBuf (ApiKey, ApiVersion)
-	if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-4), ctx.buf); err != nil {
+	if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-int32(4+len(readBytes))), ctx.buf); err != nil {
 		return readErr, err
 	}
 	if requestKeyVersion.ApiKey == apiKeySaslHandshake {
@@ -107,15 +126,64 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 			return false, ctx.putNextHandlers(saslAuthV0RequestHandler, saslAuthV0ResponseHandler)
 		}
 	}
-	return false, ctx.putNextHandlers(defaultRequestHandler, defaultResponseHandler)
+	if mustReply {
+		return false, ctx.putNextHandlers(defaultRequestHandler, defaultResponseHandler)
+	} else {
+		return false, ctx.putNextRequestHandler(defaultRequestHandler)
+	}
+}
+
+func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.RequestKeyVersion, src io.Reader) (bool, []byte, error) {
+	if requestKeyVersion.ApiKey == apiKeyProduce {
+		// header version for produce [0..8] is 1 (request_api_key,request_api_version,correlation_id (INT32),client_id, NULLABLE_STRING )
+		acksReader := protocol.RequestAcksReader{}
+
+		var (
+			acks int16
+			err  error
+		)
+		var bufferRead bytes.Buffer
+		reader := io.TeeReader(src, &bufferRead)
+		switch requestKeyVersion.ApiVersion {
+		case 0, 1, 2:
+			// CorrelationID + ClientID
+			if err = acksReader.ReadAndDiscardHeaderV1Part(reader); err != nil {
+				return false, nil, err
+			}
+			// acks (INT16)
+			acks, err = acksReader.ReadAndDiscardProduceAcks(reader)
+			if err != nil {
+				return false, nil, err
+			}
+
+		case 3, 4, 5, 6, 7, 8:
+			// CorrelationID + ClientID
+			if err = acksReader.ReadAndDiscardHeaderV1Part(reader); err != nil {
+				return false, nil, err
+			}
+			// transactional_id (NULLABLE_STRING),acks (INT16)
+			acks, err = acksReader.ReadAndDiscardProduceTxnAcks(reader)
+			if err != nil {
+				return false, nil, err
+			}
+		default:
+			return false, nil, fmt.Errorf("produce version %d is not supported", requestKeyVersion.ApiVersion)
+		}
+		return acks != 0, bufferRead.Bytes(), nil
+	}
+	return true, nil, nil
 }
 
 func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src DeadlineReader, ctx *ResponsesLoopContext) (readErr bool, err error) {
 	//logrus.Println("Await Kafka response")
 
 	// waiting for first bytes or EOF - reset deadlines
-	src.SetReadDeadline(time.Time{})
-	dst.SetWriteDeadline(time.Time{})
+	if err = src.SetReadDeadline(time.Time{}); err != nil {
+		return true, err
+	}
+	if err = dst.SetWriteDeadline(time.Time{}); err != nil {
+		return true, err
+	}
 
 	responseHeaderBuf := make([]byte, 8) // Size => int32, CorrelationId => int32
 	if _, err = io.ReadFull(src, responseHeaderBuf); err != nil {
