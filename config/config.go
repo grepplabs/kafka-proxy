@@ -49,17 +49,18 @@ type Config struct {
 		MsgFiledName   string
 	}
 	Proxy struct {
-		DefaultListenerIP        string
-		BootstrapServers         []ListenerConfig
-		ExternalServers          []ListenerConfig
-		DialAddressMappings      []DialAddressMapping
-		DisableDynamicListeners  bool
-		DynamicSequentialMinPort int
-		RequestBufferSize        int
-		ResponseBufferSize       int
-		ListenerReadBufferSize   int // SO_RCVBUF
-		ListenerWriteBufferSize  int // SO_SNDBUF
-		ListenerKeepAlive        time.Duration
+		DefaultListenerIP         string
+		BootstrapServers          []ListenerConfig
+		ExternalServers           []ListenerConfig
+		DialAddressMappings       []DialAddressMapping
+		DisableDynamicListeners   bool
+		DynamicAdvertisedListener string
+		DynamicSequentialMinPort  int
+		RequestBufferSize         int
+		ResponseBufferSize        int
+		ListenerReadBufferSize    int // SO_RCVBUF
+		ListenerWriteBufferSize   int // SO_SNDBUF
+		ListenerKeepAlive         time.Duration
 
 		TLS struct {
 			Enable                   bool
@@ -251,6 +252,7 @@ func NewConfig() *Config {
 	c.Http.HealthPath = "/health"
 
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
+	c.Proxy.DynamicAdvertisedListener = "127.0.0.1"
 	c.Proxy.DisableDynamicListeners = false
 	c.Proxy.RequestBufferSize = 4096
 	c.Proxy.ResponseBufferSize = 4096
