@@ -143,7 +143,7 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 	defer p.lock.Unlock()
 	// double check
 	if v, ok := p.brokerToListenerConfig[brokerAddress]; ok {
-		return v.AdvertisedAddress, 0, nil
+		return util.SplitHostPort(v.AdvertisedAddress)
 	}
 
 	defaultListenerAddress := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(p.dynamicSequentialMinPort))
@@ -158,9 +158,18 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 	}
 	port := l.Addr().(*net.TCPAddr).Port
 	address := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(port))
-	advertisedAddress := net.JoinHostPort(p.dynamicAdvertisedListener, fmt.Sprint(port))
+
+	dynamicAdvertisedListener := p.dynamicAdvertisedListener
+	if dynamicAdvertisedListener == "" {
+		dynamicAdvertisedListener = p.defaultListenerIP
+	}
+
+	advertisedAddress := net.JoinHostPort(dynamicAdvertisedListener, fmt.Sprint(port))
 	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: advertisedAddress}
-	return p.defaultListenerIP, int32(port), nil
+
+	logrus.Infof("Dynamic listener %s for broker %s advertised as %s", address, brokerAddress, advertisedAddress)
+
+	return dynamicAdvertisedListener, int32(port), nil
 }
 
 func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, error) {

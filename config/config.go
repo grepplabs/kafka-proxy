@@ -252,7 +252,6 @@ func NewConfig() *Config {
 	c.Http.HealthPath = "/health"
 
 	c.Proxy.DefaultListenerIP = "127.0.0.1"
-	c.Proxy.DynamicAdvertisedListener = "127.0.0.1"
 	c.Proxy.DisableDynamicListeners = false
 	c.Proxy.RequestBufferSize = 4096
 	c.Proxy.ResponseBufferSize = 4096
