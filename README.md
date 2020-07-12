@@ -109,6 +109,7 @@ See:
           --log-level-fieldname string                     Log level fieldname for json format (default "@level")
           --log-msg-fieldname string                       Message fieldname for json format (default "@message")
           --log-time-fieldname string                      Time fieldname for json format (default "@timestamp")
+          --producer-acks-0-disabled                       Assume fire-and-forget is never sent by the producer. Enabling this parameter will increase performance
           --proxy-listener-ca-chain-cert-file string       PEM encoded CA's certificate file. If provided, client certificate is required and verified
           --proxy-listener-cert-file string                PEM encoded file with server certificate
           --proxy-listener-cipher-suites stringSlice       List of supported cipher suites

@@ -141,6 +141,9 @@ type Config struct {
 				Timeout    time.Duration
 			}
 		}
+		Producer struct {
+			Acks0Disabled bool
+		}
 	}
 	ForwardProxy struct {
 		Url string

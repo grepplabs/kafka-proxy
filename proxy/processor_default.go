@@ -85,7 +85,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		}
 	}
 
-	mustReply, readBytes, err := handler.mustReply(requestKeyVersion, src)
+	mustReply, readBytes, err := handler.mustReply(requestKeyVersion, src, ctx)
 	if err != nil {
 		return true, err
 	}
@@ -133,8 +133,11 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	}
 }
 
-func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.RequestKeyVersion, src io.Reader) (bool, []byte, error) {
+func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.RequestKeyVersion, src io.Reader, ctx *RequestsLoopContext) (bool, []byte, error) {
 	if requestKeyVersion.ApiKey == apiKeyProduce {
+		if ctx.producerAcks0Disabled {
+			return true, nil, nil
+		}
 		// header version for produce [0..8] is 1 (request_api_key,request_api_version,correlation_id (INT32),client_id, NULLABLE_STRING )
 		acksReader := protocol.RequestAcksReader{}
 
