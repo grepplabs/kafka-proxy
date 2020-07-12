@@ -17,6 +17,8 @@ type Listeners struct {
 	connSrc chan Conn
 	// listen IP for dynamically start
 	defaultListenerIP string
+	// advertised address for dynamic listeners
+	dynamicAdvertisedListener string
 	// socket TCP options
 	tcpConnOptions TCPConnOptions
 
@@ -32,6 +34,7 @@ type Listeners struct {
 func NewListeners(cfg *config.Config) (*Listeners, error) {
 
 	defaultListenerIP := cfg.Proxy.DefaultListenerIP
+	dynamicAdvertisedListener := cfg.Proxy.DynamicAdvertisedListener
 
 	tcpConnOptions := TCPConnOptions{
 		KeepAlive:       cfg.Proxy.ListenerKeepAlive,
@@ -61,13 +64,14 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 	}
 
 	return &Listeners{
-		defaultListenerIP:        defaultListenerIP,
-		connSrc:                  make(chan Conn, 1),
-		brokerToListenerConfig:   brokerToListenerConfig,
-		tcpConnOptions:           tcpConnOptions,
-		listenFunc:               listenFunc,
-		disableDynamicListeners:  cfg.Proxy.DisableDynamicListeners,
-		dynamicSequentialMinPort: cfg.Proxy.DynamicSequentialMinPort,
+		defaultListenerIP:         defaultListenerIP,
+		dynamicAdvertisedListener: dynamicAdvertisedListener,
+		connSrc:                   make(chan Conn, 1),
+		brokerToListenerConfig:    brokerToListenerConfig,
+		tcpConnOptions:            tcpConnOptions,
+		listenFunc:                listenFunc,
+		disableDynamicListeners:   cfg.Proxy.DisableDynamicListeners,
+		dynamicSequentialMinPort:  cfg.Proxy.DynamicSequentialMinPort,
 	}, nil
 }
 
@@ -154,7 +158,8 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string) (string, int32, 
 	}
 	port := l.Addr().(*net.TCPAddr).Port
 	address := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(port))
-	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: address}
+	advertisedAddress := net.JoinHostPort(p.dynamicAdvertisedListener, fmt.Sprint(port))
+	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: advertisedAddress}
 	return p.defaultListenerIP, int32(port), nil
 }
 
