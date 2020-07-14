@@ -36,11 +36,11 @@ See:
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.4/kafka-proxy-v0.2.4-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.5/kafka-proxy-v0.2.5-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.4/kafka-proxy-v0.2.4-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.2.5/kafka-proxy-v0.2.5-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
