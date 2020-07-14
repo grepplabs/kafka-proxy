@@ -142,6 +142,8 @@ func initFlags() {
 	// http://kafka.apache.org/protocol.html#protocol_api_keys
 	Server.Flags().IntSliceVar(&c.Kafka.ForbiddenApiKeys, "forbidden-api-keys", []int{}, "Forbidden Kafka request types. The restriction should prevent some Kafka operations e.g. 20 - DeleteTopics")
 
+	Server.Flags().BoolVar(&c.Kafka.Producer.Acks0Disabled, "producer-acks-0-disabled", false, "Assume fire-and-forget is never sent by the producer. Enabling this parameter will increase performance")
+
 	// TLS
 	Server.Flags().BoolVar(&c.Kafka.TLS.Enable, "tls-enable", false, "Whether or not to use TLS when connecting to the broker")
 	Server.Flags().BoolVar(&c.Kafka.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", false, "It controls whether a client verifies the server's certificate chain and host name")

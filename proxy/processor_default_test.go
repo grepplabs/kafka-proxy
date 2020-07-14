@@ -10,6 +10,125 @@ import (
 	"time"
 )
 
+func TestHandleRequest(t *testing.T) {
+	buf := make([]byte, defaultRequestBufferSize)
+
+	tt := []struct {
+		name       string
+		apiKey     int16
+		apiVersion int16
+		hexInput   string
+
+		mustReply bool
+	}{
+		{name: "Produce v2, kafka-client 0.10.2.2, acks=1", apiKey: 0, apiVersion: 2,
+			hexInput:  "00000086000000020000000500144b61666b614578616d706c6550726f647563657200010000753000000001000f746573742d6e6f2d68656164657273000000010000000000000041000000000000000000000035fe96cb720100000001734a61d94200000008000001734a61d8df0000001748656c6c6f204d6f6d2031353934363830373933333131",
+			mustReply: true,
+		},
+		{name: "Produce v2, kafka-client 0.10.2.2, acks=all", apiKey: 0, apiVersion: 2,
+			hexInput:  "00000086000000020000000500144b61666b614578616d706c6550726f6475636572ffff0000753000000001000f746573742d6e6f2d68656164657273000000010000000000000041000000000000000000000035f472a86d0100000001734a6349bb00000008000001734a6349600000001748656c6c6f204d6f6d2031353934363830383837363438",
+			mustReply: true,
+		},
+		{name: "Produce v2, kafka-client 0.10.2.2, acks=0", apiKey: 0, apiVersion: 2,
+			hexInput:  "00000086000000020000000500144b61666b614578616d706c6550726f647563657200000000753000000001000f746573742d6e6f2d68656164657273000000010000000000000041000000000000000000000035557b46590100000001734a64b31f00000008000001734a64b2be0000001748656c6c6f204d6f6d2031353934363830393830313538",
+			mustReply: false,
+		},
+		{name: "Produce v3, kafka-client 0.11.0.2, acks=1", apiKey: 0, apiVersion: 3,
+			hexInput:  "000000c2000000030000000500144b61666b614578616d706c6550726f6475636572ffff00010000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff0231f7fe0e000000000000000001734a66bef6000001734a66bef6ffffffffffffffffffffffffffff000000017a00000010000001734a66be5f2e48656c6c6f204d6f6d203135393436383131313432303702146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: true,
+		},
+		{name: "Produce v3, kafka-client 0.11.0.2, acks=all", apiKey: 0, apiVersion: 3,
+			hexInput:  "000000c2000000030000000500144b61666b614578616d706c6550726f6475636572ffffffff0000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff028386cf33000000000000000001734a6836c1000001734a6836c1ffffffffffffffffffffffffffff000000017a00000010000001734a68363f2e48656c6c6f204d6f6d203135393436383132313034333102146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: true,
+		},
+		{name: "Produce v3, kafka-client 0.11.0.2, acks=0", apiKey: 0, apiVersion: 3,
+			hexInput:  "000000c2000000030000000500144b61666b614578616d706c6550726f6475636572ffff00000000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff0274ff21b4000000000000000001734a68c09a000001734a68c09affffffffffffffffffffffffffff000000017a00000010000001734a68c0162e48656c6c6f204d6f6d203135393436383132343537313802146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: false,
+		},
+		{name: "Produce v3, kafka-client 2.5.0, acks=1", apiKey: 0, apiVersion: 8,
+			hexInput:  "000000c2000000080000000300144b61666b614578616d706c6550726f6475636572ffff00010000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff02662a226b000000000000000001734a69dfbd000001734a69dfbdffffffffffffffffffffffffffff000000017a00000010000001734a69deba2e48656c6c6f204d6f6d203135393436383133313930393802146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: true,
+		},
+		{name: "Produce v3, kafka-client 2.5.0, acks=all", apiKey: 0, apiVersion: 8,
+			hexInput:  "000000c2000000080000000300144b61666b614578616d706c6550726f6475636572ffffffff0000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff025afc90c2000000000000000001734a6ae36d000001734a6ae36dffffffffffffffffffffffffffff000000017a00000010000001734a6ae2592e48656c6c6f204d6f6d203135393436383133383535363102146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: true,
+		},
+		{name: "Produce v3, kafka-client 2.5.0, acks=0", apiKey: 0, apiVersion: 8,
+			hexInput:  "000000c2000000080000000300144b61666b614578616d706c6550726f6475636572ffff00000000753000000001000f746573742d6e6f2d6865616465727300000001000000000000007b00000000000000000000006fffffffff02021b145f000000000000000001734a6c14d6000001734a6c14d6ffffffffffffffffffffffffffff000000017a00000010000001734a6c13e42e48656c6c6f204d6f6d203135393436383134363337383002146865616465722d6b6579186865616465722d76616c7565",
+			mustReply: false,
+		},
+		{name: "ApiVersions v3, kafka-client 2.5.0", apiKey: 18, apiVersion: 3,
+			hexInput:  "00000038001200030000000000144b61666b614578616d706c6550726f647563657200126170616368652d6b61666b612d6a61766106322e352e3000",
+			mustReply: true,
+		},
+		{name: "Metadata v9, kafka-client 2.5.0, acks=0", apiKey: 3, apiVersion: 9,
+			hexInput:  "00000035000300090000000100144b61666b614578616d706c6550726f6475636572000210746573742d6e6f2d686561646572730001000000",
+			mustReply: true,
+		},
+	}
+	for _, tc := range tt {
+		input, err := hex.DecodeString(tc.hexInput)
+		if err != nil {
+			t.Fatal(err)
+		}
+		output := bytes.NewBuffer(make([]byte, 0))
+		dst := &TestDeadlineWriter{
+			Buffer: output,
+		}
+		readBuffer := bytes.NewBuffer(input)
+		writeBuffer := bytes.NewBuffer(make([]byte, 0))
+		src := &TestDeadlineReaderWriter{
+			reader: readBuffer,
+			writer: writeBuffer,
+		}
+
+		openRequestsChannel := make(chan protocol.RequestKeyVersion, 1)
+		nextRequestHandlerChannel := make(chan RequestHandler, 1)
+		nextResponseHandlerChannel := make(chan ResponseHandler, 1)
+
+		ctx := &RequestsLoopContext{
+			openRequestsChannel:        openRequestsChannel,
+			nextRequestHandlerChannel:  nextRequestHandlerChannel,
+			nextResponseHandlerChannel: nextResponseHandlerChannel,
+			timeout:                    1 * time.Second,
+			buf:                        buf,
+			localSasl:                  &LocalSasl{},
+		}
+
+		a := assert.New(t)
+		_, err = defaultRequestHandler.handleRequest(dst, src, ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.Equal(input, output.Bytes()) // local sasl is not tested
+		a.Empty(readBuffer.Bytes())    // check all bytes from input has been read
+
+		select {
+		case openRequest := <-openRequestsChannel:
+			a.True(tc.mustReply)
+			a.Equal(tc.apiKey, openRequest.ApiKey)
+			a.Equal(tc.apiVersion, openRequest.ApiVersion)
+		default:
+			a.False(tc.mustReply)
+		}
+
+		select {
+		case nextRequestHandler := <-nextRequestHandlerChannel:
+			a.Equal(defaultRequestHandler, nextRequestHandler)
+		default:
+			a.Fail("Next request was not received")
+		}
+
+		select {
+		case nextResponseHandler := <-nextResponseHandlerChannel:
+			a.True(tc.mustReply)
+			a.Equal(defaultResponseHandler, nextResponseHandler)
+		default:
+			a.False(tc.mustReply)
+		}
+	}
+}
+
 func TestHandleResponse(t *testing.T) {
 	netAddressMappingFunc := func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
 		if brokerHost == "localhost" {
@@ -32,6 +151,9 @@ func TestHandleResponse(t *testing.T) {
 		hexInput   string
 		hexOutput  string
 	}{
+		{name: "Produce v2, kafka-client 0.10.2.2", apiKey: 0, apiVersion: 2,
+			hexInput: "000000370000000500000001000f746573742d6e6f2d6865616465727300000001000000000000000000000000000affffffffffffffff00000000",
+		},
 		{name: "Produce v5, kafka-client 1.1.1", apiKey: 0, apiVersion: 5,
 			hexInput: "0000003f0000001000000001000f746573742d6e6f2d68656164657273000000010000000000000000000000000008ffffffffffffffff000000000000000000000000",
 		},
@@ -143,8 +265,7 @@ func TestHandleResponse(t *testing.T) {
 		ctx := &ResponsesLoopContext{openRequestsChannel: openRequestsChannel, timeout: 1 * time.Second, buf: buf, netAddressMappingFunc: netAddressMappingFunc}
 
 		a := assert.New(t)
-		handler := &DefaultResponseHandler{}
-		_, err = handler.handleResponse(dst, src, ctx)
+		_, err = defaultResponseHandler.handleResponse(dst, src, ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -167,4 +288,28 @@ type TestDeadlineReader struct {
 
 func (w *TestDeadlineReader) SetReadDeadline(t time.Time) error {
 	return nil
+}
+
+type TestDeadlineReaderWriter struct {
+	reader *bytes.Buffer
+	writer *bytes.Buffer
+}
+
+func (w *TestDeadlineReaderWriter) SetReadDeadline(t time.Time) error {
+	return nil
+}
+func (w *TestDeadlineReaderWriter) SetWriteDeadline(t time.Time) error {
+	return nil
+}
+
+func (w *TestDeadlineReaderWriter) SetDeadline(t time.Time) error {
+	return nil
+}
+
+func (w *TestDeadlineReaderWriter) Read(p []byte) (n int, err error) {
+	return w.reader.Read(p)
+}
+
+func (w *TestDeadlineReaderWriter) Write(p []byte) (n int, err error) {
+	return w.reader.Write(p)
 }

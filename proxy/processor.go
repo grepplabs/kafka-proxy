@@ -16,6 +16,7 @@ const (
 	defaultReadTimeout        = 30 * time.Second
 	minOpenRequests           = 16
 
+	apiKeyProduce        = int16(0)
 	apiKeySaslHandshake  = int16(17)
 	apiKeyApiApiVersions = int16(18)
 
@@ -40,6 +41,7 @@ type ProcessorConfig struct {
 	LocalSasl             *LocalSasl
 	AuthServer            *AuthServer
 	ForbiddenApiKeys      map[int16]struct{}
+	ProducerAcks0Disabled bool
 }
 
 type processor struct {
@@ -59,6 +61,8 @@ type processor struct {
 	forbiddenApiKeys map[int16]struct{}
 	// metrics
 	brokerAddress string
+	// producer will never send request with acks=0
+	producerAcks0Disabled bool
 }
 
 func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
@@ -102,6 +106,7 @@ func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
 		localSasl:                  cfg.LocalSasl,
 		authServer:                 cfg.AuthServer,
 		forbiddenApiKeys:           cfg.ForbiddenApiKeys,
+		producerAcks0Disabled:      cfg.ProducerAcks0Disabled,
 	}
 }
 
@@ -124,6 +129,7 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 		buf:                        make([]byte, p.requestBufferSize),
 		localSasl:                  p.localSasl,
 		localSaslDone:              false, // sequential processing - mutex is required
+		producerAcks0Disabled:      p.producerAcks0Disabled,
 	}
 
 	return ctx.requestsLoop(dst, src)
@@ -141,6 +147,8 @@ type RequestsLoopContext struct {
 
 	localSasl     *LocalSasl
 	localSaslDone bool
+
+	producerAcks0Disabled bool
 }
 
 // used by local authentication
