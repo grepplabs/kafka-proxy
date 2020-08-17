@@ -22,6 +22,8 @@ type LdapAuthenticator struct {
 	UPNDomain string
 	UserDN    string
 	UserAttr  string
+	ObjectClass  string
+	LookupUserDN bool
 }
 
 func (pa LdapAuthenticator) Authenticate(username, password string) (bool, int32, error) {
@@ -32,8 +34,18 @@ func (pa LdapAuthenticator) Authenticate(username, password string) (bool, int32
 		return false, 1, nil
 	}
 	defer l.Close()
+	dn := "not set"
+	if pa.LookupUserDN {
+		dn, err = getUserBindDNFromLDAP(l, pa.ObjectClass, pa.UserAttr, username, pa.UserDN)
+		if err != nil {
+			logrus.Errorf("could not get dn for user %s, ldap error %v", username, err)
+			return false, 0, nil
+		}
+	} else {
+		dn = pa.getUserBindDN(username)
+	}
 
-	err = l.Bind(pa.getUserBindDN(username), password)
+	err = l.Bind(dn, password)
 	if err != nil {
 		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultInvalidCredentials {
 			logrus.Errorf("user %s credentials are invalid", username)
@@ -139,16 +151,19 @@ type pluginMeta struct {
 	upnDomain string
 	userDN    string
 	userAttr  string
+	objectClass  string
+	lookupUserDN bool
 }
 
 func (f *pluginMeta) flagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("auth plugin settings", flag.ContinueOnError)
-
 	fs.StringVar(&f.url, "url", "", "LDAP URL to connect to (eg: ldaps://127.0.0.1:636). Multiple URLs can be specified by concatenating them with commas.")
 	fs.BoolVar(&f.startTLS, "start-tls", true, "Issue a StartTLS command after establishing unencrypted connection (optional)")
 	fs.StringVar(&f.upnDomain, "upn-domain", "", "Enables userPrincipalDomain login with [username]@UPNDomain (optional)")
 	fs.StringVar(&f.userDN, "user-dn", "", "LDAP domain to use for users (eg: cn=users,dc=example,dc=org)")
 	fs.StringVar(&f.userAttr, "user-attr", "uid", " Attribute used for users")
+	fs.StringVar(&f.objectClass, "object-class", "organizationalPerson", "LDAP object class tu use when searching for users")
+	fs.BoolVar(&f.lookupUserDN, "lookup-user-dn", false, "Search LDAP for real user dn, using --user-dn as base dn")
 	return fs
 }
 
@@ -175,6 +190,23 @@ func (f *pluginMeta) getUrls() ([]string, error) {
 		return nil, fmt.Errorf("empty LDAP url list")
 	}
 	return result, nil
+}
+
+func getUserBindDNFromLDAP(conn *ldap.Conn, objectClass, uidAttribute, username, baseDN string) (string, error) {
+	sr := ldap.NewSearchRequest(baseDN,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf("(&(objectClass=%s)(%s=%s))", objectClass, uidAttribute, escapeLDAPValue(username)), // The filter to apply
+		[]string{"dn", "cn"},                                                                            // A list attributes to retrieve
+		nil,
+	)
+	res, err := conn.Search(sr)
+	if err != nil {
+		return "", err
+	} else if len(res.Entries) != 1 {
+		return "", fmt.Errorf("search returned %d results, exactly 1 expected", len(res.Entries))
+	} else {
+		return res.Entries[0].DN, nil
+	}
 }
 
 func main() {

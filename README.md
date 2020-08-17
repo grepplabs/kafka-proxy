@@ -209,6 +209,17 @@ SASL authentication is performed by the proxy. SASL authentication is enabled on
                              --auth-local-param "--user-attr=uid" \
                              --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
 
+    # Same as above, but retrieve true User DN from LDAP using --user-dn parameter as base dn for search 
+    make clean build plugin.auth-ldap && build/kafka-proxy server \
+                             --auth-local-enable \
+                             --auth-local-command build/auth-ldap \
+                             --auth-local-param "--url=ldaps://ldap.example.com:636" \
+                             --auth-local-param "--user-dn=cn=users,dc=exemple,dc=com" \
+                             --auth-local-param "--lookup-user-dn" \
+                             --auth-local-param "--object-class=organizationalPerson" \   # Search only objects of this class
+                             --auth-local-param "--user-attr=uid" \
+                             --bootstrap-server-mapping "192.168.99.100:32400,127.0.0.1:32400"
+
     make clean build plugin.unsecured-jwt-info && build/kafka-proxy server \
                              --auth-local-enable \
                              --auth-local-command build/unsecured-jwt-info \
