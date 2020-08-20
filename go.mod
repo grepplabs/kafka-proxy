@@ -9,6 +9,7 @@ require (
 	github.com/cenkalti/backoff v1.1.0
 	github.com/elazarl/goproxy v0.0.0-20171101143503-a96fa3a31826
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/go-ldap/ldap/v3 v3.2.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.4.2
 	github.com/hashicorp/errwrap v0.0.0-20141028054710-7554cd9344ce // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	github.com/xdg/stringprep v1.0.0 // indirect
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/oauth2 v0.0.0-20180314180239-fdc9e635145a
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
@@ -45,6 +47,5 @@ require (
 	google.golang.org/genproto v0.0.0-20180316064809-f8c870359523 // indirect
 	google.golang.org/grpc v1.10.0
 	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
-	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
