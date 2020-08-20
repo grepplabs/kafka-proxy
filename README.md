@@ -312,6 +312,120 @@ Connect through test HTTP Proxy server using CONNECT method
                        --forward-proxy http://my-proxy-user:my-proxy-password@localhost:3128
 ```
 
+### Authentication and Authorization example
+
+Deploy OPA e.g. in containers
+
+Deploy IDP e.g. keycloak
+
+Deploy kafka with zookeepers
+
+Create client in OIDC software with client_credentials grant_type, e.g. keycloak.
+We assume that we are running OIDC auth endpoint on localhost:8080.
+Create json with credentials from created client for kafka-proxy serving as client e.g:
+
+```
+{
+"client_id": "client1",
+"client_secret": "21d0ef5f-6e70-4f51-be4a-208b69efef17",
+"token_url": "http://localhost:8080/auth/realms/master/protocol/openid-connect/token",
+"scopes": ["email"]
+}
+```
+
+Run kafka-proxy as client which will get token from OIDC endpoint (options OAUTHBEARER, plugin oidc-provider),
+our proxy client will listen on port 2000 and connect to kafka-proxy serving as server on port 4000:
+
+```
+build/kafka-proxy server \
+                         --sasl-enable \
+                         --sasl-plugin-enable \
+                         --sasl-plugin-mechanism "OAUTHBEARER" \
+                         --sasl-plugin-command build/oidc-provider \
+                         --sasl-plugin-param "--credentials-file=/tmp/creds1.json" \
+                         --bootstrap-server-mapping "127.0.0.1:4000,0.0.0.0:2000" \
+                         --http-disable
+```
+
+Start kafka-proxy as server which will authorize against OPA using token (OAUTHBEARER, auth-url),
+our server will listen for clients on port 4000 and connect to broker on port 9094
+
+```
+build/kafka-proxy server \
+                        --auth-local-enable \
+                        --auth-local-command build/unsecured-jwt-info \
+                        --auth-local-mechanism "OAUTHBEARER" \
+                        --bootstrap-server-mapping "172.31.0.5:9094,127.0.0.1:4000" \
+                        --http-disable \
+                        --authz-enable \
+                        --authz-command build/opa-provider \
+                        --authz-param "--authz-url=http://localhost:8181/v1/data/example/authz/allow"               
+```
+
+Create OPA policy, note that jwks must be downloaded from your IDP jwks endpoint and pasted here, otherwise validation will fail
+
+```
+package example.authz
+
+default allow = false
+
+jwks = `{"keys":[{"kid":"fepUCCWU2jiCc-dmGgaQxECvXUpfMnOeHPo6gZwDvMA","kty":"RSA","alg":"RS256","use":"sig","n":"pUmZCCtCmfaSVM52u07CgFxq8RGE_URiRD_5hCX9RA-5YHPZX2NDwfSBE2aX546Qq9iNjrVpoT9EokIxvN6t4W7HtDRcrAdFQRwCMGvylRLePpK10FpTe94NzOW0cL5KbqiHcux4NYwqrAKpo6z9mv6HERZVtH25hjzZnBxlz1LyjxcNJ1D7RGXXpTHPYAeWBXzW7t0bWjyBkx9NnB-vatGTdhE-WOPSSlrQHoez3NABQ4f7F360mILBuHox7Q69lMRYKEGAL8HHUAn8lcZQVjLYR8eY07psCykkU6M1jT3naueX4rAPzRWNNjxrVCyvQCAtxWRwvuWHuPhfmJIh-w","e":"AQAB","x5c":["MIICmzCCAYMCBgFz/BceSDANBgkqhkiG9w0BAQsFADARMQ8wDQYDVQQDDAZtYXN0ZXIwHhcNMjAwODE3MTEwMjIwWhcNMzAwODE3MTEwNDAwWjARMQ8wDQYDVQQDDAZtYXN0ZXIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQClSZkIK0KZ9pJUzna7TsKAXGrxEYT9RGJEP/mEJf1ED7lgc9lfY0PB9IETZpfnjpCr2I2OtWmhP0SiQjG83q3hbse0NFysB0VBHAIwa/KVEt4+krXQWlN73g3M5bRwvkpuqIdy7Hg1jCqsAqmjrP2a/ocRFlW0fbmGPNmcHGXPUvKPFw0nUPtEZdelMc9gB5YFfNbu3RtaPIGTH02cH69q0ZN2ET5Y49JKWtAeh7Pc0AFDh/sXfrSYgsG4ejHtDr2UxFgoQYAvwcdQCfyVxlBWMthHx5jTumwLKSRTozWNPedq55fisA/NFY02PGtULK9AIC3FZHC+5Ye4+F+YkiH7AgMBAAEwDQYJKoZIhvcNAQELBQADggEBABNt8gblqcqIxK1VOxMRTxWPxsHNTcn2kbiNqvB/n8BgCNLE3lCY7U9SUXeoPG9lt461J5W1nVV26SdpXWiNjs0X1eKCy8nVEYp0y7hhoE4DsqmEck33S/aaluMOVQHJHi7IkcqXyvQ4UvtIbF49WI53d0iGEsU07g1T2OfwElesaN1t+p/05rN9D2lUl7h2wefzYV7Jw8AWFTHapiyeS0wY0uz+tIWriz2S4ZYj8dwCcPy0Fx6zvbsI1I2e7ULbVX2QR00YUn7a/qxj89U8i02JhXq4CKM8k1P4Spti7mzgnLiZpU9i5EaMQpidfcyqHCofHiNSikbWJmdrKZPCbVI="],"x5t":"_lywNPiBlSsDy_pySYiaUIsGBuE","x5t#S256":"58X169BZt9We8EaHLC-aSc-gQofunaHQmfYSNtZnYAM"}]}`
+
+token = {"valid": valid, "payload": payload} {
+    valid := io.jwt.verify_rs256(input.user_info, jwks)
+    [header, payload, _] := io.jwt.decode(input.user_info)
+}
+
+
+is_token_valid {
+  token.valid
+}
+
+# used with specific topic Write/Read/Metadata/ApiVersions
+both_topic_allowed := {0, 1, 3, 18}
+
+client1_topics := ["client1topic"]
+client2_topics := ["client2topic"]
+
+allow {
+    is_token_valid
+    action_allow
+}
+
+action_allow {
+	input.api_key = 18
+}
+
+action_allow {
+	input.api_key = 3
+}
+
+action_allow {
+    token.payload.clientId = "client1"
+    both_topic_allowed[input.api_key]
+    client1_topics == input.topics
+}
+
+action_allow {
+    token.payload.clientId = "client2"
+    both_topic_allowed[input.api_key]
+    client2_topics == input.topics
+}
+
+```
+
+upload policy to OPA:
+
+```
+curl -X PUT -H 'Content-Type: text/plain' --data-binary @mypol.reg http://localhost:8181/v1/policies/example
+```
+
+Now client1 should have access only to client1topic, try with kafkacat:
+
+```
+echo "Blablabla"|kafkacat -b localhost:2000 -t client1topic -P
+```
+
 ### Kubernetes sidecar container example
 
 ```yaml
