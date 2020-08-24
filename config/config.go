@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
-	"github.com/pkg/errors"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
+	"github.com/pkg/errors"
 )
 
 const defaultClientID = "kafka-proxy"
@@ -70,6 +71,17 @@ type Config struct {
 			CAChainCertFile          string
 			ListenerCipherSuites     []string
 			ListenerCurvePreferences []string
+			ClientCert               struct {
+				ValidateSubject bool
+				Subject         struct {
+					CommonName         string
+					Country            []string
+					Province           []string
+					Locality           []string
+					Organization       []string
+					OrganizationalUnit []string
+				}
+			}
 		}
 	}
 	Auth struct {

@@ -3,16 +3,18 @@ package proxy
 import (
 	"bytes"
 	"crypto/x509"
-	"github.com/armon/go-socks5"
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
+	"crypto/x509/pkix"
 	"io"
 	"net"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/armon/go-socks5"
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultCipherSuites(t *testing.T) {
@@ -49,6 +51,69 @@ func TestEnabledCipherSuites(t *testing.T) {
 	// TLS_FALLBACK_SCSV is added as first
 	a.Equal(3, len(serverConfig.CipherSuites))
 	a.Equal(1, len(serverConfig.CurvePreferences))
+}
+
+func TestValidEnabledClientCertSubjectValidate(t *testing.T) {
+	a := assert.New(t)
+	testSubject := pkix.Name{
+		CommonName:         "integration-test",
+		Country:            []string{"DE"},
+		Locality:           []string{"test-file"},
+		Organization:       []string{"integration-test"},
+		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
+	}
+	bundle := NewCertsBundleWithSubject(testSubject)
+	defer bundle.Close()
+	c := new(config.Config)
+	c.Proxy.TLS.ClientCert.ValidateSubject = true
+	c.Proxy.TLS.ClientCert.Subject.CommonName = testSubject.CommonName
+	c.Proxy.TLS.ClientCert.Subject.Country = testSubject.Country
+	c.Proxy.TLS.ClientCert.Subject.Locality = testSubject.Locality
+	c.Proxy.TLS.ClientCert.Subject.Organization = testSubject.Organization
+	c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit = testSubject.OrganizationalUnit
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+
+	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle.ClientKey.Name()
+
+	_, _, _, err := makeTLSPipe(c, nil)
+
+	a.Nil(err)
+}
+
+func TestInvalidEnabledClientCertSubjectValidate(t *testing.T) {
+	a := assert.New(t)
+	testSubject := pkix.Name{
+		CommonName:         "integration-test",
+		Country:            []string{"DE"},
+		Locality:           []string{"test-file"},
+		Organization:       []string{"integration-test"},
+		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
+	}
+	bundle := NewCertsBundleWithSubject(testSubject)
+	defer bundle.Close()
+	c := new(config.Config)
+	c.Proxy.TLS.ClientCert.ValidateSubject = true
+	c.Proxy.TLS.ClientCert.Subject.CommonName = testSubject.CommonName
+	c.Proxy.TLS.ClientCert.Subject.Country = testSubject.Country
+	c.Proxy.TLS.ClientCert.Subject.Locality = testSubject.Locality
+	c.Proxy.TLS.ClientCert.Subject.Organization = testSubject.Organization
+	c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit = []string{"expected-OrganizationalUnit"}
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+
+	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle.ClientKey.Name()
+
+	_, _, _, err := makeTLSPipe(c, nil)
+
+	a.NotNil(err)
+	a.Contains(err.Error(), "tls: no client certificate presented required subject 's:/CN=integration-test/C=[DE]/S=[]/L=[test-file]/O=[integration-test]/OU=[expected-OrganizationalUnit]'")
 }
 
 func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {

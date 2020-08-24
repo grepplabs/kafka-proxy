@@ -7,18 +7,19 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"github.com/armon/go-socks5"
-	"github.com/elazarl/goproxy"
-	"github.com/elazarl/goproxy/ext/auth"
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/pkg/errors"
-	"golang.org/x/net/proxy"
 	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/armon/go-socks5"
+	"github.com/elazarl/goproxy"
+	"github.com/elazarl/goproxy/ext/auth"
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/pkg/errors"
+	"golang.org/x/net/proxy"
 )
 
 type testAcceptResult struct {
@@ -380,18 +381,23 @@ func makeHttpProxyPipe() (net.Conn, net.Conn, func(), error) {
 }
 
 func generateCert(catls *tls.Certificate, certFile *os.File, keyFile *os.File) error {
+	return generateCertWithSubject(catls, certFile, keyFile, pkix.Name{
+		Organization:       []string{"ORGANIZATION_NAME"},
+		OrganizationalUnit: []string{"ORGANIZATIONAL_UNIT"},
+		Country:            []string{"COUNTRY_CODE"},
+		Province:           []string{"PROVINCE"},
+		Locality:           []string{"CITY"},
+		StreetAddress:      []string{"ADDRESS"},
+		PostalCode:         []string{"POSTAL_CODE"},
+		CommonName:         "localhost",
+	})
+}
+
+func generateCertWithSubject(catls *tls.Certificate, certFile *os.File, keyFile *os.File, subject pkix.Name) error {
 	// Prepare certificate
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization:  []string{"ORGANIZATION_NAME"},
-			Country:       []string{"COUNTRY_CODE"},
-			Province:      []string{"PROVINCE"},
-			Locality:      []string{"CITY"},
-			StreetAddress: []string{"ADDRESS"},
-			PostalCode:    []string{"POSTAL_CODE"},
-			CommonName:    "localhost",
-		},
+		Subject:      subject,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
@@ -533,6 +539,52 @@ func NewCertsBundle() *CertsBundle {
 		panic(err)
 	}
 	err = generateCert(catls, bundle.ClientCert, bundle.ClientKey)
+	if err != nil {
+		panic(err)
+	}
+	return bundle
+}
+
+func NewCertsBundleWithSubject(subject pkix.Name) *CertsBundle {
+	bundle := &CertsBundle{}
+	dirName, err := ioutil.TempDir("", "tls-test")
+	if err != nil {
+		panic(err)
+	}
+	bundle.CACert, err = ioutil.TempFile(dirName, "ca-cert-")
+	if err != nil {
+		panic(err)
+	}
+	bundle.CAKey, err = ioutil.TempFile(dirName, "ca-key-")
+	if err != nil {
+		panic(err)
+	}
+	bundle.ServerCert, err = ioutil.TempFile(dirName, "server-cert-")
+	if err != nil {
+		panic(err)
+	}
+	bundle.ServerKey, err = ioutil.TempFile(dirName, "server-key-")
+	if err != nil {
+		panic(err)
+	}
+	bundle.ClientCert, err = ioutil.TempFile(dirName, "client-cert-")
+	if err != nil {
+		panic(err)
+	}
+	bundle.ClientKey, err = ioutil.TempFile("", "client-key-")
+	if err != nil {
+		panic(err)
+	}
+	// generate certs
+	catls, err := generateCA(bundle.CACert, bundle.CAKey)
+	if err != nil {
+		panic(err)
+	}
+	err = generateCert(catls, bundle.ServerCert, bundle.ServerKey)
+	if err != nil {
+		panic(err)
+	}
+	err = generateCertWithSubject(catls, bundle.ClientCert, bundle.ClientKey, subject)
 	if err != nil {
 		panic(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -120,6 +121,35 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 		cfg.ClientCAs = clientCAs
 		cfg.ClientAuth = tls.RequireAndVerifyClientCert
 	}
+
+	cfg.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		if conf.Proxy.TLS.ClientCert.ValidateSubject {
+			expected := fmt.Sprintf("s:/CN=%s/C=%v/S=%v/L=%v/O=%v/OU=%v",
+				conf.Proxy.TLS.ClientCert.Subject.CommonName,
+				conf.Proxy.TLS.ClientCert.Subject.Country,
+				conf.Proxy.TLS.ClientCert.Subject.Province,
+				conf.Proxy.TLS.ClientCert.Subject.Locality,
+				conf.Proxy.TLS.ClientCert.Subject.Organization,
+				conf.Proxy.TLS.ClientCert.Subject.OrganizationalUnit)
+			for _, chain := range verifiedChains {
+				for _, cert := range chain {
+					current := fmt.Sprintf("s:/CN=%s/C=%v/S=%v/L=%v/O=%v/OU=%v",
+						cert.Subject.CommonName,
+						cert.Subject.Country,
+						cert.Subject.Province,
+						cert.Subject.Locality,
+						cert.Subject.Organization,
+						cert.Subject.OrganizationalUnit)
+					if current == expected {
+						return nil
+					}
+				}
+			}
+			return fmt.Errorf("tls: no client certificate presented required subject '%s'", expected)
+		}
+		return nil
+	}
+
 	return cfg, nil
 }
 
