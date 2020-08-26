@@ -240,23 +240,6 @@ func (f *pluginMeta) getUrls() ([]string, error) {
 	return result, nil
 }
 
-func getUserBindDNFromLDAP(conn *ldap.Conn, objectClass, uidAttribute, username, baseDN string) (string, error) {
-	sr := ldap.NewSearchRequest(baseDN,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&(objectClass=%s)(%s=%s))", objectClass, uidAttribute, escapeLDAPValue(username)), // The filter to apply
-		[]string{"dn", "cn"},                                                                            // A list attributes to retrieve
-		nil,
-	)
-	res, err := conn.Search(sr)
-	if err != nil {
-		return "", err
-	} else if len(res.Entries) != 1 {
-		return "", fmt.Errorf("search returned %d results, exactly 1 expected", len(res.Entries))
-	} else {
-		return res.Entries[0].DN, nil
-	}
-}
-
 func main() {
 
 	pluginMeta := &pluginMeta{}
