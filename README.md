@@ -320,6 +320,55 @@ Deploy IDP e.g. keycloak
 
 Deploy kafka with zookeepers
 
+Example docker-compose, this will deploy kafka listening on port 9094, you should give docker-compose up,
+After start, kafka will fail because it doesn't have proper IP in {YOUR_DOCKER_CONTAINER_IP}, you should give
+docker stop your kafka container, docker inspect your kafka container, replace {YOUR_DOCKER_CONTAINER_IP} with
+IP of container and give again docker-compose up:
+
+
+```
+version: '2'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    build: .
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: {YOUR_DOCKER_CONTAINER_IP}
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://{YOUR_DOCKER_CONTAINER_IP}:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  keycloak:
+      image: quay.io/keycloak/keycloak:latest
+      environment:
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: admin
+      ports:
+        - "9990:9990"
+        - "8080:8080"
+        - "8443:8443"
+  opa:
+    # Note: openpolicyagent/opa:latest-istio is created by retagging
+    # the latest released image of OPA-Istio.
+    image: openpolicyagent/opa:0.19.2
+    ports:
+      - "8181:8181"
+    command:
+    - "run"
+    - "--server"
+    - "--set=decision_logs.console=true"
+    - "--ignore=.*"
+```
+
 Create client in OIDC software with client_credentials grant_type, e.g. keycloak.
 We assume that we are running OIDC auth endpoint on localhost:8080.
 Create json with credentials from created client for kafka-proxy serving as client e.g:
