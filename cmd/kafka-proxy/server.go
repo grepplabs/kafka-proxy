@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
 	"github.com/oklog/run"
@@ -20,13 +21,14 @@ import (
 	"time"
 
 	"errors"
+	"strings"
+
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	tokeninfo "github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	tokenprovider "github.com/grepplabs/kafka-proxy/plugin/token-provider/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"strings"
 
 	"github.com/grepplabs/kafka-proxy/pkg/registry"
 	// built-in plugins
@@ -104,6 +106,14 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file. If provided, client certificate is required and verified")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCipherSuites, "proxy-listener-cipher-suites", []string{}, "List of supported cipher suites")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCurvePreferences, "proxy-listener-curve-preferences", []string{}, "List of curve preferences")
+
+	Server.Flags().BoolVar(&c.Proxy.TLS.ClientCert.ValidateSubject, "proxy-listener-tls-client-cert-validate-subject", false, "Whether to validate client certificate subject")
+	Server.Flags().StringVar(&c.Proxy.TLS.ClientCert.Subject.CommonName, "proxy-listener-tls-client-cert-subject-common-name", "", "Required client certificate subject common name")
+	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Country, "proxy-listener-tls-required-client-subject-country", []string{}, "Required client certificate subject country")
+	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Province, "proxy-listener-tls-required-client-subject-province", []string{}, "Required client certificate subject province")
+	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Locality, "proxy-listener-tls-required-client-subject-locality", []string{}, "Required client certificate subject locality")
+	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Organization, "proxy-listener-tls-required-client-subject-organization", []string{}, "Required client certificate subject organization")
+	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit, "proxy-listener-tls-required-client-subject-organizational-unit", []string{}, "Required client certificate subject organizational unit")
 
 	// local authentication plugin
 	Server.Flags().BoolVar(&c.Auth.Local.Enable, "auth-local-enable", false, "Enable local SASL/PLAIN authentication performed by listener - SASL handshake will not be passed to kafka brokers")
