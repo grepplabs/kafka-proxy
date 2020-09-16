@@ -108,7 +108,7 @@ func initFlags() {
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCurvePreferences, "proxy-listener-curve-preferences", []string{}, "List of curve preferences")
 
 	Server.Flags().BoolVar(&c.Proxy.TLS.ClientCert.ValidateSubject, "proxy-listener-tls-client-cert-validate-subject", false, "Whether to validate client certificate subject")
-	Server.Flags().StringVar(&c.Proxy.TLS.ClientCert.Subject.CommonName, "proxy-listener-tls-client-cert-subject-common-name", "", "Required client certificate subject common name")
+	Server.Flags().StringVar(&c.Proxy.TLS.ClientCert.Subject.CommonName, "proxy-listener-tls-required-client-subject-common-name", "", "Required client certificate subject common name")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Country, "proxy-listener-tls-required-client-subject-country", []string{}, "Required client certificate subject country")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Province, "proxy-listener-tls-required-client-subject-province", []string{}, "Required client certificate subject province")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ClientCert.Subject.Locality, "proxy-listener-tls-required-client-subject-locality", []string{}, "Required client certificate subject locality")
