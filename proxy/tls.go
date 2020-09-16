@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,33 +125,129 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 
 	cfg.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		if conf.Proxy.TLS.ClientCert.ValidateSubject {
-			expected := fmt.Sprintf("s:/CN=%s/C=%v/S=%v/L=%v/O=%v/OU=%v",
-				conf.Proxy.TLS.ClientCert.Subject.CommonName,
-				conf.Proxy.TLS.ClientCert.Subject.Country,
-				conf.Proxy.TLS.ClientCert.Subject.Province,
-				conf.Proxy.TLS.ClientCert.Subject.Locality,
-				conf.Proxy.TLS.ClientCert.Subject.Organization,
-				conf.Proxy.TLS.ClientCert.Subject.OrganizationalUnit)
+
+			expectedFields := map[string]string{}
+			expectedParts := []string{"s:"}
+			values := []string{}
+
+			if conf.Proxy.TLS.ClientCert.Subject.CommonName != "" {
+				expectedFields["CN"] = conf.Proxy.TLS.ClientCert.Subject.CommonName
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "CN", expectedFields["CN"]))
+			}
+			values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Country)
+			if len(values) > 0 {
+				sort.Strings(values)
+				expectedFields["C"] = fmt.Sprintf("%v", values)
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "C", expectedFields["C"]))
+			}
+			values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Province)
+			if len(values) > 0 {
+				sort.Strings(values)
+				expectedFields["S"] = fmt.Sprintf("%v", values)
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "S", expectedFields["S"]))
+			}
+			values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Locality)
+			if len(values) > 0 {
+				sort.Strings(values)
+				expectedFields["L"] = fmt.Sprintf("%v", values)
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "L", expectedFields["L"]))
+			}
+			values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Organization)
+			if len(values) > 0 {
+				sort.Strings(values)
+				expectedFields["O"] = fmt.Sprintf("%v", values)
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "O", expectedFields["O"]))
+			}
+			values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.OrganizationalUnit)
+			if len(values) > 0 {
+				sort.Strings(values)
+				expectedFields["OU"] = fmt.Sprintf("%v", values)
+				expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", "OU", expectedFields["OU"]))
+			}
+
+			if len(expectedFields) == 0 {
+				return nil // nothing to validate
+			}
+
 			for _, chain := range verifiedChains {
 				for _, cert := range chain {
-					current := fmt.Sprintf("s:/CN=%s/C=%v/S=%v/L=%v/O=%v/OU=%v",
-						cert.Subject.CommonName,
-						cert.Subject.Country,
-						cert.Subject.Province,
-						cert.Subject.Locality,
-						cert.Subject.Organization,
-						cert.Subject.OrganizationalUnit)
-					if current == expected {
+
+					certificateAcceptable := true
+
+					for k, v := range expectedFields {
+						if k == "CN" {
+							if v != cert.Subject.CommonName {
+								certificateAcceptable = false
+								break
+							}
+						}
+						if k == "C" {
+							currentValues := cert.Subject.Country
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+						if k == "S" {
+							currentValues := cert.Subject.Province
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+						if k == "L" {
+							currentValues := cert.Subject.Locality
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+						if k == "O" {
+							currentValues := cert.Subject.Organization
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+						if k == "OU" {
+							currentValues := cert.Subject.OrganizationalUnit
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+					}
+
+					if certificateAcceptable {
 						return nil
 					}
+
 				}
 			}
-			return fmt.Errorf("tls: no client certificate presented required subject '%s'", expected)
+
+			return fmt.Errorf("tls: no client certificate presented required subject '%s'", strings.Join(expectedParts, "/"))
+
 		}
 		return nil
 	}
 
 	return cfg, nil
+}
+
+func removeEmptyStrings(input []string) []string {
+	output := []string{}
+	for _, value := range input {
+		if value == "" {
+			continue
+		}
+		output = append(output, value)
+	}
+	return output
 }
 
 func getCipherSuites(enabledCipherSuites []string) ([]uint16, error) {

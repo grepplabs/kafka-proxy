@@ -58,6 +58,7 @@ func TestValidEnabledClientCertSubjectValidate(t *testing.T) {
 	testSubject := pkix.Name{
 		CommonName:         "integration-test",
 		Country:            []string{"DE"},
+		Province:           []string{"NRW"},
 		Locality:           []string{"test-file"},
 		Organization:       []string{"integration-test"},
 		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
@@ -68,6 +69,7 @@ func TestValidEnabledClientCertSubjectValidate(t *testing.T) {
 	c.Proxy.TLS.ClientCert.ValidateSubject = true
 	c.Proxy.TLS.ClientCert.Subject.CommonName = testSubject.CommonName
 	c.Proxy.TLS.ClientCert.Subject.Country = testSubject.Country
+	c.Proxy.TLS.ClientCert.Subject.Province = testSubject.Province
 	c.Proxy.TLS.ClientCert.Subject.Locality = testSubject.Locality
 	c.Proxy.TLS.ClientCert.Subject.Organization = testSubject.Organization
 	c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit = testSubject.OrganizationalUnit
@@ -89,6 +91,7 @@ func TestInvalidEnabledClientCertSubjectValidate(t *testing.T) {
 	testSubject := pkix.Name{
 		CommonName:         "integration-test",
 		Country:            []string{"DE"},
+		Province:           []string{"NRW"},
 		Locality:           []string{"test-file"},
 		Organization:       []string{"integration-test"},
 		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
@@ -99,6 +102,7 @@ func TestInvalidEnabledClientCertSubjectValidate(t *testing.T) {
 	c.Proxy.TLS.ClientCert.ValidateSubject = true
 	c.Proxy.TLS.ClientCert.Subject.CommonName = testSubject.CommonName
 	c.Proxy.TLS.ClientCert.Subject.Country = testSubject.Country
+	c.Proxy.TLS.ClientCert.Subject.Province = testSubject.Province
 	c.Proxy.TLS.ClientCert.Subject.Locality = testSubject.Locality
 	c.Proxy.TLS.ClientCert.Subject.Organization = testSubject.Organization
 	c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit = []string{"expected-OrganizationalUnit"}
@@ -113,7 +117,93 @@ func TestInvalidEnabledClientCertSubjectValidate(t *testing.T) {
 	_, _, _, err := makeTLSPipe(c, nil)
 
 	a.NotNil(err)
-	a.Contains(err.Error(), "tls: no client certificate presented required subject 's:/CN=integration-test/C=[DE]/S=[]/L=[test-file]/O=[integration-test]/OU=[expected-OrganizationalUnit]'")
+	a.Contains(err.Error(), "tls: no client certificate presented required subject 's:/CN=integration-test/C=[DE]/S=[NRW]/L=[test-file]/O=[integration-test]/OU=[expected-OrganizationalUnit]'")
+}
+
+func TestValidEnabledClientCertSubjectMayContainNotRequiredValues(t *testing.T) {
+	a := assert.New(t)
+	testSubject := pkix.Name{
+		CommonName:         "integration-test",
+		Country:            []string{"DE"},
+		Province:           []string{"NRW"},
+		Locality:           []string{"locality-not-validated"},
+		Organization:       []string{"integration-test"},
+		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
+	}
+	bundle := NewCertsBundleWithSubject(testSubject)
+	defer bundle.Close()
+	c := new(config.Config)
+	c.Proxy.TLS.ClientCert.ValidateSubject = true
+	c.Proxy.TLS.ClientCert.Subject.CommonName = testSubject.CommonName
+	c.Proxy.TLS.ClientCert.Subject.Country = testSubject.Country
+	c.Proxy.TLS.ClientCert.Subject.Province = testSubject.Province
+	c.Proxy.TLS.ClientCert.Subject.Organization = testSubject.Organization
+	c.Proxy.TLS.ClientCert.Subject.OrganizationalUnit = testSubject.OrganizationalUnit
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+
+	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle.ClientKey.Name()
+
+	_, _, _, err := makeTLSPipe(c, nil)
+
+	a.Nil(err)
+}
+
+func TestValidEnabledClientCertSubjectMayContainValuesInDifferentOrder(t *testing.T) {
+	a := assert.New(t)
+	testSubject := pkix.Name{
+		CommonName:         "integration-test",
+		Country:            []string{"DE", "PL"},
+		Province:           []string{"NRW"},
+		Organization:       []string{"integration-test"},
+		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
+	}
+	bundle := NewCertsBundleWithSubject(testSubject)
+	defer bundle.Close()
+	c := new(config.Config)
+	c.Proxy.TLS.ClientCert.ValidateSubject = true
+	c.Proxy.TLS.ClientCert.Subject.Country = []string{"PL", "DE"}
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+
+	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle.ClientKey.Name()
+
+	_, _, _, err := makeTLSPipe(c, nil)
+
+	a.Nil(err)
+}
+
+func TestValidEnabledClientCertSubjectEemptyValuesAreIgnored(t *testing.T) {
+	a := assert.New(t)
+	testSubject := pkix.Name{
+		CommonName:         "integration-test",
+		Country:            []string{"DE", "PL"},
+		Province:           []string{"NRW"},
+		Organization:       []string{"integration-test"},
+		OrganizationalUnit: []string{"invalid-OrganizationalUnit"},
+	}
+	bundle := NewCertsBundleWithSubject(testSubject)
+	defer bundle.Close()
+	c := new(config.Config)
+	c.Proxy.TLS.ClientCert.ValidateSubject = true
+	c.Proxy.TLS.ClientCert.Subject.Country = []string{"PL", "", "DE"}
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+
+	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
+	c.Kafka.TLS.ClientKeyFile = bundle.ClientKey.Name()
+
+	_, _, _, err := makeTLSPipe(c, nil)
+
+	a.Nil(err)
 }
 
 func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
