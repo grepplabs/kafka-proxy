@@ -253,12 +253,12 @@ func main() {
 		os.Exit(1)
 	}
 	if pluginMeta.bindDN != "" {
-		logrus.Infof("user-search-base='%s',user-filter='%s'", pluginMeta.userSearchBase,pluginMeta.userFilter)
+		logrus.Infof("user-search-base='%s',user-filter='%s'", pluginMeta.userSearchBase, pluginMeta.userFilter)
 
 		if pluginMeta.userSearchBase == "" {
 			logrus.Errorf("user-search-base is required")
 		}
-		if !strings.Contains(pluginMeta.userFilter,UsernamePlaceholder) {
+		if !strings.Contains(pluginMeta.userFilter, UsernamePlaceholder) {
 			logrus.Errorf("user-filter must contain '%s' as username placeholder", UsernamePlaceholder)
 		}
 
