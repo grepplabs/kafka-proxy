@@ -145,10 +145,9 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 }
 
 func tlsClientCertVerificationFunc(conf *config.Config) func([][]byte, [][]*x509.Certificate) error {
+	expectedData := getClientCertExpectedData(conf)
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		if conf.Proxy.TLS.ClientCert.ValidateSubject {
-
-			expectedData := getClientCertExpectedData(conf)
 
 			if len(expectedData.fields) == 0 {
 				return nil // nothing to validate
