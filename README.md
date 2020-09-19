@@ -141,6 +141,14 @@ See:
           --tls-insecure-skip-verify                       It controls whether a client verifies the server's certificate chain and host name
           --tls-same-client-cert-enable                    Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)
 
+          --proxy-listener-tls-client-cert-validate-subject bool                        Whether to validate client certificate subject (default false)
+	        --proxy-listener-tls-required-client-subject-common-name string               Required client certificate subject common name
+          --proxy-listener-tls-required-client-subject-country stringArray              Required client certificate subject country
+	        --proxy-listener-tls-required-client-subject-province stringArray             Required client certificate subject province
+	        --proxy-listener-tls-required-client-subject-locality stringArray             Required client certificate subject locality
+	        --proxy-listener-tls-required-client-subject-organization stringArray         Required client certificate subject organization
+	        --proxy-listener-tls-required-client-subject-organizational-unit stringArray  Required client certificate subject organizational unit
+
 ### Usage example
 	
 	kafka-proxy server --bootstrap-server-mapping "192.168.99.100:32400,0.0.0.0:32399"
@@ -310,6 +318,29 @@ Connect through test HTTP Proxy server using CONNECT method
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy http://my-proxy-user:my-proxy-password@localhost:3128
+```
+
+### Validating client certificate DN
+
+Sometimes it might be necessary to not only validate that the client certificate is valid but also that the client certificate DN is issued for a concrete use case. This can be achieved using the following set of arguments:
+
+```
+--proxy-listener-tls-client-cert-validate-subject bool                        Whether to validate client certificate subject (default false)
+--proxy-listener-tls-required-client-subject-common-name string               Required client certificate subject common name
+--proxy-listener-tls-required-client-subject-country stringArray              Required client certificate subject country
+--proxy-listener-tls-required-client-subject-province stringArray             Required client certificate subject province
+--proxy-listener-tls-required-client-subject-locality stringArray             Required client certificate subject locality
+--proxy-listener-tls-required-client-subject-organization stringArray         Required client certificate subject organization
+--proxy-listener-tls-required-client-subject-organizational-unit stringArray  Required client certificate subject organizational unit
+```
+
+By setting `--proxy-listener-tls-client-cert-validate-subject true`, Kafka Proxy will inspect client certificate DN fields for the expected values set with the `--proxy-listener-tls-required-client-*` arguments. The matches are always exact and used together, fo all non empty values. For example, to allow a valid certificate for `country=DE` and `organization=grepplabs`, configure Kafka Proxy in the following way:
+
+```
+    kafka-proxy server \
+      --proxy-listener-tls-client-cert-validate-subject true \
+      --proxy-listener-tls-required-client-subject-country DE \
+      --proxy-listener-tls-required-client-subject-organization grepplabs
 ```
 
 ### Kubernetes sidecar container example
