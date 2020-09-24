@@ -89,6 +89,14 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					topics := reqBody.(protocol.TopicRequestInterface).GetTopics()
 
 					if err != nil {
+						err := fmt.Errorf(
+							"apiversion: %d, apikey: %d, dstip: %s, srcip: %s, %w",
+							int32(requestKeyVersion.ApiVersion),
+							int32(requestKeyVersion.ApiKey),
+							ctx.brokerAddress,
+							ctx.srcAddress,
+							err,
+						)
 						return false, err
 					}
 
