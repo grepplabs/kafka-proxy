@@ -5,13 +5,13 @@ ARG GOARCH=amd64
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
-RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean build
+RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean all
 
 FROM alpine:3.11
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build/kafka-proxy /kafka-proxy
+COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build/* /bin/
 
-ENTRYPOINT ["/kafka-proxy"]
+ENTRYPOINT ["/bin/kafka-proxy"]
 CMD ["--help"]
