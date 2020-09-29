@@ -25,7 +25,8 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 	// logrus.Println("Await Kafka request")
 
 	// waiting for first bytes or EOF - reset deadlines
-	var payload []byte = nil
+	var payload []byte
+
 	if err = src.SetReadDeadline(time.Time{}); err != nil {
 		return true, err
 	}
@@ -84,9 +85,37 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 				}
 
 				if _, ok := decodedApiKeys[requestKeyVersion.ApiKey]; ok {
-					req, reqBody, pay, err := getPartialDecodedRequest(keyVersionBuf, src)
+					clientID, reqBody, pay, err := getPartialDecodedRequest(keyVersionBuf, src)
 					payload = pay
-					topics := reqBody.(protocol.TopicRequestInterface).GetTopics()
+
+					if err != nil {
+						err := fmt.Errorf(
+							"apiversion: %d, apikey: %d, dstip: %s, srcip: %s, %w",
+							int32(requestKeyVersion.ApiVersion),
+							int32(requestKeyVersion.ApiKey),
+							ctx.brokerAddress,
+							ctx.srcAddress,
+							err,
+						)
+						return false, err
+					}
+
+					topicsReqIntf, ok := reqBody.(protocol.TopicRequestInterface)
+
+					if !ok {
+						err := fmt.Errorf(
+							"%s %T; apiversion: %d, apikey: %d, dstip: %s, srcip: %s",
+							"Bad assertion, not protocol.TopicRequestInterface, reqBody is of type ",
+							reqBody,
+							int32(requestKeyVersion.ApiVersion),
+							int32(requestKeyVersion.ApiKey),
+							ctx.brokerAddress,
+							ctx.srcAddress,
+						)
+						return false, err
+					}
+
+					topics := topicsReqIntf.GetTopics()
 
 					if err != nil {
 						err := fmt.Errorf(
@@ -101,7 +130,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					}
 
 					authzRequest.Topics = strings.Join(topics, ";")
-					authzRequest.ClientId = req.ClientID
+					authzRequest.ClientId = clientID
 				}
 
 				authResponse, err := ctx.authz.authzProvider.Authorize(context.Background(), authzRequest)
@@ -153,7 +182,16 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		}
 	}
 
-	mustReply, _, err := handler.mustReply(requestKeyVersion, src, ctx)
+	var newSource io.Reader
+
+	if len(payload) > 0 {
+		newSource = bytes.NewReader(payload)
+	} else {
+		newSource = src
+	}
+
+	mustReply, readBytes, err := handler.mustReply(requestKeyVersion, newSource, ctx)
+
 	if err != nil {
 		return true, err
 	}
@@ -180,12 +218,23 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		return false, err
 	}
 
-	if payload != nil {
+	if len(payload) > 0 && len(readBytes) >= 0 {
 		if _, err = dst.Write(payload); err != nil {
 			return false, err
 		}
-	} else {
-		// 4 bytes were written as keyVersionBuf (ApiKey, ApiVersion)
+	}
+
+	if len(payload) == 0 && len(readBytes) > 0 {
+		if _, err = dst.Write(readBytes); err != nil {
+			return false, err
+		}
+
+		if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-int32(4+len(readBytes))), ctx.buf); err != nil {
+			return readErr, err
+		}
+	}
+
+	if len(payload) == 0 && len(readBytes) == 0 {
 		if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-4), ctx.buf); err != nil {
 			return readErr, err
 		}
