@@ -3,6 +3,7 @@ package proto;
 
 message AuthzRequest {
     int32 apikey = 1;
+    int32 apiversion = 2;
     string user_info = 3;
     string src_ip = 4;
     string dst_ip = 5;

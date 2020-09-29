@@ -15,12 +15,13 @@ func (m *RPCClient) Authorize(ctx context.Context, request apis.AuthzRequest) (a
 	err := m.client.Call(
 		"Plugin.Authorize",
 		map[string]interface{}{
-			"apikey":    request.Apikey,
-			"user_info": request.UserInfo,
-			"src_ip":    request.SrcIp,
-			"dst_ip":    request.DstIp,
-			"topics":    request.Topics,
-			"client_id": request.ClientId,
+			"apikey":     request.Apikey,
+			"apiversion": request.Apiversion,
+			"user_info":  request.UserInfo,
+			"src_ip":     request.SrcIp,
+			"dst_ip":     request.DstIp,
+			"topics":     request.Topics,
+			"client_id":  request.ClientId,
 		},
 		&resp,
 	)
@@ -36,12 +37,13 @@ func (m *RPCServer) Authorize(args map[string]interface{}, resp *map[string]inte
 	r, err := m.Impl.Authorize(
 		context.Background(),
 		apis.AuthzRequest{
-			Apikey:   args["apikey"].(int32),
-			UserInfo: args["user_info"].(string),
-			SrcIp:    args["src_ip"].(string),
-			DstIp:    args["dst_ip"].(string),
-			Topics:   args["topics"].(string),
-			ClientId: args["client_id"].(string),
+			Apikey:     args["apikey"].(int32),
+			Apiversion: args["apiversion"].(int32),
+			UserInfo:   args["user_info"].(string),
+			SrcIp:      args["src_ip"].(string),
+			DstIp:      args["dst_ip"].(string),
+			Topics:     args["topics"].(string),
+			ClientId:   args["client_id"].(string),
 		},
 	)
 

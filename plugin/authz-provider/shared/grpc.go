@@ -17,12 +17,13 @@ type GRPCClient struct {
 func (m *GRPCClient) Authorize(ctx context.Context, request apis.AuthzRequest) (apis.AuthzResponse, error) {
 	resp, err := m.client.Authorize(ctx,
 		&proto.AuthzRequest{
-			Apikey:   request.Apikey,
-			UserInfo: request.UserInfo,
-			SrcIp:    request.SrcIp,
-			DstIp:    request.DstIp,
-			Topics:   request.Topics,
-			ClientId: request.ClientId,
+			Apikey:     request.Apikey,
+			Apiversion: request.Apiversion,
+			UserInfo:   request.UserInfo,
+			SrcIp:      request.SrcIp,
+			DstIp:      request.DstIp,
+			Topics:     request.Topics,
+			ClientId:   request.ClientId,
 		},
 	)
 
@@ -42,12 +43,13 @@ func (m *GRPCServer) Authorize(
 	resp, err := m.Impl.Authorize(
 		ctx,
 		apis.AuthzRequest{
-			Apikey:   request.Apikey,
-			UserInfo: request.UserInfo,
-			SrcIp:    request.SrcIp,
-			DstIp:    request.DstIp,
-			Topics:   request.Topics,
-			ClientId: request.ClientId,
+			Apikey:     request.Apikey,
+			Apiversion: request.Apiversion,
+			UserInfo:   request.UserInfo,
+			SrcIp:      request.SrcIp,
+			DstIp:      request.DstIp,
+			Topics:     request.Topics,
+			ClientId:   request.ClientId,
 		},
 	)
 
