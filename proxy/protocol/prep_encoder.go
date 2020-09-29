@@ -113,6 +113,9 @@ func (pe *prepEncoder) putStringArray(in []string) error {
 }
 
 func (pe *prepEncoder) putInt32Array(in []int32) error {
+	if in == nil {
+		return pe.putArrayLength(-1)
+	}
 	err := pe.putArrayLength(len(in))
 	if err != nil {
 		return err
@@ -122,6 +125,9 @@ func (pe *prepEncoder) putInt32Array(in []int32) error {
 }
 
 func (pe *prepEncoder) putInt64Array(in []int64) error {
+	if in == nil {
+		return pe.putArrayLength(-1)
+	}
 	err := pe.putArrayLength(len(in))
 	if err != nil {
 		return err

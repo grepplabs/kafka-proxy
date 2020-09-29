@@ -112,6 +112,9 @@ func (re *realEncoder) putStringArray(in []string) error {
 }
 
 func (re *realEncoder) putInt32Array(in []int32) error {
+	if in == nil {
+		return re.putArrayLength(-1)
+	}
 	err := re.putArrayLength(len(in))
 	if err != nil {
 		return err
@@ -123,6 +126,9 @@ func (re *realEncoder) putInt32Array(in []int32) error {
 }
 
 func (re *realEncoder) putInt64Array(in []int64) error {
+	if in == nil {
+		return re.putArrayLength(-1)
+	}
 	err := re.putArrayLength(len(in))
 	if err != nil {
 		return err

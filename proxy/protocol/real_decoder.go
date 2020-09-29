@@ -192,26 +192,24 @@ func (rd *realDecoder) getNullableString() (*string, error) {
 }
 
 func (rd *realDecoder) getInt32Array() ([]int32, error) {
-	if rd.remaining() < 4 {
-		rd.off = len(rd.raw)
-		return nil, ErrInsufficientData
-	}
-	n := int(binary.BigEndian.Uint32(rd.raw[rd.off:]))
-	rd.off += 4
+	n, err := rd.getArrayLength()
 
+	if err != nil {
+		return nil, err
+	}
+	if n == -1 {
+		return nil, nil
+	}
+	if n == 0 {
+		return []int32{}, nil
+	}
+	if n < -1 {
+		return nil, errInvalidArrayLength
+	}
 	if rd.remaining() < 4*n {
 		rd.off = len(rd.raw)
 		return nil, ErrInsufficientData
 	}
-
-	if n == 0 {
-		return nil, nil
-	}
-
-	if n < 0 {
-		return nil, errInvalidArrayLength
-	}
-
 	ret := make([]int32, n)
 	for i := range ret {
 		ret[i] = int32(binary.BigEndian.Uint32(rd.raw[rd.off:]))
@@ -221,26 +219,24 @@ func (rd *realDecoder) getInt32Array() ([]int32, error) {
 }
 
 func (rd *realDecoder) getInt64Array() ([]int64, error) {
-	if rd.remaining() < 4 {
-		rd.off = len(rd.raw)
-		return nil, ErrInsufficientData
-	}
-	n := int(binary.BigEndian.Uint32(rd.raw[rd.off:]))
-	rd.off += 4
+	n, err := rd.getArrayLength()
 
+	if err != nil {
+		return nil, err
+	}
+	if n == -1 {
+		return nil, nil
+	}
+	if n == 0 {
+		return []int64{}, nil
+	}
+	if n < -1 {
+		return nil, errInvalidArrayLength
+	}
 	if rd.remaining() < 8*n {
 		rd.off = len(rd.raw)
 		return nil, ErrInsufficientData
 	}
-
-	if n == 0 {
-		return nil, nil
-	}
-
-	if n < 0 {
-		return nil, errInvalidArrayLength
-	}
-
 	ret := make([]int64, n)
 	for i := range ret {
 		ret[i] = int64(binary.BigEndian.Uint64(rd.raw[rd.off:]))
@@ -258,6 +254,10 @@ func (rd *realDecoder) getStringArray() ([]string, error) {
 
 	if n == -1 {
 		return nil, nil
+	}
+
+	if n < -1 {
+		return nil, errInvalidArrayLength
 	}
 
 	ret := make([]string, n)

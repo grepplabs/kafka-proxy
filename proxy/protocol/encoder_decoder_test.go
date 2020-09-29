@@ -292,6 +292,154 @@ func TestEncodeDecodeCompactNullableArray(t *testing.T) {
 	}
 }
 
+func TestEncodeDecodeInt32Array(t *testing.T) {
+	tt := []struct {
+		name   string
+		values []int32
+	}{
+		{name: "nil array", values: nil},
+		{name: "empty array", values: []int32{}},
+		{name: "0", values: []int32{0}},
+		{name: "0s", values: []int32{0, 0}},
+		{name: "1", values: []int32{1}},
+		{name: "1s", values: []int32{1, 1}},
+		{name: "2", values: []int32{2}},
+		{name: "3", values: []int32{3}},
+		{name: "4", values: []int32{4}},
+		{name: "16", values: []int32{16}},
+		{name: "63", values: []int32{63}},
+		{name: "64", values: []int32{64}},
+		{name: "128", values: []int32{128}},
+		{name: "8191", values: []int32{8191}},
+		{name: "8192", values: []int32{8192}},
+		{name: "32767", values: []int32{math.MaxInt16}},
+		{name: "32767,-32768", values: []int32{math.MaxInt16, math.MinInt16}},
+		{name: "2147483647,-2147483648", values: []int32{math.MaxInt32, math.MinInt32}},
+		{name: "different values", values: []int32{0, 1, 2, 3, 4, -1, 16, 64, 127, 128, 8191, 8192, 8191, 128, 127, -1, 64, 16, 4, 3, 2, 1, -1, 0}},
+	}
+	for _, tc := range tt {
+		request := &Int32ArrayHolder{
+			values: tc.values,
+		}
+		buf, err := Encode(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := &Int32ArrayHolder{}
+		err = Decode(buf, response)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (request.values == nil && response.values != nil) || (request.values != nil && response.values == nil) {
+			t.Fatalf("Nils comparison error: expected %v, actual %v", request.values == nil, response.values == nil)
+		}
+		if len(request.values) != len(response.values) {
+			t.Fatalf("Values array lengths differ: expected %v, actual %v", request.values, response.values)
+		}
+		for i := range request.values {
+			if request.values[i] != response.values[i] {
+				t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
+			}
+		}
+	}
+}
+
+func TestEncodeDecodeInt64Array(t *testing.T) {
+	tt := []struct {
+		name   string
+		values []int64
+	}{
+		{name: "nil array", values: nil},
+		{name: "empty array", values: []int64{}},
+		{name: "0", values: []int64{0}},
+		{name: "0s", values: []int64{0, 0}},
+		{name: "1", values: []int64{1}},
+		{name: "1s", values: []int64{1, 1}},
+		{name: "2", values: []int64{2}},
+		{name: "3", values: []int64{3}},
+		{name: "4", values: []int64{4}},
+		{name: "16", values: []int64{16}},
+		{name: "63", values: []int64{63}},
+		{name: "64", values: []int64{64}},
+		{name: "128", values: []int64{128}},
+		{name: "8191", values: []int64{8191}},
+		{name: "8192", values: []int64{8192}},
+		{name: "32767", values: []int64{math.MaxInt16}},
+		{name: "32767,-32768", values: []int64{math.MaxInt16, math.MinInt16}},
+		{name: "2147483647", values: []int64{math.MaxInt32}},
+		{name: "2147483647,-2147483648", values: []int64{math.MaxInt32, math.MinInt32}},
+		{name: "max,min", values: []int64{math.MaxInt64, math.MinInt64}},
+		{name: "different values", values: []int64{0, 1, 2, 3, 4, -1, 16, 64, 127, 128, 8191, 8192, 8191, 128, 127, -1, 64, 16, 4, 3, 2, 1, -1, 0}},
+	}
+	for _, tc := range tt {
+		request := &Int64ArrayHolder{
+			values: tc.values,
+		}
+		buf, err := Encode(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := &Int64ArrayHolder{}
+		err = Decode(buf, response)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (request.values == nil && response.values != nil) || (request.values != nil && response.values == nil) {
+			t.Fatalf("%s: Nils comparison error: expected %v, actual %v", tc.name, request.values == nil, response.values == nil)
+		}
+		if len(request.values) != len(response.values) {
+			t.Fatalf("Values array lengths differ: expected %v, actual %v", request.values, response.values)
+		}
+		for i := range request.values {
+			if request.values[i] != response.values[i] {
+				t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
+			}
+		}
+	}
+}
+
+type Int32ArrayHolder struct {
+	values []int32
+}
+
+func (r *Int32ArrayHolder) encode(pe packetEncoder) (err error) {
+	err = pe.putInt32Array(r.values)
+	if err != nil {
+		return err
+	}
+	return
+}
+func (r *Int32ArrayHolder) decode(pd packetDecoder) (err error) {
+	if r.values, err = pd.getInt32Array(); err != nil {
+		return err
+	}
+	if pd.remaining() != 0 {
+		return errors.Errorf("remaining bytes %d", pd.remaining())
+	}
+	return
+}
+
+type Int64ArrayHolder struct {
+	values []int64
+}
+
+func (r *Int64ArrayHolder) encode(pe packetEncoder) (err error) {
+	err = pe.putInt64Array(r.values)
+	if err != nil {
+		return err
+	}
+	return
+}
+func (r *Int64ArrayHolder) decode(pd packetDecoder) (err error) {
+	if r.values, err = pd.getInt64Array(); err != nil {
+		return err
+	}
+	if pd.remaining() != 0 {
+		return errors.Errorf("remaining bytes %d", pd.remaining())
+	}
+	return
+}
+
 type CompactBytesHolder struct {
 	values [][]byte
 }
