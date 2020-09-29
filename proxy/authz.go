@@ -46,7 +46,7 @@ func getPartialDecodedRequest(keyVersionBuf []byte, src io.Reader) (clientID str
 		return "", nil, nil, err
 	}
 
-	headerVer := requestKeyVersion.ResponseHeaderVersion()
+	headerVer := requestKeyVersion.RequestHeaderVersion()
 
 	switch headerVer {
 	case 0:
