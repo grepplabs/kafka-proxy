@@ -250,19 +250,14 @@ func (rd *realDecoder) getInt64Array() ([]int64, error) {
 }
 
 func (rd *realDecoder) getStringArray() ([]string, error) {
-	if rd.remaining() < 4 {
-		rd.off = len(rd.raw)
-		return nil, ErrInsufficientData
-	}
-	n := int(binary.BigEndian.Uint32(rd.raw[rd.off:]))
-	rd.off += 4
+	n, err := rd.getArrayLength()
 
-	if n == 0 {
+	if err != nil {
+		return nil, err
+	}
+
+	if n == -1 {
 		return nil, nil
-	}
-
-	if n < 0 {
-		return nil, errInvalidArrayLength
 	}
 
 	ret := make([]string, n)

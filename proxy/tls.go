@@ -4,8 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"net"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +15,22 @@ import (
 	"github.com/klauspost/cpuid"
 	"github.com/pkg/errors"
 )
+
+type clientCertSubjectField string
+
+const (
+	clientCertSubjectCommonName         = "CN"
+	clientCertSubjectCountry            = "C"
+	clientCertSubjectProvince           = "S"
+	clientCertSubjectLocality           = "L"
+	clientCertSubjectOrganization       = "O"
+	clientCertSubjectOrganizationalUnit = "OU"
+)
+
+type clientCertExpectedData struct {
+	fields map[clientCertSubjectField]string
+	parts  []string
+}
 
 var (
 	defaultCurvePreferences = []tls.CurveID{
@@ -120,7 +138,140 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 		cfg.ClientCAs = clientCAs
 		cfg.ClientAuth = tls.RequireAndVerifyClientCert
 	}
+
+	cfg.VerifyPeerCertificate = tlsClientCertVerificationFunc(conf)
+
 	return cfg, nil
+}
+
+func tlsClientCertVerificationFunc(conf *config.Config) func([][]byte, [][]*x509.Certificate) error {
+	expectedData := getClientCertExpectedData(conf)
+	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		if conf.Proxy.TLS.ClientCert.ValidateSubject {
+
+			if len(expectedData.fields) == 0 {
+				return nil // nothing to validate
+			}
+
+			for _, chain := range verifiedChains {
+				for _, cert := range chain {
+
+					certificateAcceptable := true
+
+					for k, v := range expectedData.fields {
+						switch k {
+						case clientCertSubjectCommonName:
+							if v != cert.Subject.CommonName {
+								certificateAcceptable = false
+								break
+							}
+						case clientCertSubjectCountry:
+							currentValues := cert.Subject.Country
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						case clientCertSubjectProvince:
+							currentValues := cert.Subject.Province
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						case clientCertSubjectLocality:
+							currentValues := cert.Subject.Locality
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						case clientCertSubjectOrganization:
+							currentValues := cert.Subject.Organization
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						case clientCertSubjectOrganizationalUnit:
+							currentValues := cert.Subject.OrganizationalUnit
+							sort.Strings(currentValues)
+							if fmt.Sprintf("%v", currentValues) != v {
+								certificateAcceptable = false
+								break
+							}
+						}
+					}
+
+					if certificateAcceptable {
+						return nil
+					}
+
+				}
+			}
+
+			return fmt.Errorf("tls: no client certificate presented required subject '%s'", strings.Join(expectedData.parts, "/"))
+
+		}
+		return nil
+	}
+}
+
+func getClientCertExpectedData(conf *config.Config) *clientCertExpectedData {
+
+	expectedFields := map[clientCertSubjectField]string{}
+	expectedParts := []string{"s:"} // these are calculated here because the order is relevant to us
+	values := []string{}
+
+	if conf.Proxy.TLS.ClientCert.Subject.CommonName != "" {
+		expectedFields[clientCertSubjectCommonName] = conf.Proxy.TLS.ClientCert.Subject.CommonName
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectCommonName, expectedFields[clientCertSubjectCommonName]))
+	}
+	values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Country)
+	if len(values) > 0 {
+		sort.Strings(values)
+		expectedFields[clientCertSubjectCountry] = fmt.Sprintf("%v", values)
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectCountry, expectedFields[clientCertSubjectCountry]))
+	}
+	values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Province)
+	if len(values) > 0 {
+		sort.Strings(values)
+		expectedFields[clientCertSubjectProvince] = fmt.Sprintf("%v", values)
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectProvince, expectedFields[clientCertSubjectProvince]))
+	}
+	values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Locality)
+	if len(values) > 0 {
+		sort.Strings(values)
+		expectedFields[clientCertSubjectLocality] = fmt.Sprintf("%v", values)
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectLocality, expectedFields[clientCertSubjectLocality]))
+	}
+	values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.Organization)
+	if len(values) > 0 {
+		sort.Strings(values)
+		expectedFields[clientCertSubjectOrganization] = fmt.Sprintf("%v", values)
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectOrganization, expectedFields[clientCertSubjectOrganization]))
+	}
+	values = removeEmptyStrings(conf.Proxy.TLS.ClientCert.Subject.OrganizationalUnit)
+	if len(values) > 0 {
+		sort.Strings(values)
+		expectedFields[clientCertSubjectOrganizationalUnit] = fmt.Sprintf("%v", values)
+		expectedParts = append(expectedParts, fmt.Sprintf("%s=%s", clientCertSubjectOrganizationalUnit, expectedFields[clientCertSubjectOrganizationalUnit]))
+	}
+	return &clientCertExpectedData{
+		parts:  expectedParts,
+		fields: expectedFields,
+	}
+}
+
+func removeEmptyStrings(input []string) []string {
+	output := []string{}
+	for _, value := range input {
+		if value == "" {
+			continue
+		}
+		output = append(output, value)
+	}
+	return output
 }
 
 func getCipherSuites(enabledCipherSuites []string) ([]uint16, error) {

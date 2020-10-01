@@ -258,6 +258,10 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 		return 0
 	case 49: // AlterClientQuotas
 		return 0
+	case 50: // DescribeUserScramCredentials
+		return 1
+	case 51: // AlterUserScramCredentials
+		return 1
 	default:
 		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
 		return -1

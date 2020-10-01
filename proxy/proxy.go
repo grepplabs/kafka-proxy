@@ -3,11 +3,12 @@ package proxy
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
+	"sync"
+
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/sirupsen/logrus"
-	"net"
-	"sync"
 )
 
 type ListenFunc func(cfg config.ListenerConfig) (l net.Listener, err error)
