@@ -13,12 +13,22 @@ build/kafka-proxy server \
             --auth-local-enable  \
             --auth-local-command=build/auth-ldap  \
             --auth-local-param=--url=ldap://localhost:389  \
+            --auth-local-param=--ldap-cacerts=/certs/ldap/pem  \
             --auth-local-param=--start-tls=false \
+            --auth-local-param=--search-ldap \
             --auth-local-param=--bind-dn=cn=admin,dc=example,dc=org  \
             --auth-local-param=--bind-passwd=admin  \
             --auth-local-param=--user-search-base=ou=people,dc=example,dc=org  \
             --auth-local-param=--user-filter="(&(objectClass=person)(uid=%u)(memberOf=cn=kafka-users,ou=realm-roles,dc=example,dc=org))"
 ```
+
+Setting the flag `--search-ldap` will search the user dn in LDAP, even if `--bind-dn` is not given. This is for LDAP
+installations that don't need a bind before allowing readonly actions.(and therefore don't have a readony user)
+
+If `--ldap-cacerts` is set, a (chain of) certificates in PEM format needed to verify the LDAP server's identity
+is read from the file given. If the flag ist not set, TLS verification will be skipped
+ 
+
 
 ## simple user bind 
 

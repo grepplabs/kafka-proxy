@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"github.com/go-ldap/ldap/v3"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -19,13 +21,15 @@ import (
 const UsernamePlaceholder = "%u"
 
 type LdapAuthenticator struct {
-	Urls     []string
-	StartTLS bool
+	Urls      []string
+	StartTLS  bool
+	TlsConfig *tls.Config
 
 	UPNDomain string
 	UserDN    string
 	UserAttr  string
 
+	SearchLDAP     bool
 	BindDN         string
 	BindPassword   string
 	UserSearchBase string
@@ -64,16 +68,19 @@ func (pa LdapAuthenticator) Authenticate(username, password string) (bool, int32
 
 func (pa LdapAuthenticator) getUserBindDN(conn *ldap.Conn, username string) (string, error) {
 	bindDN := ""
-	if pa.BindDN != "" {
+	if pa.SearchLDAP {
 		var err error
-		if pa.BindPassword != "" {
-			err = conn.Bind(pa.BindDN, pa.BindPassword)
-		} else {
-			err = conn.UnauthenticatedBind(pa.BindDN)
+		if pa.BindDN != "" {
+			if pa.BindPassword != "" {
+				err = conn.Bind(pa.BindDN, pa.BindPassword)
+			} else {
+				err = conn.UnauthenticatedBind(pa.BindDN)
+			}
+			if err != nil {
+				return "", errors.Wrapf(err, "LDAP bind (service) failed")
+			}
 		}
-		if err != nil {
-			return "", errors.Wrapf(err, "LDAP bind (service) failed")
-		}
+		filter := strings.ReplaceAll(pa.UserFilter, UsernamePlaceholder, username)
 		searchRequest := ldap.NewSearchRequest(
 			pa.UserSearchBase,
 			ldap.ScopeWholeSubtree,
@@ -81,19 +88,19 @@ func (pa LdapAuthenticator) getUserBindDN(conn *ldap.Conn, username string) (str
 			0,
 			0,
 			false,
-			strings.ReplaceAll(pa.UserFilter, UsernamePlaceholder, username),
+			filter,
 			[]string{"dn"},
 			nil,
 		)
 		sr, err := conn.Search(searchRequest)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "base DN %s, filter %s", pa.UserSearchBase, filter)
 		}
 		if len(sr.Entries) < 1 {
-			return "", errors.New("LDAP user search empty result")
+			return "", errors.Errorf("LDAP user search with base DN %s and filter %s returned empty result", pa.UserSearchBase, filter)
 		}
 		if len(sr.Entries) > 1 {
-			return "", errors.New("LDAP user search not unique result")
+			return "", errors.Errorf("LDAP user search with base DN %s and filter %s not unique result", pa.UserSearchBase, filter)
 		}
 		bindDN = sr.Entries[0].DN
 	} else {
@@ -172,7 +179,7 @@ func (pa LdapAuthenticator) DialLDAP() (*ldap.Conn, error) {
 			if port == "" {
 				port = "636"
 			}
-			conn, err = ldap.DialTLS("tcp", net.JoinHostPort(host, port), &tls.Config{InsecureSkipVerify: true})
+			conn, err = ldap.DialTLS("tcp", net.JoinHostPort(host, port), pa.TlsConfig)
 		default:
 			retErr = multierror.Append(retErr, fmt.Errorf("invalid LDAP scheme in url %q", net.JoinHostPort(host, port)))
 			continue
@@ -188,11 +195,13 @@ func (pa LdapAuthenticator) DialLDAP() (*ldap.Conn, error) {
 
 type pluginMeta struct {
 	url       string
+	cacert    string
 	startTLS  bool
 	upnDomain string
 	userDN    string
 	userAttr  string
 
+	searchLDAP     bool
 	bindDN         string
 	bindPassword   string
 	userSearchBase string
@@ -201,12 +210,15 @@ type pluginMeta struct {
 
 func (f *pluginMeta) flagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("auth plugin settings", flag.ContinueOnError)
+
 	fs.StringVar(&f.url, "url", "", "LDAP URL to connect to (eg: ldaps://127.0.0.1:636). Multiple URLs can be specified by concatenating them with commas.")
+	fs.StringVar(&f.cacert, "ldap-cacert", "", "X509 CA certificate (PEM) to verify peer against")
 	fs.BoolVar(&f.startTLS, "start-tls", true, "Issue a StartTLS command after establishing unencrypted connection (optional)")
 	fs.StringVar(&f.upnDomain, "upn-domain", "", "Enables userPrincipalDomain login with [username]@UPNDomain (optional)")
 	fs.StringVar(&f.userDN, "user-dn", "", "LDAP domain to use for users (eg: cn=users,dc=example,dc=org)")
 	fs.StringVar(&f.userAttr, "user-attr", "uid", " Attribute used for users")
 
+	fs.BoolVar(&f.searchLDAP, "search-ldap", false, "Search LDAP for user DN even if --bind-dn is not set")
 	fs.StringVar(&f.bindDN, "bind-dn", "", "The Distinguished Name to bind to the LDAP directory to search a user. This can be a readonly or admin user")
 	fs.StringVar(&f.bindPassword, "bind-passwd", "", "The password used with bindDN")
 	fs.StringVar(&f.userSearchBase, "user-search-base", "", "The search base as the starting point for the user search e.g. ou=people,dc=example,dc=org")
@@ -251,7 +263,7 @@ func main() {
 		logrus.Error(err)
 		os.Exit(1)
 	}
-	if pluginMeta.bindDN != "" {
+	if pluginMeta.bindDN != "" || pluginMeta.searchLDAP {
 		logrus.Infof("user-search-base='%s',user-filter='%s'", pluginMeta.userSearchBase, pluginMeta.userFilter)
 
 		if pluginMeta.userSearchBase == "" {
@@ -271,15 +283,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	tlsConfig, err := getTlsConfig(pluginMeta.cacert)
+	if err != nil {
+		logrus.Errorf("error %v getting TLS config", err)
+		os.Exit(1)
+	}
+
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: shared.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"passwordAuthenticator": &shared.PasswordAuthenticatorPlugin{Impl: &LdapAuthenticator{
 				Urls:           urls,
+				TlsConfig:      tlsConfig,
 				StartTLS:       pluginMeta.startTLS,
 				UPNDomain:      pluginMeta.upnDomain,
 				UserDN:         pluginMeta.userDN,
 				UserAttr:       pluginMeta.userAttr,
+				SearchLDAP:     pluginMeta.searchLDAP || pluginMeta.bindDN != "",
 				BindDN:         pluginMeta.bindDN,
 				BindPassword:   pluginMeta.bindPassword,
 				UserSearchBase: pluginMeta.userSearchBase,
@@ -289,4 +309,20 @@ func main() {
 		// A non-nil value here enables gRPC serving for this plugin...
 		GRPCServer: plugin.DefaultGRPCServer,
 	})
+}
+
+func getTlsConfig(caCertFile string) (*tls.Config, error) {
+	if caCertFile == "" {
+		return &tls.Config{InsecureSkipVerify: true}, nil
+	} else {
+		certData, err := ioutil.ReadFile(caCertFile)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading certificate file %s", caCertFile)
+		}
+		certPool := x509.NewCertPool()
+		if ok := certPool.AppendCertsFromPEM(certData); !ok {
+			return nil, errors.Errorf("could not parse certificate(s) in file %s", caCertFile)
+		}
+		return &tls.Config{RootCAs: certPool}, nil
+	}
 }

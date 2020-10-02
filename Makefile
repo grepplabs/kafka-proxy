@@ -2,15 +2,23 @@
 
 .PHONY: clean build build.docker tag all
 
+DOCKERFILE    ?= Docker.build
+GROUP         ?= grepplabs
 BINARY        ?= kafka-proxy
 SOURCES        = $(shell find . -name '*.go' | grep -v /vendor/)
 VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.2.6"
+TAG           ?= "v0.2.6-3"
 GOARCH        ?= amd64
 GOOS          ?= linux
+
+ifdef DOCKERREGISTRY
+  DOCKERTAG := $(DOCKERREGISTRY)/$(GROUP)/$(BINARY):$(TAG)
+else
+  DOCKERTAG := $(GROUP)/$(BINARY):$(TAG)
+endif
 
 default: build
 
@@ -34,7 +42,7 @@ build/$(BINARY): $(SOURCES)
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
 
 docker.build:
-	docker build --build-arg GOOS=$(GOOS) --build-arg  GOARCH=$(GOARCH) -f Dockerfile.build .
+	docker build -t ${DOCKERTAG} --build-arg GOOS=$(GOOS) --build-arg  GOARCH=$(GOARCH) -f $(DOCKERFILE) .
 
 tag:
 	git tag $(TAG)
