@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: clean build build.docker tag all
+.PHONY: clean build all tag release
 
 BINARY        ?= kafka-proxy
 SOURCES        = $(shell find . -name '*.go' | grep -v /vendor/)
@@ -32,9 +32,6 @@ build: build/$(BINARY)
 
 build/$(BINARY): $(SOURCES)
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
-
-docker.build:
-	docker build --build-arg GOOS=$(GOOS) --build-arg  GOARCH=$(GOARCH) -f Dockerfile.build .
 
 tag:
 	git tag $(TAG)

@@ -25,12 +25,17 @@ script:
   - go build .
   - go test ./...
   - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"; fi`
-  - echo "docker tag $TAG"
-  - docker build -t $REPO:$TAG -f Dockerfile .
+  - echo "docker tags $TAG and ${TAG}-all"
+  - docker build --build-arg MAKE_TARGET="test build" -t $REPO:$TAG -f Dockerfile .
+  - docker build --build-arg MAKE_TARGET="all" -t $REPO:${TAG}-all -f Dockerfile .
 
 after_success:
   - echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
   - if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then
-       docker tag $REPO:$TAG $REPO:$TRAVIS_BUILD_NUMBER; docker push $REPO:$TRAVIS_BUILD_NUMBER;
+       docker tag $REPO:$TAG $REPO:$TRAVIS_BUILD_NUMBER
+       docker tag $REPO:${TAG}-all $REPO:${TRAVIS_BUILD_NUMBER}-all
+       docker push $REPO:$TRAVIS_BUILD_NUMBER
+       docker push $REPO:${TRAVIS_BUILD_NUMBER}-all
     fi
   - docker push $REPO:$TAG
+  - docker push $REPO:${TAG}-all

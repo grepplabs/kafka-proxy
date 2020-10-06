@@ -52,6 +52,50 @@ See:
 
     make clean build
 
+### Docker images
+
+Docker images are available on [Docker Hub](https://hub.docker.com/r/grepplabs/kafka-proxy/tags).
+
+You can launch a kafka-proxy container for trying it out with
+
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:v0.2.6 \
+              server \
+            --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
+            --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
+            --bootstrap-server-mapping "localhost:39092,0.0.0.0:30003" \
+            --dial-address-mapping "localhost:19092,172.17.0.1:19092" \
+            --dial-address-mapping "localhost:29092,172.17.0.1:29092" \
+            --dial-address-mapping "localhost:39092,172.17.0.1:39092" \
+            --debug-enable
+
+Kafka-proxy will now be reachable on `localhost:30001`, `localhost:30002` and `localhost:30003`, connecting to kafka brokers
+running in docker (network bridge gateway `172.17.0.1`) advertising PLAINTEXT listeners on `localhost:19092`, `localhost:29092` and `localhost:39092`.
+
+### Docker images with precompiled plugins
+
+Docker images with precompiled plugins located in `/opt/kafka-proxy/bin/` are tagged with `<release>-all`.
+
+You can launch a kafka-proxy container with auth-ldap plugin for trying it out with
+
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:v0.2.6-all \
+                  server \
+                --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
+                --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
+                --bootstrap-server-mapping "localhost:39092,0.0.0.0:30003" \
+                --dial-address-mapping "localhost:19092,172.17.0.1:19092" \
+                --dial-address-mapping "localhost:29092,172.17.0.1:29092" \
+                --dial-address-mapping "localhost:39092,172.17.0.1:39092" \
+                --debug-enable \
+                --auth-local-enable  \
+                --auth-local-command=/opt/kafka-proxy/bin/auth-ldap  \
+                --auth-local-param=--url=ldap://172.17.0.1:389  \
+                --auth-local-param=--start-tls=false \
+                --auth-local-param=--bind-dn=cn=admin,dc=example,dc=org  \
+                --auth-local-param=--bind-passwd=admin  \
+                --auth-local-param=--user-search-base=ou=people,dc=example,dc=org  \
+                --auth-local-param=--user-filter="(&(objectClass=person)(uid=%u)(memberOf=cn=kafka-users,ou=realm-roles,dc=example,dc=org))"
+
+
 ### Help output
 
     Run the kafka-proxy server
