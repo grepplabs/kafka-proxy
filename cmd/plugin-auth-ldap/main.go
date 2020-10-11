@@ -194,12 +194,13 @@ func (pa LdapAuthenticator) DialLDAP() (*ldap.Conn, error) {
 }
 
 type pluginMeta struct {
-	url       string
-	cacert    string
-	startTLS  bool
-	upnDomain string
-	userDN    string
-	userAttr  string
+	url                string
+	caCertFile         string
+	insecureSkipVerify bool
+	startTLS           bool
+	upnDomain          string
+	userDN             string
+	userAttr           string
 
 	searchLDAP     bool
 	bindDN         string
@@ -212,7 +213,8 @@ func (f *pluginMeta) flagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("auth plugin settings", flag.ContinueOnError)
 
 	fs.StringVar(&f.url, "url", "", "LDAP URL to connect to (eg: ldaps://127.0.0.1:636). Multiple URLs can be specified by concatenating them with commas.")
-	fs.StringVar(&f.cacert, "ldap-cacert", "", "X509 CA certificate (PEM) to verify peer against")
+	fs.StringVar(&f.caCertFile, "ldap-ca-cert-file", "", "X509 CA certificate (PEM) to verify peer against")
+	fs.BoolVar(&f.insecureSkipVerify, "ldap-insecure-skip-verify", false, "It controls whether a client verifies the server's certificate chain and host name")
 	fs.BoolVar(&f.startTLS, "start-tls", true, "Issue a StartTLS command after establishing unencrypted connection (optional)")
 	fs.StringVar(&f.upnDomain, "upn-domain", "", "Enables userPrincipalDomain login with [username]@UPNDomain (optional)")
 	fs.StringVar(&f.userDN, "user-dn", "", "LDAP domain to use for users (eg: cn=users,dc=example,dc=org)")
@@ -283,7 +285,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tlsConfig, err := getTlsConfig(pluginMeta.cacert)
+	tlsConfig, err := getTlsConfig(pluginMeta.caCertFile, pluginMeta.insecureSkipVerify)
 	if err != nil {
 		logrus.Errorf("error %v getting TLS config", err)
 		os.Exit(1)
@@ -311,9 +313,9 @@ func main() {
 	})
 }
 
-func getTlsConfig(caCertFile string) (*tls.Config, error) {
+func getTlsConfig(caCertFile string, insecureSkipVerify bool) (*tls.Config, error) {
 	if caCertFile == "" {
-		return &tls.Config{InsecureSkipVerify: true}, nil
+		return &tls.Config{InsecureSkipVerify: insecureSkipVerify}, nil
 	} else {
 		certData, err := ioutil.ReadFile(caCertFile)
 		if err != nil {
