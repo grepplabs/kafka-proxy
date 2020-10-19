@@ -5,17 +5,17 @@ import (
 )
 
 func TestCreateTopicsV0(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	configSchema := NewSchemaStruct("config_schema",
+	configSchema := NewSchema("config_schema",
 		&field{name: "name", ty: typeStr},
 		&field{name: "value", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "num_partitions", ty: typeInt32},
 		&field{name: "replication_factor", ty: typeInt16},
@@ -23,7 +23,7 @@ func TestCreateTopicsV0(t *testing.T) {
 		&array{name: "configs", ty: configSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createtopics_v0",
+	schemaFetch := NewSchema("createtopics_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -119,17 +119,17 @@ func TestCreateTopicsV0(t *testing.T) {
 }
 
 func TestCreateTopicsV1(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	configSchema := NewSchemaStruct("config_schema",
+	configSchema := NewSchema("config_schema",
 		&field{name: "name", ty: typeStr},
 		&field{name: "value", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "num_partitions", ty: typeInt32},
 		&field{name: "replication_factor", ty: typeInt16},
@@ -137,7 +137,7 @@ func TestCreateTopicsV1(t *testing.T) {
 		&array{name: "configs", ty: configSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createtopics_v1",
+	schemaFetch := NewSchema("createtopics_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -235,17 +235,17 @@ func TestCreateTopicsV1(t *testing.T) {
 }
 
 func TestCreateTopicsV2(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	configSchema := NewSchemaStruct("config_schema",
+	configSchema := NewSchema("config_schema",
 		&field{name: "name", ty: typeStr},
 		&field{name: "value", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "num_partitions", ty: typeInt32},
 		&field{name: "replication_factor", ty: typeInt16},
@@ -253,7 +253,7 @@ func TestCreateTopicsV2(t *testing.T) {
 		&array{name: "configs", ty: configSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createtopics_v2",
+	schemaFetch := NewSchema("createtopics_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -351,17 +351,17 @@ func TestCreateTopicsV2(t *testing.T) {
 }
 
 func TestCreateTopicsV3(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	configSchema := NewSchemaStruct("config_schema",
+	configSchema := NewSchema("config_schema",
 		&field{name: "name", ty: typeStr},
 		&field{name: "value", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "num_partitions", ty: typeInt32},
 		&field{name: "replication_factor", ty: typeInt16},
@@ -369,7 +369,7 @@ func TestCreateTopicsV3(t *testing.T) {
 		&array{name: "configs", ty: configSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createtopics_v3",
+	schemaFetch := NewSchema("createtopics_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -467,17 +467,17 @@ func TestCreateTopicsV3(t *testing.T) {
 }
 
 func TestCreateTopicsV4(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	configSchema := NewSchemaStruct("config_schema",
+	configSchema := NewSchema("config_schema",
 		&field{name: "name", ty: typeStr},
 		&field{name: "value", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "num_partitions", ty: typeInt32},
 		&field{name: "replication_factor", ty: typeInt16},
@@ -485,7 +485,7 @@ func TestCreateTopicsV4(t *testing.T) {
 		&array{name: "configs", ty: configSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createtopics_v4",
+	schemaFetch := NewSchema("createtopics_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

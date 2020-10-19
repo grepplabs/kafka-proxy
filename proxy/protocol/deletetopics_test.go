@@ -5,7 +5,7 @@ import (
 )
 
 func TestDeleteTopicsRequestV0(t *testing.T) {
-	schemaDeleteTopics := NewSchemaStruct("delete_topics_v0",
+	schemaDeleteTopics := NewSchema("delete_topics_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -54,7 +54,7 @@ func TestDeleteTopicsRequestV0(t *testing.T) {
 }
 
 func TestDeleteTopicsRequestV1(t *testing.T) {
-	schemaDeleteTopics := NewSchemaStruct("delete_topics_v1",
+	schemaDeleteTopics := NewSchema("delete_topics_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -103,7 +103,7 @@ func TestDeleteTopicsRequestV1(t *testing.T) {
 }
 
 func TestDeleteTopicsRequestV2(t *testing.T) {
-	schemaDeleteTopics := NewSchemaStruct("delete_topics_v2",
+	schemaDeleteTopics := NewSchema("delete_topics_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -152,7 +152,7 @@ func TestDeleteTopicsRequestV2(t *testing.T) {
 }
 
 func TestDeleteTopicsRequestV3(t *testing.T) {
-	schemaDeleteTopics := NewSchemaStruct("delete_topics_v3",
+	schemaDeleteTopics := NewSchema("delete_topics_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

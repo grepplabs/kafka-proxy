@@ -2,10 +2,11 @@ package protocol
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/pkg/errors"
 )
 
 func TestEncodeDecodeCompactBytes(t *testing.T) {

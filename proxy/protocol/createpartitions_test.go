@@ -5,17 +5,17 @@ import (
 )
 
 func TestCreatePartitionsV0(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "count", ty: typeInt32},
 		&array{name: "assignments", ty: assignmentSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createpartitions_v0",
+	schemaFetch := NewSchema("createpartitions_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -97,17 +97,17 @@ func TestCreatePartitionsV0(t *testing.T) {
 }
 
 func TestCreatePartitionsV1(t *testing.T) {
-	assignmentSchema := NewSchemaStruct("assignment_schema",
+	assignmentSchema := NewSchema("assignment_schema",
 		&array{name: "broker_ids", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&field{name: "count", ty: typeInt32},
 		&array{name: "assignments", ty: assignmentSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("createpartitions_v1",
+	schemaFetch := NewSchema("createpartitions_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

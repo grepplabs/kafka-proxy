@@ -2,9 +2,10 @@ package protocol
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetInt32Array(t *testing.T) {

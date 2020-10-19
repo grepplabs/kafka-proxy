@@ -776,26 +776,6 @@ func NewSchema(name string, fs ...Field) Schema {
 	return s
 }
 
-// NewSchemaStruct creates new schema struct. It panics when a duplicate field is provided
-func NewSchemaStruct(name string, fs ...Field) *schema {
-
-	s := &schema{name: name, fields: make([]boundField, 0), fieldsByName: make(map[string]*boundField)}
-
-	for i, f := range fs {
-		if _, ok := s.fieldsByName[f.GetName()]; ok {
-			panic(fmt.Sprintf("Schema contains a duplicate field: %s", f.GetName()))
-		}
-		bf := boundField{
-			def:    f,
-			index:  i,
-			schema: s,
-		}
-		s.fields = append(s.fields, bf)
-		s.fieldsByName[f.GetName()] = &bf
-	}
-	return s
-}
-
 func (s *schema) encode(pe packetEncoder, value interface{}) error {
 	in, ok := value.(*Struct)
 	if !ok {

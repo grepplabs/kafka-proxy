@@ -5,7 +5,7 @@ import (
 )
 
 func TestTopicMetadataRequestV0(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v0",
+	schemaTopicMetadata := NewSchema("topic_metadata_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -52,7 +52,7 @@ func TestTopicMetadataRequestV0(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV1(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v1",
+	schemaTopicMetadata := NewSchema("topic_metadata_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -99,7 +99,7 @@ func TestTopicMetadataRequestV1(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV2(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v2",
+	schemaTopicMetadata := NewSchema("topic_metadata_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -146,7 +146,7 @@ func TestTopicMetadataRequestV2(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV3(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v3",
+	schemaTopicMetadata := NewSchema("topic_metadata_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -193,7 +193,7 @@ func TestTopicMetadataRequestV3(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV4(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v4",
+	schemaTopicMetadata := NewSchema("topic_metadata_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -242,7 +242,7 @@ func TestTopicMetadataRequestV4(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV5(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v5",
+	schemaTopicMetadata := NewSchema("topic_metadata_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -291,7 +291,7 @@ func TestTopicMetadataRequestV5(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV6(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v6",
+	schemaTopicMetadata := NewSchema("topic_metadata_v6",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -340,7 +340,7 @@ func TestTopicMetadataRequestV6(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV7(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v7",
+	schemaTopicMetadata := NewSchema("topic_metadata_v7",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -389,7 +389,7 @@ func TestTopicMetadataRequestV7(t *testing.T) {
 }
 
 func TestTopicMetadataRequestV8(t *testing.T) {
-	schemaTopicMetadata := NewSchemaStruct("topic_metadata_v8",
+	schemaTopicMetadata := NewSchema("topic_metadata_v8",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

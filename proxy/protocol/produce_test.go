@@ -5,7 +5,7 @@ import (
 )
 
 func TestProduceRequestV0(t *testing.T) {
-	messageSchema := NewSchemaStruct("message_schema",
+	messageSchema := NewSchema("message_schema",
 		&field{name: "crc", ty: typeInt32},
 		&field{name: "magic_byte", ty: typeInt8},
 		&field{name: "attributes", ty: typeInt8},
@@ -13,23 +13,23 @@ func TestProduceRequestV0(t *testing.T) {
 		&field{name: "value", ty: typeBytes},
 	)
 
-	messageSetItemSchema := NewSchemaStruct("message_set_item_schema",
+	messageSetItemSchema := NewSchema("message_set_item_schema",
 		&field{name: "offset", ty: typeInt64},
 		&field{name: "message_size", ty: typeInt32},
 		&field{name: "message", ty: messageSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&messageSet{name: "message_set", size: 56, ty: messageSetItemSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v0",
+	schemaProduce := NewSchema("produce_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -151,7 +151,7 @@ func TestProduceRequestV0(t *testing.T) {
 }
 
 func TestProduceRequestV1(t *testing.T) {
-	messageSchema := NewSchemaStruct("message_schema",
+	messageSchema := NewSchema("message_schema",
 		&field{name: "crc", ty: typeInt32},
 		&field{name: "magic_byte", ty: typeInt8},
 		&field{name: "attributes", ty: typeInt8},
@@ -160,23 +160,23 @@ func TestProduceRequestV1(t *testing.T) {
 		&field{name: "value", ty: typeBytes},
 	)
 
-	messageSetItemSchema := NewSchemaStruct("message_set_item_schema",
+	messageSetItemSchema := NewSchema("message_set_item_schema",
 		&field{name: "offset", ty: typeInt64},
 		&field{name: "message_size", ty: typeInt32},
 		&field{name: "message", ty: messageSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&messageSet{name: "message_set", size: 72, ty: messageSetItemSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v1",
+	schemaProduce := NewSchema("produce_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -300,12 +300,12 @@ func TestProduceRequestV1(t *testing.T) {
 }
 
 func TestProduceRequestV2(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -315,7 +315,7 @@ func TestProduceRequestV2(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -331,18 +331,18 @@ func TestProduceRequestV2(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v2",
+	schemaProduce := NewSchema("produce_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -482,12 +482,12 @@ func TestProduceRequestV2(t *testing.T) {
 }
 
 func TestProduceRequestV3(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -497,7 +497,7 @@ func TestProduceRequestV3(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -513,18 +513,18 @@ func TestProduceRequestV3(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v3",
+	schemaProduce := NewSchema("produce_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -667,12 +667,12 @@ func TestProduceRequestV3(t *testing.T) {
 }
 
 func TestProduceRequestV4(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -682,7 +682,7 @@ func TestProduceRequestV4(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -698,18 +698,18 @@ func TestProduceRequestV4(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v4",
+	schemaProduce := NewSchema("produce_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -852,12 +852,12 @@ func TestProduceRequestV4(t *testing.T) {
 }
 
 func TestProduceRequestV5(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -867,7 +867,7 @@ func TestProduceRequestV5(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -883,18 +883,18 @@ func TestProduceRequestV5(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v5",
+	schemaProduce := NewSchema("produce_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -1037,12 +1037,12 @@ func TestProduceRequestV5(t *testing.T) {
 }
 
 func TestProduceRequestV6(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -1052,7 +1052,7 @@ func TestProduceRequestV6(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -1068,18 +1068,18 @@ func TestProduceRequestV6(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v6",
+	schemaProduce := NewSchema("produce_v6",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -1222,12 +1222,12 @@ func TestProduceRequestV6(t *testing.T) {
 }
 
 func TestProduceRequestV7(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -1237,7 +1237,7 @@ func TestProduceRequestV7(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -1253,18 +1253,18 @@ func TestProduceRequestV7(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v7",
+	schemaProduce := NewSchema("produce_v7",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -1407,12 +1407,12 @@ func TestProduceRequestV7(t *testing.T) {
 }
 
 func TestProduceRequestV8(t *testing.T) {
-	headerSchema := NewSchemaStruct("header_schema",
+	headerSchema := NewSchema("header_schema",
 		&field{name: "headerKey", ty: typeCompactStr},
 		&field{name: "headerVal", ty: typeVarintBytes},
 	)
 
-	recordSchema := NewSchemaStruct("record_schema",
+	recordSchema := NewSchema("record_schema",
 		&field{name: "length", ty: typeVarint},
 		&field{name: "attributes", ty: typeInt8},
 		&field{name: "timestampDelta", ty: typeVarint},
@@ -1422,7 +1422,7 @@ func TestProduceRequestV8(t *testing.T) {
 		&array{name: "headers", ty: headerSchema},
 	)
 
-	recordBatchSchema := NewSchemaStruct("record_batch_schema",
+	recordBatchSchema := NewSchema("record_batch_schema",
 		&field{name: "baseOffset", ty: typeInt64},
 		&field{name: "batchLength", ty: typeInt32},
 		&field{name: "partitionLeaderEpoch", ty: typeInt32},
@@ -1438,18 +1438,18 @@ func TestProduceRequestV8(t *testing.T) {
 		&array{name: "records", ty: recordSchema},
 	)
 
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "record_batch_size", ty: typeInt32},
 		&field{name: "record_batch", ty: recordBatchSchema},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaProduce := NewSchemaStruct("produce_v8",
+	schemaProduce := NewSchema("produce_v8",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

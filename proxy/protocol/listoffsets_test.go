@@ -5,18 +5,18 @@ import (
 )
 
 func TestListOffsetsRequestV0(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 		&field{name: "max_num_offsets", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v0",
+	schemaListOffsets := NewSchema("listoffsets_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -94,17 +94,17 @@ func TestListOffsetsRequestV0(t *testing.T) {
 }
 
 func TestListOffsetsRequestV1(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v1",
+	schemaListOffsets := NewSchema("listoffsets_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -181,17 +181,17 @@ func TestListOffsetsRequestV1(t *testing.T) {
 }
 
 func TestListOffsetsRequestV2(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v2",
+	schemaListOffsets := NewSchema("listoffsets_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -270,17 +270,17 @@ func TestListOffsetsRequestV2(t *testing.T) {
 }
 
 func TestListOffsetsRequestV3(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v3",
+	schemaListOffsets := NewSchema("listoffsets_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -359,18 +359,18 @@ func TestListOffsetsRequestV3(t *testing.T) {
 }
 
 func TestListOffsetsRequestV4(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "current_leader_epoch", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v4",
+	schemaListOffsets := NewSchema("listoffsets_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -450,18 +450,18 @@ func TestListOffsetsRequestV4(t *testing.T) {
 }
 
 func TestListOffsetsRequestV5(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "current_leader_epoch", ty: typeInt32},
 		&field{name: "timestamp", ty: typeInt64},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaListOffsets := NewSchemaStruct("listoffsets_v5",
+	schemaListOffsets := NewSchema("listoffsets_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

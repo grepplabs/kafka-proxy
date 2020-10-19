@@ -5,18 +5,18 @@ import (
 )
 
 func TestFetchRequestV0(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v0",
+	schemaFetch := NewSchema("fetch_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -97,18 +97,18 @@ func TestFetchRequestV0(t *testing.T) {
 }
 
 func TestFetchRequestV1(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v1",
+	schemaFetch := NewSchema("fetch_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -189,18 +189,18 @@ func TestFetchRequestV1(t *testing.T) {
 }
 
 func TestFetchRequestV2(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v2",
+	schemaFetch := NewSchema("fetch_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -281,18 +281,18 @@ func TestFetchRequestV2(t *testing.T) {
 }
 
 func TestFetchRequestV3(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v3",
+	schemaFetch := NewSchema("fetch_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -375,18 +375,18 @@ func TestFetchRequestV3(t *testing.T) {
 }
 
 func TestFetchRequestV4(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v4",
+	schemaFetch := NewSchema("fetch_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -471,19 +471,19 @@ func TestFetchRequestV4(t *testing.T) {
 }
 
 func TestFetchRequestV5(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "log_start_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v5",
+	schemaFetch := NewSchema("fetch_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -569,19 +569,19 @@ func TestFetchRequestV5(t *testing.T) {
 }
 
 func TestFetchRequestV6(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "log_start_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v6",
+	schemaFetch := NewSchema("fetch_v6",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -667,24 +667,24 @@ func TestFetchRequestV6(t *testing.T) {
 }
 
 func TestFetchRequestV7(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
 		&field{name: "log_start_offset", ty: typeInt64},
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	forgotTopicSchema := NewSchemaStruct("forgot_topic_schema",
+	forgotTopicSchema := NewSchema("forgot_topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: typeInt32},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v7",
+	schemaFetch := NewSchema("fetch_v7",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -788,7 +788,7 @@ func TestFetchRequestV7(t *testing.T) {
 }
 
 func TestFetchRequestV9(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "current_leader_epoch", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
@@ -796,17 +796,17 @@ func TestFetchRequestV9(t *testing.T) {
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	forgotTopicSchema := NewSchemaStruct("forgot_topic_schema",
+	forgotTopicSchema := NewSchema("forgot_topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: typeInt32},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v9",
+	schemaFetch := NewSchema("fetch_v9",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -911,7 +911,7 @@ func TestFetchRequestV9(t *testing.T) {
 }
 
 func TestFetchRequestV10(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "current_leader_epoch", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
@@ -919,17 +919,17 @@ func TestFetchRequestV10(t *testing.T) {
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	forgotTopicSchema := NewSchemaStruct("forgot_topic_schema",
+	forgotTopicSchema := NewSchema("forgot_topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: typeInt32},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v10",
+	schemaFetch := NewSchema("fetch_v10",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -1034,7 +1034,7 @@ func TestFetchRequestV10(t *testing.T) {
 }
 
 func TestFetchRequestV11(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition", ty: typeInt32},
 		&field{name: "current_leader_epoch", ty: typeInt32},
 		&field{name: "fetch_offset", ty: typeInt64},
@@ -1042,17 +1042,17 @@ func TestFetchRequestV11(t *testing.T) {
 		&field{name: "partition_max_bytes", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	forgotTopicSchema := NewSchemaStruct("forgot_topic_schema",
+	forgotTopicSchema := NewSchema("forgot_topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: typeInt32},
 	)
 
-	schemaFetch := NewSchemaStruct("fetch_v11",
+	schemaFetch := NewSchema("fetch_v11",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

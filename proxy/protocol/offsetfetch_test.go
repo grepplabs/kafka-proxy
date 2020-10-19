@@ -5,16 +5,16 @@ import (
 )
 
 func TestOffsetFetchRequestV0(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v0",
+	schemaOffsetFetch := NewSchema("offsetfetch_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -90,16 +90,16 @@ func TestOffsetFetchRequestV0(t *testing.T) {
 }
 
 func TestOffsetFetchRequestV1(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v1",
+	schemaOffsetFetch := NewSchema("offsetfetch_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -175,16 +175,16 @@ func TestOffsetFetchRequestV1(t *testing.T) {
 }
 
 func TestOffsetFetchRequestV2(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v2",
+	schemaOffsetFetch := NewSchema("offsetfetch_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -260,16 +260,16 @@ func TestOffsetFetchRequestV2(t *testing.T) {
 }
 
 func TestOffsetFetchRequestV3(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v3",
+	schemaOffsetFetch := NewSchema("offsetfetch_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -345,16 +345,16 @@ func TestOffsetFetchRequestV3(t *testing.T) {
 }
 
 func TestOffsetFetchRequestV4(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v4",
+	schemaOffsetFetch := NewSchema("offsetfetch_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -430,16 +430,16 @@ func TestOffsetFetchRequestV4(t *testing.T) {
 }
 
 func TestOffsetFetchRequestV5(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetFetch := NewSchemaStruct("offsetfetch_v5",
+	schemaOffsetFetch := NewSchema("offsetfetch_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},

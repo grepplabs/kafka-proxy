@@ -5,18 +5,18 @@ import (
 )
 
 func TestOffsetCommitRequestV0(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v0",
+	schemaOffsetCommit := NewSchema("offsetcommit_v0",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -95,19 +95,19 @@ func TestOffsetCommitRequestV0(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV1(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "commit_timestamp", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v1",
+	schemaOffsetCommit := NewSchema("offsetcommit_v1",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -191,18 +191,18 @@ func TestOffsetCommitRequestV1(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV2(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v2",
+	schemaOffsetCommit := NewSchema("offsetcommit_v2",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -287,18 +287,18 @@ func TestOffsetCommitRequestV2(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV3(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v3",
+	schemaOffsetCommit := NewSchema("offsetcommit_v3",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -383,18 +383,18 @@ func TestOffsetCommitRequestV3(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV4(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v4",
+	schemaOffsetCommit := NewSchema("offsetcommit_v4",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -479,18 +479,18 @@ func TestOffsetCommitRequestV4(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV5(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v5",
+	schemaOffsetCommit := NewSchema("offsetcommit_v5",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -573,19 +573,19 @@ func TestOffsetCommitRequestV5(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV6(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_leader_epoch", ty: typeInt32},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v6",
+	schemaOffsetCommit := NewSchema("offsetcommit_v6",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
@@ -669,19 +669,19 @@ func TestOffsetCommitRequestV6(t *testing.T) {
 }
 
 func TestOffsetCommitRequestV7(t *testing.T) {
-	partitionSchema := NewSchemaStruct("partition_schema",
+	partitionSchema := NewSchema("partition_schema",
 		&field{name: "partition_index", ty: typeInt32},
 		&field{name: "committed_offset", ty: typeInt64},
 		&field{name: "committed_leader_epoch", ty: typeInt32},
 		&field{name: "committed_metadata", ty: typeNullableStr},
 	)
 
-	topicSchema := NewSchemaStruct("topic_schema",
+	topicSchema := NewSchema("topic_schema",
 		&field{name: "topic_name", ty: typeStr},
 		&array{name: "partitions", ty: partitionSchema},
 	)
 
-	schemaOffsetCommit := NewSchemaStruct("offsetcommit_v7",
+	schemaOffsetCommit := NewSchema("offsetcommit_v7",
 		&field{name: "key", ty: typeInt16},
 		&field{name: "version", ty: typeInt16},
 		&field{name: "correlation_id", ty: typeInt32},
