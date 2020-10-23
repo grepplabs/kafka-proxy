@@ -2,7 +2,9 @@ package oidcprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sync"
 	"time"
@@ -44,36 +46,32 @@ type TokenProviderOptions struct {
 	TargetAudience   string
 }
 
+type GrantType struct {
+	Name string `json:"grant_type"`
+}
+
 // NewTokenProvider - Generate new OIDC token provider
 func NewTokenProvider(options TokenProviderOptions) (*TokenProvider, error) {
 	os.Setenv("OIDC_CREDENTIALS", options.CredentialsFile)
 	stopChannel := make(chan bool, 1)
 	var idTokenSource idTokenSource
 
-	serviceAccountSource, err := NewServiceAccountSource(
-		options.CredentialsFile,
-		options.TargetAudience)
-
-	idTokenSource = serviceAccountSource
+	idTokenSource, err := getTokenSource(options.CredentialsFile, options.TargetAudience)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "creation of service account source failed")
+		return nil, err
 	}
 
 	if options.CredentialsWatch {
 		action := func() {
 			logrus.Infof("reloading credential file %s", options.CredentialsFile)
 
-			newConfig, errServ := oidc.NewServiceAccountTokenSource(
-				options.CredentialsFile,
-				options.TargetAudience)
+			idTokenSource, err = getTokenSource(options.CredentialsFile, options.TargetAudience)
 
-			if errServ != nil {
+			if err != nil {
 				logrus.Errorf("error while reloading credentials files: %s", err)
 				return
 			}
-
-			serviceAccountSource.setServiceAccountTokenSource(newConfig)
 		}
 
 		err = util.WatchForUpdates(options.CredentialsFile, stopChannel, action)
@@ -211,6 +209,45 @@ func getTokenResponse(token string, status int) (apis.TokenResponse, error) {
 	return apis.TokenResponse{Success: success, Status: int32(status), Token: token}, nil
 }
 
+func getTokenSource(credentialsFilePath string, targetAud string) (idTokenSource, error) {
+	data, err := ioutil.ReadFile(credentialsFilePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	grantType := &GrantType{}
+
+	err = json.Unmarshal(data, grantType)
+
+	if err != nil {
+		return nil, err
+	}
+
+	switch grantType.Name {
+	case "password":
+		passwordGrantSource, err := NewPasswordGrantSource(
+			credentialsFilePath,
+			targetAud)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "creation of password grant source failed")
+		}
+
+		return passwordGrantSource, nil
+	default:
+		serviceAccountSource, err := NewServiceAccountSource(
+			credentialsFilePath,
+			targetAud)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "creation of service account source failed")
+		}
+
+		return serviceAccountSource, nil
+	}
+}
+
 type idTokenSource interface {
 	GetIDToken(ctx context.Context) (string, error)
 }
@@ -248,4 +285,39 @@ func NewServiceAccountSource(credentialsFile string, targetAudience string) (*se
 
 func (s *serviceAccountSource) GetIDToken(parent context.Context) (string, error) {
 	return s.getServiceAccountTokenSource().GetIDToken(parent)
+}
+
+type passwordGrantSource struct {
+	source *oidc.PasswordGrantTokenSource
+	l      sync.RWMutex
+}
+
+func (p *passwordGrantSource) getPasswordGrantTokenSource() *oidc.PasswordGrantTokenSource {
+	p.l.RLock()
+	defer p.l.RUnlock()
+
+	return p.source
+}
+
+func (p *passwordGrantSource) setPasswordGrantTokenSource(source *oidc.PasswordGrantTokenSource) {
+	p.l.Lock()
+	defer p.l.Unlock()
+
+	p.source = source
+}
+
+func NewPasswordGrantSource(credentialsFile string, targetAudience string) (*passwordGrantSource, error) {
+	source, err := oidc.NewPasswordGrantTokenSource(credentialsFile, targetAudience)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &passwordGrantSource{
+		source: source,
+	}, nil
+}
+
+func (s *passwordGrantSource) GetIDToken(parent context.Context) (string, error) {
+	return s.getPasswordGrantTokenSource().GetIDToken(parent)
 }
