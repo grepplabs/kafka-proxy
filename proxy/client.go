@@ -308,6 +308,9 @@ func (c *Client) handleConn(conn Conn) {
 	c.conns.Add(conn.BrokerAddress, conn.LocalConnection)
 	localDesc := "local connection on " + conn.LocalConnection.LocalAddr().String() + " from " + conn.LocalConnection.RemoteAddr().String() + " (" + conn.BrokerAddress + ")"
 	c.processorConfig.SrcAddress = conn.LocalConnection.RemoteAddr().String()
+	newLocalSasl := &LocalSasl{}
+	*newLocalSasl = *c.processorConfig.LocalSasl
+	c.processorConfig.LocalSasl = newLocalSasl
 	copyThenClose(c.processorConfig, server, conn.LocalConnection, conn.BrokerAddress, conn.BrokerAddress, localDesc)
 	if err := c.conns.Remove(conn.BrokerAddress, conn.LocalConnection); err != nil {
 		logrus.Info(err)
