@@ -72,15 +72,7 @@ type Config struct {
 			ListenerCipherSuites     []string
 			ListenerCurvePreferences []string
 			ClientCert               struct {
-				ValidateSubject bool
-				Subject         struct {
-					CommonName         string
-					Country            []string
-					Province           []string
-					Locality           []string
-					Organization       []string
-					OrganizationalUnit []string
-				}
+				Subjects []string
 			}
 		}
 	}
