@@ -88,19 +88,19 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 		kvs: make(KVs),
 	}
 
-	header, err := p.consume(2) // read header
+	prefix, err := p.consume(2) // read prefix
 	if err != nil {
 		// did not consume enough:
-		return output, errors.New("no header found")
+		return output, errors.New("no prefix found")
 	}
-	if (header[0] == 's' || header[0] == 'r') && header[1] == ':' {
-		switch header[0] {
+	if (prefix[0] == 's' || prefix[0] == 'r') && prefix[1] == ':' {
+		switch prefix[0] {
 		case 's':
 			output.inputValuesType = ClientCertificateHeaderString
 		case 'r':
 			output.inputValuesType = ClientCertificateHeaderPattern
 		}
-		// header is valid, read KVs:
+		// prefix is valid, read KVs:
 
 		for { // until EOF
 			nextRune, lookupErr := p.lookupOne()
@@ -149,7 +149,7 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 		return output, nil
 	}
 
-	return output, errors.New("subject header invalid, s: or r: expected")
+	return output, errors.New("subject prefix invalid, s: or r: expected")
 }
 
 func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, error) {
