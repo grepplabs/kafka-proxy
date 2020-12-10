@@ -26,45 +26,28 @@ var validSubjectFields = map[string]bool{
 	clientCertSubjectProvince:           true,
 }
 
-// ClientCertificateHeaderType is the subject header type.
-type ClientCertificateHeaderType int
+// ClientCertificateSubjectPrefixType is the subject header type.
+type ClientCertificateSubjectPrefixType int
 
 const (
-	// ClientCertificateHeaderString is the s:/ header.
-	ClientCertificateHeaderString ClientCertificateHeaderType = iota
-	// ClientCertificateHeaderPattern is the r:/ header.
-	ClientCertificateHeaderPattern
+	// ClientCertificateSubjectPrefixString is the s:/ header.
+	ClientCertificateSubjectPrefixString ClientCertificateSubjectPrefixType = iota
+	// ClientCertificateSubjectPrefixPattern is the r:/ header.
+	ClientCertificateSubjectPrefixPattern
 )
-
-// ClientCertificateRejectedError contains the details of the certificate rejection reason.
-type ClientCertificateRejectedError struct {
-	// Subject field that did not match.
-	Field string
-	// Expected values given in the subject argument for the given field.
-	Expected interface{}
-	// Values found in the certificate subject field for the given field.
-	Received interface{}
-}
-
-// Error returns the string representation of the error.
-func (e ClientCertificateRejectedError) Error() string {
-	return fmt.Sprintf("client certificate rejected: subject field %s expected %v but received %v",
-		e.Field, e.Expected, e.Received)
-}
 
 // ParsedSubject is the result of the subject parser Parse() operation.
 // Contains operations to validate its after parse state and validate the X509 Certificate.
 type ParsedSubject interface {
 	KVs() KVs
 	Input() string
-	Type() ClientCertificateHeaderType
-	Validate() error
+	Type() ClientCertificateSubjectPrefixType
 	X509Validate(*x509.Certificate) error
 }
 
 type defaultParsedSubject struct {
 	input           string
-	inputValuesType ClientCertificateHeaderType
+	inputValuesType ClientCertificateSubjectPrefixType
 	kvs             KVs
 }
 
@@ -76,24 +59,8 @@ func (ccs *defaultParsedSubject) Input() string {
 	return ccs.input
 }
 
-func (ccs *defaultParsedSubject) Type() ClientCertificateHeaderType {
+func (ccs *defaultParsedSubject) Type() ClientCertificateSubjectPrefixType {
 	return ccs.inputValuesType
-}
-
-func (ccs *defaultParsedSubject) Validate() error {
-	for k, v := range ccs.kvs {
-		if _, ok := validSubjectFields[k]; !ok {
-			return fmt.Errorf("%s is not support client certificate subject field", k)
-		}
-		if ccs.inputValuesType == ClientCertificateHeaderPattern {
-			for _, pattern := range v {
-				if _, compileErr := regexp.Compile(pattern); compileErr != nil {
-					return fmt.Errorf("cannot compile '%s' as regexp, reason: '%v'", pattern, compileErr)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func (ccs *defaultParsedSubject) X509Validate(cert *x509.Certificate) error {
@@ -136,8 +103,8 @@ func (ccs *defaultParsedSubject) X509Validate(cert *x509.Certificate) error {
 	return nil
 }
 
-func testCertValuesSlices(field string, expected, certValues []string, headerType ClientCertificateHeaderType) error {
-	if headerType == ClientCertificateHeaderString { // easy: just sort and check if true:
+func testCertValuesSlices(field string, expected, certValues []string, headerType ClientCertificateSubjectPrefixType) error {
+	if headerType == ClientCertificateSubjectPrefixString { // easy: just sort and check if true:
 		sort.Strings(expected)
 		sort.Strings(certValues)
 		if !compareStringSlices(expected, certValues) {
@@ -149,7 +116,7 @@ func testCertValuesSlices(field string, expected, certValues []string, headerTyp
 		}
 		return nil
 	}
-	if headerType == ClientCertificateHeaderPattern {
+	if headerType == ClientCertificateSubjectPrefixPattern {
 		if len(expected) != len(certValues) {
 			return fmt.Errorf("%s: expected has %d elements vs %d in certificate", field, len(expected), len(certValues))
 		}

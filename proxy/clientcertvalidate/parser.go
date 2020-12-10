@@ -4,13 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"unicode"
-
-	"github.com/pkg/errors"
 )
-
-var errUnexpectedPattern = errors.New("errUnexpectedPattern")
-var errNestedPattern = errors.New("errNestedPattern")
 
 // KVs represents parsed key value client certificate subject.
 type KVs map[string][]string
@@ -91,14 +87,14 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 	prefix, err := p.consume(2) // read prefix
 	if err != nil {
 		// did not consume enough:
-		return output, errors.New("no prefix found")
+		return output, &ParserMissingPrefixError{RawInput: string(p.input)}
 	}
 	if (prefix[0] == 's' || prefix[0] == 'r') && prefix[1] == ':' {
 		switch prefix[0] {
 		case 's':
-			output.inputValuesType = ClientCertificateHeaderString
+			output.inputValuesType = ClientCertificateSubjectPrefixString
 		case 'r':
-			output.inputValuesType = ClientCertificateHeaderPattern
+			output.inputValuesType = ClientCertificateSubjectPrefixPattern
 		}
 		// prefix is valid, read KVs:
 
@@ -109,28 +105,48 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			}
 			if nextRune != '/' {
 				// error, expected / at position
-				return output, fmt.Errorf("expected / at position %d but received %v", p.pos, nextRune)
+				return output, &ParserUnexpectedInputError{
+					Expected: '/',
+					Found:    nextRune,
+					Position: p.pos,
+				}
 			}
 			p.skip(1) // skip /
 			// read the key:
-			keyPos := p.pos
-			key, err := p.readAlphaStringUntil('=')
+			fieldPos := p.pos
+			field, err := p.readAlphaStringUntil('=')
 			if err == io.EOF {
 				// there was no key:
-				return output, fmt.Errorf("expected key at position %d but none received", keyPos)
+				return output, &ParserUnexpectedInputError{
+					Expected: "field",
+					Found:    "none",
+					Position: fieldPos,
+				}
 			}
 			if err == os.ErrInvalid {
 				// there was no key:
-				return output, fmt.Errorf("consumed '%s' is no a valid key, valid key contains uppercase letters only", key)
+				return output, &ParserInvalidSubjectFieldError{ConsumedString: field}
+			}
+
+			if _, ok := validSubjectFields[field]; !ok {
+				return output, &ParserUnsupportedSubjectFieldError{Field: field}
 			}
 
 			// key has been consumed, value must be enclosed in [...]
 			nextRune, lookupErr = p.lookupOne()
 			if lookupErr == io.EOF {
-				return output, fmt.Errorf("expected [ at position %d but nothing received", p.pos)
+				return output, &ParserUnexpectedInputError{
+					Expected: '[',
+					Found:    "none",
+					Position: p.pos,
+				}
 			}
 			if nextRune != '[' {
-				return output, fmt.Errorf("expected [ at position %d but received %v", p.pos, nextRune)
+				return output, &ParserUnexpectedInputError{
+					Expected: '[',
+					Found:    nextRune,
+					Position: p.pos,
+				}
 			}
 
 			// read value, everything until closing ]:
@@ -143,13 +159,25 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 				return output, fmt.Errorf("value starting at %d contains patterns but subject is type string", valuePos)
 			}
 
-			output.kvs[key] = values
+			if output.inputValuesType == ClientCertificateSubjectPrefixPattern {
+				for _, pattern := range values {
+					if _, compileErr := regexp.Compile(pattern); compileErr != nil {
+						return output, &InvalidPatternValueError{
+							Field:  field,
+							Reason: compileErr,
+							Value:  pattern,
+						}
+					}
+				}
+			}
+
+			output.kvs[field] = values
 		}
 
 		return output, nil
 	}
 
-	return output, errors.New("subject prefix invalid, s: or r: expected")
+	return output, &ParserInvalidPrefixError{ConsumedPrefix: string(prefix)}
 }
 
 func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, error) {
@@ -181,7 +209,7 @@ func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, erro
 	return string(consumed), nil
 }
 
-func (p *defaultSubjectParser) readValues(inputValuesType ClientCertificateHeaderType) ([]string, error) {
+func (p *defaultSubjectParser) readValues(inputValuesType ClientCertificateSubjectPrefixType) ([]string, error) {
 	values := []string{}
 	consumed := []rune{}
 	insidePattern := false
@@ -197,7 +225,7 @@ func (p *defaultSubjectParser) readValues(inputValuesType ClientCertificateHeade
 		if nextRune == '[' {
 			nest = nest + 1
 			if nest > 1 {
-				if inputValuesType == ClientCertificateHeaderString {
+				if inputValuesType == ClientCertificateSubjectPrefixString {
 					// a string type subject can't contain nested patterns:
 					return values, errUnexpectedPattern
 				}

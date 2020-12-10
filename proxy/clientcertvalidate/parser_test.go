@@ -14,9 +14,9 @@ func compareStringArrays(this, that []string) bool {
 	return true
 }
 
-// Header tests:
+// Prefix tests:
 
-func TestNoHeaderSubjectParser(t *testing.T) {
+func TestNoPrefixSubjectParser(t *testing.T) {
 	input := "/CN=[aaa,[],2,3]/OU=[bbb]/O=[ccc]/S=[ddd]"
 	parser := NewSubjectParser(input)
 	_, parseErr := parser.Parse()
@@ -25,8 +25,26 @@ func TestNoHeaderSubjectParser(t *testing.T) {
 	}
 }
 
-func TestInvalidHeaderSubjectParser(t *testing.T) {
+func TestInvalidPrefixSubjectParser(t *testing.T) {
 	input := "t:/CN=[aaa,[],2,3]/OU=[bbb]/O=[ccc]/S=[ddd]"
+	parser := NewSubjectParser(input)
+	_, parseErr := parser.Parse()
+	if parseErr == nil {
+		t.Fatal("expected string not to parse but it parsed")
+	}
+}
+
+func TestUnsupportedFieldNameSubjectParser(t *testing.T) {
+	input := "s:/UNSUPPORTED=[aaa,2,3]"
+	parser := NewSubjectParser(input)
+	_, parseErr := parser.Parse()
+	if parseErr == nil {
+		t.Fatal("expected string not to parse but it parsed")
+	}
+}
+
+func TestInvalidPatternParser(t *testing.T) {
+	input := "r:/CN=[?Z^aaa.{1}\\z$]"
 	parser := NewSubjectParser(input)
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
@@ -144,9 +162,6 @@ func TestValidPatternSubjectParser(t *testing.T) {
 			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
 		}
 	}
-
-	t.Log(certSsubject.Validate())
-
 }
 
 func TestInvalidUnterminatedValuePatternSubjectParser(t *testing.T) {

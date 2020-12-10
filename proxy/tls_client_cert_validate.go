@@ -60,9 +60,6 @@ func getParsedSubjects(conf *config.Config) ([]clientcertvalidate.ParsedSubject,
 		if parseErr != nil {
 			return parsedSubjects, parseErr
 		}
-		if validateErr := parsedSubject.Validate(); validateErr != nil {
-			return parsedSubjects, validateErr
-		}
 		parsedSubjects = append(parsedSubjects, parsedSubject)
 	}
 	return parsedSubjects, nil
