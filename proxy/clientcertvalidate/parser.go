@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"unicode"
 )
 
@@ -177,6 +178,13 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			}
 
 			regexpKVs := []*regexp.Regexp{}
+
+			if output.Type() == ClientCertificateSubjectPrefixString {
+				// string values have to be compared sorted,
+				// regexp values have to be compared in order defined
+				sort.Strings(values)
+			}
+
 			if output.Type() == ClientCertificateSubjectPrefixPattern {
 				for _, pattern := range values {
 					compiledRegexp, compileErr := regexp.Compile(pattern)

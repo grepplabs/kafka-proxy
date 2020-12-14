@@ -161,7 +161,6 @@ func (ccs *defaultParsedSubject) X509Validate(cert *x509.Certificate) error {
 }
 
 func testCertValuesSlicesStringSubject(field string, expected, certValues []string) error {
-	sort.Strings(expected)
 	sort.Strings(certValues)
 	if !compareStringSlices(expected, certValues) {
 		return ClientCertificateRejectedError{

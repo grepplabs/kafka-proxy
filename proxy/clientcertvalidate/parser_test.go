@@ -1,11 +1,26 @@
 package clientcertvalidate
 
 import (
+	"sort"
 	"strings"
 	"testing"
 )
 
 func compareStringArrays(this, that []string) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for index := range this {
+		if this[index] != that[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func compareSortedStringArrays(this, that []string) bool {
+	sort.Strings(this)
+	sort.Strings(that)
 	if len(this) != len(that) {
 		return false
 	}
@@ -89,7 +104,7 @@ func TestValidStringSubjectParser(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected key '%s' in parsed output", k)
 		}
-		if !compareStringArrays(received, v) {
+		if !compareSortedStringArrays(received, v) {
 			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
 		}
 	}
@@ -117,7 +132,7 @@ func TestNestedParensParseAsValueParser(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected key '%s' in parsed output", k)
 		}
-		if !compareStringArrays(received, v) {
+		if !compareSortedStringArrays(received, v) {
 			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
 		}
 	}
@@ -144,7 +159,7 @@ func TestUnbalancedEscapedValueParser(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected key '%s' in parsed output", k)
 		}
-		if !compareStringArrays(received, v) {
+		if !compareSortedStringArrays(received, v) {
 			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
 		}
 	}
