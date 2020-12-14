@@ -24,10 +24,6 @@ func tlsClientCertVerificationFunc(conf *config.Config) (func([][]byte, [][]*x50
 		for _, chain := range verifiedChains {
 			for _, cert := range chain {
 
-				if len(parsedSubjects) == 0 {
-					return nil
-				}
-
 				certificateAcceptable := false
 
 				// as soon as any parsed subject validates, pass the request;

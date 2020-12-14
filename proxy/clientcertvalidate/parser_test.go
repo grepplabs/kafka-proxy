@@ -1,6 +1,9 @@
 package clientcertvalidate
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func compareStringArrays(this, that []string) bool {
 	if len(this) != len(that) {
@@ -23,6 +26,9 @@ func TestNoPrefixSubjectParser(t *testing.T) {
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
 	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: invalid prefix:") {
+		t.Fatalf("expected different error type %v", parseErr)
+	}
 }
 
 func TestInvalidPrefixSubjectParser(t *testing.T) {
@@ -31,6 +37,9 @@ func TestInvalidPrefixSubjectParser(t *testing.T) {
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
+	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: invalid prefix:") {
+		t.Fatalf("expected different error type %v", parseErr)
 	}
 }
 
@@ -41,6 +50,9 @@ func TestUnsupportedFieldNameSubjectParser(t *testing.T) {
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
 	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: unsupported field:") {
+		t.Fatalf("expected different error type %v", parseErr)
+	}
 }
 
 func TestInvalidPatternParser(t *testing.T) {
@@ -49,6 +61,9 @@ func TestInvalidPatternParser(t *testing.T) {
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
+	}
+	if !strings.HasPrefix(parseErr.Error(), "invalid pattern: field") {
+		t.Fatalf("expected different error type %v", parseErr)
 	}
 }
 
@@ -81,12 +96,57 @@ func TestValidStringSubjectParser(t *testing.T) {
 
 }
 
-func TestInvalidUnexpectedNestedPatternStringSubjectParser(t *testing.T) {
-	input := "s:/CN=[aaa,[],2,3]/OU=[bbb]/O=[ccc]/S=[ddd]"
+func TestNestedParensParseAsValueParser(t *testing.T) {
+	input := "s:/CN=[aaa,[],2,3]/OU=[bbb,{123},5]/O=[ccc,[{1,2}],6,{7,8}]/S=[ddd]"
 	parser := NewSubjectParser(input)
-	_, parseErr := parser.Parse()
-	if parseErr == nil {
-		t.Fatal("expected string not to parse but it parsed")
+	certSsubject, parseErr := parser.Parse()
+
+	if parseErr != nil {
+		t.Fatal("expected string to parse but got error: ", parseErr)
+	}
+
+	expected := map[string][]string{
+		"CN": []string{"aaa", "[]", "2", "3"},
+		"OU": []string{"bbb", "{123}", "5"},
+		"O":  []string{"ccc", "[{1,2}]", "6", "{7,8}"},
+		"S":  []string{"ddd"},
+	}
+
+	for k, v := range expected {
+		received, ok := certSsubject.KVs()[k]
+		if !ok {
+			t.Fatalf("expected key '%s' in parsed output", k)
+		}
+		if !compareStringArrays(received, v) {
+			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
+		}
+	}
+}
+
+func TestUnbalancedEscapedValueParser(t *testing.T) {
+	input := "s:/CN=[aaa,\\],2,3]/OU=[bbb,\\},5]/O=[ccc,\\}\\,\\],6,7\\,8\\}]/S=[ddd]"
+	parser := NewSubjectParser(input)
+	certSsubject, parseErr := parser.Parse()
+
+	if parseErr != nil {
+		t.Fatal("expected string to parse but got error: ", parseErr)
+	}
+
+	expected := map[string][]string{
+		"CN": []string{"aaa", "\\]", "2", "3"},
+		"OU": []string{"bbb", "\\}", "5"},
+		"O":  []string{"ccc", "\\}\\,\\]", "6", "7\\,8\\}"},
+		"S":  []string{"ddd"},
+	}
+
+	for k, v := range expected {
+		received, ok := certSsubject.KVs()[k]
+		if !ok {
+			t.Fatalf("expected key '%s' in parsed output", k)
+		}
+		if !compareStringArrays(received, v) {
+			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
+		}
 	}
 }
 
@@ -97,6 +157,9 @@ func TestInvalidUnterminatedKeyStringSubjectParser(t *testing.T) {
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
 	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: invalid field:") {
+		t.Fatalf("expected different error type %v", parseErr)
+	}
 }
 
 func TestInvalidNoKeyStringSubjectParser(t *testing.T) {
@@ -105,6 +168,9 @@ func TestInvalidNoKeyStringSubjectParser(t *testing.T) {
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
+	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: invalid field:") {
+		t.Fatalf("expected different error type %v", parseErr)
 	}
 }
 
@@ -115,6 +181,9 @@ func TestInvalidUntInvalidKeyStringSubjectParser(t *testing.T) {
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
 	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: invalid field:") {
+		t.Fatalf("expected different error type %v", parseErr)
+	}
 }
 
 func TestInvalidUnenclosedValueStringSubjectParser(t *testing.T) {
@@ -124,6 +193,9 @@ func TestInvalidUnenclosedValueStringSubjectParser(t *testing.T) {
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
 	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: unexpected input:") {
+		t.Fatalf("expected different error type %v", parseErr)
+	}
 }
 
 func TestInvalidUnterminatedValueStringSubjectParser(t *testing.T) {
@@ -132,6 +204,9 @@ func TestInvalidUnterminatedValueStringSubjectParser(t *testing.T) {
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
+	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: value insufficient input:") {
+		t.Fatalf("expected different error type %v", parseErr)
 	}
 }
 
@@ -164,11 +239,41 @@ func TestValidPatternSubjectParser(t *testing.T) {
 	}
 }
 
+func TestPatternWithEscapesSubjectParser(t *testing.T) {
+	// not that [[]] makes sense but that is left to the regex compile
+	input := "r:/CN=[aaa.*,1,2,3]/OU=[bbb[a-z]{1,}\\{\\,\\},4,5]/O=[eee,ccc[1-9]{1,10},6]/S=[ddd?[[\\]]],7,8]"
+	parser := NewSubjectParser(input)
+	certSsubject, parseErr := parser.Parse()
+	if parseErr != nil {
+		t.Fatal("expected string to parse but got error: ", parseErr)
+	}
+
+	expected := map[string][]string{
+		"CN": []string{"aaa.*", "1", "2", "3"},
+		"OU": []string{"bbb[a-z]{1,}\\{\\,\\}", "4", "5"},
+		"O":  []string{"eee", "ccc[1-9]{1,10}", "6"},
+		"S":  []string{"ddd?[[\\]]]", "7", "8"},
+	}
+
+	for k, v := range expected {
+		received, ok := certSsubject.KVs()[k]
+		if !ok {
+			t.Fatalf("expected key '%s' in parsed output", k)
+		}
+		if !compareStringArrays(received, v) {
+			t.Fatalf("values for key '%s' invalid, expected: %v, received: %v", k, v, received)
+		}
+	}
+}
+
 func TestInvalidUnterminatedValuePatternSubjectParser(t *testing.T) {
 	input := "r:/CN=[a]/OU=[bbb[1-2].*"
 	parser := NewSubjectParser(input)
 	_, parseErr := parser.Parse()
 	if parseErr == nil {
 		t.Fatal("expected string not to parse but it parsed")
+	}
+	if !strings.HasPrefix(parseErr.Error(), "parser: value insufficient input:") {
+		t.Fatalf("expected different error type %v", parseErr)
 	}
 }

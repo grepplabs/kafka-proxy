@@ -54,7 +54,7 @@ func (p *defaultSubjectParser) consume(n int) ([]rune, error) {
 }
 
 func (p *defaultSubjectParser) skip(n int) {
-	p.pos = p.pos + 1
+	p.pos = p.pos + n
 }
 
 func (p *defaultSubjectParser) lookupOne() (rune, error) {
@@ -106,8 +106,8 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			if nextRune != '/' {
 				// error, expected / at position
 				return output, &ParserUnexpectedInputError{
-					Expected: '/',
-					Found:    nextRune,
+					Expected: []rune{'/'},
+					Found:    []rune{nextRune},
 					Position: p.pos,
 				}
 			}
@@ -115,48 +115,63 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			// read the key:
 			fieldPos := p.pos
 			field, err := p.readAlphaStringUntil('=')
-			if err == io.EOF {
-				// there was no key:
-				return output, &ParserUnexpectedInputError{
-					Expected: "field",
-					Found:    "none",
-					Position: fieldPos,
+			if err != nil {
+				switch err {
+				case io.EOF:
+					// there was no key:
+					return output, &ParserUnexpectedInputError{
+						Expected: []rune("field"),
+						Found:    []rune("none"),
+						Position: fieldPos,
+					}
+				case os.ErrInvalid:
+					// there was no key:
+					return output, &ParserInvalidSubjectFieldError{ConsumedString: field}
+				default:
+					return output, &ParserUnexpectedError{Unexpected: err}
 				}
-			}
-			if err == os.ErrInvalid {
-				// there was no key:
-				return output, &ParserInvalidSubjectFieldError{ConsumedString: field}
 			}
 
 			if _, ok := validSubjectFields[field]; !ok {
 				return output, &ParserUnsupportedSubjectFieldError{Field: field}
 			}
 
+			// next rune must be value list start: [
+
 			// key has been consumed, value must be enclosed in [...]
 			nextRune, lookupErr = p.lookupOne()
-			if lookupErr == io.EOF {
-				return output, &ParserUnexpectedInputError{
-					Expected: '[',
-					Found:    "none",
-					Position: p.pos,
+			if lookupErr != nil {
+				switch lookupErr {
+				case io.EOF:
+					return output, &ParserUnexpectedInputError{
+						Expected: []rune{'['},
+						Found:    []rune("none"),
+						Position: p.pos,
+					}
+				default:
+					return output, &ParserUnexpectedError{Unexpected: err}
 				}
 			}
 			if nextRune != '[' {
 				return output, &ParserUnexpectedInputError{
-					Expected: '[',
-					Found:    nextRune,
+					Expected: []rune{'['},
+					Found:    []rune{nextRune},
 					Position: p.pos,
 				}
 			}
 
 			// read value, everything until closing ]:
 			valuePos := p.pos
-			values, err := p.readValues(output.inputValuesType)
-			switch err {
-			case io.EOF:
-				return output, fmt.Errorf("expected value enclosed within [] at position %d but received '%v' and run out of input", valuePos, values)
-			case errUnexpectedPattern:
-				return output, fmt.Errorf("value starting at %d contains patterns but subject is type string", valuePos)
+			values, err := p.readValues()
+			if err != nil {
+				switch err {
+				case io.EOF:
+					return output, &ParserValueInsufficientInputError{ValuePos: valuePos}
+				case errUnexpectedPattern:
+					return output, fmt.Errorf("value starting at %d contains patterns but subject is type string", valuePos)
+				default:
+					return output, &ParserUnexpectedError{Unexpected: err}
+				}
 			}
 
 			if output.inputValuesType == ClientCertificateSubjectPrefixPattern {
@@ -185,8 +200,8 @@ func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, erro
 	for {
 		nextRune, err := p.lookupOne()
 
-		if err == io.EOF {
-			return string(consumed), io.EOF
+		if err != nil {
+			return string(consumed), err
 		}
 
 		if unicode.IsLetter(nextRune) && unicode.IsUpper(nextRune) {
@@ -195,7 +210,7 @@ func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, erro
 			p.skip(1)
 			continue
 		}
-		if nextRune == '=' {
+		if nextRune == boundary {
 			// all good, break
 			p.skip(1)
 			break
@@ -209,77 +224,191 @@ func (p *defaultSubjectParser) readAlphaStringUntil(boundary rune) (string, erro
 	return string(consumed), nil
 }
 
-func (p *defaultSubjectParser) readValues(inputValuesType ClientCertificateSubjectPrefixType) ([]string, error) {
-	values := []string{}
+func (p *defaultSubjectParser) readAnyEnclosed(boundaryStart, boundaryEnd rune, inclusive bool) (string, error) {
 	consumed := []rune{}
-	insidePattern := false
-	nest := 0
 	for {
-
 		nextRune, err := p.lookupOne()
-
-		if err == io.EOF {
-			return values, io.EOF
+		if err != nil {
+			return string(consumed), err
 		}
-
-		if nextRune == '[' {
-			nest = nest + 1
-			if nest > 1 {
-				if inputValuesType == ClientCertificateSubjectPrefixString {
-					// a string type subject can't contain nested patterns:
-					return values, errUnexpectedPattern
-				}
-			} else {
+		if nextRune == boundaryEnd {
+			if inclusive {
 				p.skip(1)
-				continue
+				consumed = append(consumed, nextRune)
 			}
+			break
 		}
-
-		if nextRune == ']' {
-			if nest-1 == 0 {
-				// we have reached the end of the value:
-				p.skip(1)
-				break
+		if nextRune == boundaryStart {
+			p.skip(1)
+			consumed = append(consumed, nextRune)
+			chunk, err := p.readAnyEnclosed(boundaryStart, boundaryEnd, inclusive)
+			if err != nil {
+				return string(consumed), err
 			}
-			if nest == 1 {
-				p.skip(1)
-				continue
+			consumed = append(consumed, []rune(chunk)...)
+			continue
+		}
+		if nextRune == '\\' {
+			chunk, err := p.readEscapeSequence()
+			if err != nil {
+				return string(consumed), err
 			}
-			nest = nest - 1
+			consumed = append(consumed, []rune(chunk)...)
+			continue
 		}
-
-		// values are separated by commas but they can only exist when we are inside
-		// top level [...] and not between {...}
-		if nextRune == '{' {
-			// nested {} are not okay...
-			if insidePattern {
-				return values, errNestedPattern
-			}
-			insidePattern = true
-		}
-
-		if nextRune == '}' {
-			insidePattern = false
-		}
-
-		if nextRune == ',' {
-			if !insidePattern && nest == 1 { // value separator
-				values = append(values, string(consumed))
-				consumed = []rune{}
-				p.skip(1)
-				continue
-			}
-		}
-
-		// everything else is a part of the value:
-		consumed = append(consumed, nextRune)
 		p.skip(1)
+		consumed = append(consumed, nextRune)
+	}
+	if len(consumed) == 0 {
+		return "", io.EOF
+	}
+	return string(consumed), nil
+}
 
+// Reads top level key value values. These have to be enclosed in [...].
+// Tries reading [, followed by any literal value separated by comma and followed by closing ].
+func (p *defaultSubjectParser) readValues() ([]string, error) {
+
+	values := []string{}
+
+	nextRune, err := p.consumeOne()
+	if err != nil {
+		return values, err
+	}
+	if nextRune != '[' {
+		return values, &ParserUnexpectedInputError{
+			Expected: []rune{'['},
+			Found:    []rune{nextRune},
+			Position: p.pos,
+		}
 	}
 
-	if len(consumed) > 0 {
-		values = append(values, string(consumed))
+	nextValue, readValuesErr := p.readValue()
+	if readValuesErr != nil {
+		return values, readValuesErr
+	}
+	values = append(values, nextValue)
+	for {
+		nextRune, err := p.lookupOne()
+		if err != nil {
+			return values, err
+		}
+		if nextRune == ',' {
+			p.skip(1)
+			nextValue, readValuesErr := p.readValue()
+			if readValuesErr != nil {
+				return values, readValuesErr
+			}
+			values = append(values, nextValue)
+			continue
+		}
+		break
+	}
+
+	nextRune, err = p.consumeOne()
+	if err != nil {
+		return values, err
+	}
+	if nextRune != ']' {
+		return values, &ParserUnexpectedInputError{
+			Expected: []rune{']'},
+			Found:    []rune{nextRune},
+			Position: p.pos,
+		}
 	}
 
 	return values, nil
+}
+
+// Read a single value. A valid value is any literal until unescaped , or ].
+func (p *defaultSubjectParser) readValue() (string, error) {
+	currentValue := []rune{}
+	for {
+
+		nextRune, err := p.lookupOne()
+		if err != nil {
+			return string(currentValue), err
+		}
+
+		if nextRune == '[' {
+			boundaryEnd := ']'
+			// consume this bracket:
+			p.skip(1)
+			currentValue = append(currentValue, nextRune)
+			// followed by everything until matching closing bracket:
+			value, err := p.readAnyEnclosed(nextRune, boundaryEnd, true)
+			if err != nil {
+				return string(currentValue), err
+			}
+			currentValue = append(currentValue, []rune(value)...)
+			continue
+		}
+
+		if nextRune == '{' {
+			boundaryEnd := '}'
+			// consume this bracket:
+			p.skip(1)
+			currentValue = append(currentValue, nextRune)
+			// followed by everything until matching closing bracket:
+			value, err := p.readAnyEnclosed(nextRune, boundaryEnd, true)
+			if err != nil {
+				return string(currentValue), err
+			}
+			currentValue = append(currentValue, []rune(value)...)
+			continue
+		}
+
+		if nextRune == ',' {
+			// do not consume the comma, caller checks for its existence
+			break
+		}
+
+		// if we find an unmatched value limiter
+		// unless escaped, break out:
+		if nextRune == ']' {
+			// we're done, done skip, caller checks for closing bracket:
+			break
+		}
+
+		if nextRune == '\\' {
+			chunk, err := p.readEscapeSequence()
+			if err != nil {
+				return string(currentValue), err
+			}
+			currentValue = append(currentValue, []rune(chunk)...)
+			continue
+		}
+
+		// otherwise, just consume the character:
+		p.skip(1)
+		currentValue = append(currentValue, nextRune)
+	}
+
+	return string(currentValue), nil
+}
+
+func (p *defaultSubjectParser) readEscapeSequence() (string, error) {
+	currentValue := []rune{}
+	nextRune, err := p.consumeOne()
+	if err != nil {
+		return string(currentValue), err
+	}
+	if nextRune != '\\' {
+		return "", &ParserUnexpectedInputError{
+			Expected: []rune{'\\'},
+			Found:    []rune{nextRune},
+			Position: p.pos - 1,
+		}
+	}
+	currentValue = append(currentValue, nextRune)
+
+	nextRune, err = p.lookupOne()
+	if err != nil {
+		return string(currentValue), err
+	}
+
+	// otherwise, whatever that is, just consume it
+	p.skip(1)
+	currentValue = append(currentValue, nextRune)
+	return string(currentValue), nil
 }
