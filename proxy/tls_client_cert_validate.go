@@ -14,37 +14,23 @@ func tlsClientCertVerificationFunc(conf *config.Config) (func([][]byte, [][]*x50
 		return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error { return nil }, parserErr
 	}
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-
 		if len(parsedSubjects) == 0 {
 			return nil // nothing to validate
 		}
-
 		errs := []error{}
-
 		for _, chain := range verifiedChains {
 			for _, cert := range chain {
-
-				certificateAcceptable := false
-
 				// as soon as any parsed subject validates, pass the request;
 				for _, parsedSubject := range parsedSubjects {
 					x509ValidateErr := parsedSubject.X509Validate(cert)
 					if x509ValidateErr == nil {
-						certificateAcceptable = true
-						break
+						return nil
 					}
 					errs = append(errs, x509ValidateErr)
 				}
-
-				if certificateAcceptable {
-					return nil
-				}
-
 			}
 		}
-
 		return fmt.Errorf("tls: no client certificate presented for any of the defined client subjects, errors: '%v'", errs)
-
 	}, nil
 }
 
