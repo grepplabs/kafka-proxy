@@ -11,6 +11,10 @@ import (
 // KVs represents parsed key value client certificate subject.
 type KVs map[string][]string
 
+// RegexpKVs represents compiled regexes for parsed key value client certificate subject
+// when the subject type is a pattern.
+type RegexpKVs map[string][]*regexp.Regexp
+
 // SubjectParser represents the subject parser.
 type SubjectParser interface {
 	Parse() (ParsedSubject, error)
@@ -80,9 +84,7 @@ func (p *defaultSubjectParser) lookup(n int) ([]rune, error) {
 // Parse parses the parser input as a subject.
 func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 
-	output := &defaultParsedSubject{
-		kvs: make(KVs),
-	}
+	output := DefaultParsedSubject()
 
 	prefix, err := p.consume(2) // read prefix
 	if err != nil {
@@ -92,9 +94,9 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 	if (prefix[0] == 's' || prefix[0] == 'r') && prefix[1] == ':' {
 		switch prefix[0] {
 		case 's':
-			output.inputValuesType = ClientCertificateSubjectPrefixString
+			output.WithType(ClientCertificateSubjectPrefixString)
 		case 'r':
-			output.inputValuesType = ClientCertificateSubjectPrefixPattern
+			output.WithType(ClientCertificateSubjectPrefixPattern)
 		}
 		// prefix is valid, read KVs:
 
@@ -174,19 +176,23 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 				}
 			}
 
-			if output.inputValuesType == ClientCertificateSubjectPrefixPattern {
+			regexpKVs := []*regexp.Regexp{}
+			if output.Type() == ClientCertificateSubjectPrefixPattern {
 				for _, pattern := range values {
-					if _, compileErr := regexp.Compile(pattern); compileErr != nil {
+					compiledRegexp, compileErr := regexp.Compile(pattern)
+					if compileErr != nil {
 						return output, &InvalidPatternValueError{
 							Field:  field,
 							Reason: compileErr,
 							Value:  pattern,
 						}
 					}
+					regexpKVs = append(regexpKVs, compiledRegexp)
 				}
 			}
 
-			output.kvs[field] = values
+			output.WithKVs(field, values)
+			output.WithRegexpKVs(field, regexpKVs)
 		}
 
 		return output, nil
