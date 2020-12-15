@@ -178,7 +178,11 @@ func testCertValuesSlicesRegexpSubject(field string, expected []*regexp.Regexp, 
 	}
 	for index, certValue := range certValues {
 		if matched := expected[index].Match([]byte(certValue)); !matched {
-			return fmt.Errorf("%s: rejected, '%s' did not match '%s'", field, expected[index], certValue)
+			return ClientCertificateRejectedError{
+				Field:    field,
+				Expected: expected[index],
+				Received: certValues,
+			}
 		}
 	}
 	return nil
