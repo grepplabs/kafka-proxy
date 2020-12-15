@@ -164,7 +164,7 @@ func testCertValuesSlicesStringSubject(field string, expected, certValues []stri
 	sort.Strings(certValues)
 	if !compareStringSlices(expected, certValues) {
 		return ClientCertificateRejectedError{
-			Field:    clientCertSubjectOrganizationalUnit,
+			Field:    field,
 			Expected: expected,
 			Received: certValues,
 		}
