@@ -24,7 +24,8 @@ func (f *OffsetFetchRequestFactory) Produce(requestKeyVersion *RequestKeyVersion
 }
 
 type OffsetFetchRequestV0 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV0) encode(pe packetEncoder) error {
@@ -41,11 +42,12 @@ func (r *OffsetFetchRequestV0) version() int16 {
 
 func (r *OffsetFetchRequestV0) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
 
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// get length of topic array
 	numTopics, err := pd.getInt32()
 	if err != nil {
@@ -82,8 +84,13 @@ func (r *OffsetFetchRequestV0) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetFetchRequestV0) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetFetchRequestV1 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV1) encode(pe packetEncoder) error {
@@ -100,10 +107,12 @@ func (r *OffsetFetchRequestV1) version() int16 {
 
 func (r *OffsetFetchRequestV1) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -141,8 +150,13 @@ func (r *OffsetFetchRequestV1) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetFetchRequestV1) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetFetchRequestV2 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV2) encode(pe packetEncoder) error {
@@ -159,10 +173,12 @@ func (r *OffsetFetchRequestV2) version() int16 {
 
 func (r *OffsetFetchRequestV2) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -200,8 +216,13 @@ func (r *OffsetFetchRequestV2) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetFetchRequestV2) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetFetchRequestV3 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV3) encode(pe packetEncoder) error {
@@ -218,10 +239,12 @@ func (r *OffsetFetchRequestV3) version() int16 {
 
 func (r *OffsetFetchRequestV3) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -259,8 +282,13 @@ func (r *OffsetFetchRequestV3) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetFetchRequestV3) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetFetchRequestV4 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV4) encode(pe packetEncoder) error {
@@ -277,10 +305,12 @@ func (r *OffsetFetchRequestV4) version() int16 {
 
 func (r *OffsetFetchRequestV4) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -318,8 +348,13 @@ func (r *OffsetFetchRequestV4) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetFetchRequestV4) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetFetchRequestV5 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetFetchRequestV5) encode(pe packetEncoder) error {
@@ -336,10 +371,12 @@ func (r *OffsetFetchRequestV5) version() int16 {
 
 func (r *OffsetFetchRequestV5) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -375,4 +412,8 @@ func (r *OffsetFetchRequestV5) decode(pd packetDecoder) (err error) {
 
 func (r *OffsetFetchRequestV5) GetTopics() []string {
 	return r.Topics
+}
+
+func (r *OffsetFetchRequestV5) GetConsumerGroups() []string {
+	return r.ConsumerGroups
 }

@@ -28,6 +28,7 @@ type packetDecoder interface {
 	getCompactNullableString() (*string, error)
 	getCompactArrayLength() (int, error)
 	getCompactNullableArrayLength() (int, error)
+	getCompactStringArray() ([]string, error)
 
 	// Subsets
 	remaining() int

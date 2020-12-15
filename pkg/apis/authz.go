@@ -6,13 +6,14 @@ import (
 
 // AuthzRequest - authorization request
 type AuthzRequest struct {
-	Apikey     int32  `json:"api_key"`
-	Apiversion int32  `json:"api_version"`
-	UserInfo   string `json:"user_info"`
-	SrcIp      string `json:"src_ip"`
-	DstIp      string `json:"dst_ip"`
-	Topics     string `json:"topics"`
-	ClientId   string `json:"client_id"`
+	Apikey         int32  `json:"api_key"`
+	Apiversion     int32  `json:"api_version"`
+	UserInfo       string `json:"user_info"`
+	SrcIp          string `json:"src_ip"`
+	DstIp          string `json:"dst_ip"`
+	Topics         string `json:"topics"`
+	ClientId       string `json:"client_id"`
+	ConsumerGroups string `json:"consumer_groups"`
 }
 
 // AuthzResponse - authorization response

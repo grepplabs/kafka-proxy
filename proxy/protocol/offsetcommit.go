@@ -28,7 +28,8 @@ func (f *OffsetCommitRequestFactory) Produce(requestKeyVersion *RequestKeyVersio
 }
 
 type OffsetCommitRequestV0 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV0) encode(pe packetEncoder) error {
@@ -45,10 +46,12 @@ func (r *OffsetCommitRequestV0) version() int16 {
 
 func (r *OffsetCommitRequestV0) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 
 	// get length of topic array
 	numTopics, err := pd.getInt32()
@@ -96,8 +99,13 @@ func (r *OffsetCommitRequestV0) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV0) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV1 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV1) encode(pe packetEncoder) error {
@@ -114,10 +122,13 @@ func (r *OffsetCommitRequestV1) version() int16 {
 
 func (r *OffsetCommitRequestV1) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
+
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -180,8 +191,13 @@ func (r *OffsetCommitRequestV1) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV1) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV2 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV2) encode(pe packetEncoder) error {
@@ -198,10 +214,12 @@ func (r *OffsetCommitRequestV2) version() int16 {
 
 func (r *OffsetCommitRequestV2) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -264,8 +282,13 @@ func (r *OffsetCommitRequestV2) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV2) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV3 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV3) encode(pe packetEncoder) error {
@@ -282,10 +305,12 @@ func (r *OffsetCommitRequestV3) version() int16 {
 
 func (r *OffsetCommitRequestV3) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -348,8 +373,13 @@ func (r *OffsetCommitRequestV3) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV3) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV4 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV4) encode(pe packetEncoder) error {
@@ -366,10 +396,12 @@ func (r *OffsetCommitRequestV4) version() int16 {
 
 func (r *OffsetCommitRequestV4) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -432,8 +464,13 @@ func (r *OffsetCommitRequestV4) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV4) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV5 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV5) encode(pe packetEncoder) error {
@@ -450,10 +487,12 @@ func (r *OffsetCommitRequestV5) version() int16 {
 
 func (r *OffsetCommitRequestV5) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -511,8 +550,13 @@ func (r *OffsetCommitRequestV5) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV5) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV6 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV6) encode(pe packetEncoder) error {
@@ -529,10 +573,12 @@ func (r *OffsetCommitRequestV6) version() int16 {
 
 func (r *OffsetCommitRequestV6) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -595,8 +641,13 @@ func (r *OffsetCommitRequestV6) GetTopics() []string {
 	return r.Topics
 }
 
+func (r *OffsetCommitRequestV6) GetConsumerGroups() []string {
+	return r.ConsumerGroups
+}
+
 type OffsetCommitRequestV7 struct {
-	Topics []string
+	Topics         []string
+	ConsumerGroups []string
 }
 
 func (r *OffsetCommitRequestV7) encode(pe packetEncoder) error {
@@ -613,10 +664,12 @@ func (r *OffsetCommitRequestV7) version() int16 {
 
 func (r *OffsetCommitRequestV7) decode(pd packetDecoder) (err error) {
 	// group_id
-	_, err = pd.getString()
+	groupId, err := pd.getString()
 	if err != nil {
 		return err
 	}
+
+	r.ConsumerGroups = append(r.ConsumerGroups, groupId)
 	// generation_id
 	_, err = pd.getInt32()
 	if err != nil {
@@ -682,4 +735,8 @@ func (r *OffsetCommitRequestV7) decode(pd packetDecoder) (err error) {
 
 func (r *OffsetCommitRequestV7) GetTopics() []string {
 	return r.Topics
+}
+
+func (r *OffsetCommitRequestV7) GetConsumerGroups() []string {
+	return r.ConsumerGroups
 }

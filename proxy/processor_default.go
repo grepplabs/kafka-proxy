@@ -79,14 +79,26 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					3:  true,
 					8:  true,
 					9:  true,
+					11: true,
+					12: true,
+					13: true,
+					14: true,
+					15: true,
 					19: true,
 					20: true,
+					24: true,
+					25: true,
+					27: true,
+					28: true,
 					37: true,
+					42: true,
 				}
 
 				if _, ok := decodedApiKeys[requestKeyVersion.ApiKey]; ok {
 					clientID, reqBody, pay, err := getPartialDecodedRequest(keyVersionBuf, src)
 					payload = pay
+					topics := make([]string, 0)
+					consumerGroups := make([]string, 0)
 
 					if err != nil {
 						err := fmt.Errorf(
@@ -100,36 +112,18 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 						return false, err
 					}
 
-					topicsReqIntf, ok := reqBody.(protocol.TopicRequestInterface)
-
-					if !ok {
-						err := fmt.Errorf(
-							"%s %T; apiversion: %d, apikey: %d, dstip: %s, srcip: %s",
-							"Bad assertion, not protocol.TopicRequestInterface, reqBody is of type ",
-							reqBody,
-							int32(requestKeyVersion.ApiVersion),
-							int32(requestKeyVersion.ApiKey),
-							ctx.brokerAddress,
-							ctx.srcAddress,
-						)
-						return false, err
+					if topicsReqIntf, ok := reqBody.(protocol.TopicRequestInterface); ok {
+						fmt.Printf("BBBBBBB")
+						topics = topicsReqIntf.GetTopics()
 					}
 
-					topics := topicsReqIntf.GetTopics()
-
-					if err != nil {
-						err := fmt.Errorf(
-							"apiversion: %d, apikey: %d, dstip: %s, srcip: %s, %w",
-							int32(requestKeyVersion.ApiVersion),
-							int32(requestKeyVersion.ApiKey),
-							ctx.brokerAddress,
-							ctx.srcAddress,
-							err,
-						)
-						return false, err
+					if groupsReqIntf, ok := reqBody.(protocol.ConsumerGroupRequestInterface); ok {
+						consumerGroups = groupsReqIntf.GetConsumerGroups()
+						fmt.Printf("CCCC %v", consumerGroups)
 					}
 
 					authzRequest.Topics = strings.Join(topics, ";")
+					authzRequest.ConsumerGroups = strings.Join(consumerGroups, ";")
 					authzRequest.ClientId = clientID
 				}
 

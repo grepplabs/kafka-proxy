@@ -9,6 +9,7 @@ message AuthzRequest {
     string dst_ip = 5;
     string topics = 6;
     string client_id = 7;
+    string consumer_groups = 8;
 }
 
 message AuthzResponse {

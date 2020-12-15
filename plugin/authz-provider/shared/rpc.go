@@ -22,6 +22,7 @@ func (m *RPCClient) Authorize(ctx context.Context, request apis.AuthzRequest) (a
 			"dst_ip":     request.DstIp,
 			"topics":     request.Topics,
 			"client_id":  request.ClientId,
+			"consumer_groups":  request.ConsumerGroups,
 		},
 		&resp,
 	)
@@ -44,6 +45,7 @@ func (m *RPCServer) Authorize(args map[string]interface{}, resp *map[string]inte
 			DstIp:      args["dst_ip"].(string),
 			Topics:     args["topics"].(string),
 			ClientId:   args["client_id"].(string),
+			ConsumerGroups:   args["consumer_groups"].(string),
 		},
 	)
 

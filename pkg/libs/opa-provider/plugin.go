@@ -43,13 +43,14 @@ type AuthzProviderOptions struct {
 }
 
 type OpaAuthzInput struct {
-	Apikey     int32    `json:"api_key"`
-	Apiversion int32    `json:"api_version"`
-	UserInfo   string   `json:"user_info"`
-	SrcIp      string   `json:"src_ip"`
-	DstIp      string   `json:"dst_ip"`
-	Topics     []string `json:"topics"`
-	ClientId   string   `json:"client_id"`
+	Apikey         int32    `json:"api_key"`
+	Apiversion     int32    `json:"api_version"`
+	UserInfo       string   `json:"user_info"`
+	SrcIp          string   `json:"src_ip"`
+	DstIp          string   `json:"dst_ip"`
+	Topics         []string `json:"topics"`
+	ClientId       string   `json:"client_id"`
+	ConsumerGroups []string `json:"consumer_groups"`
 }
 
 type OpaAuthzRequest struct {
@@ -75,13 +76,14 @@ func (p *AuthzProvider) Authorize(parent context.Context, req apis.AuthzRequest)
 	ctx, cancel := context.WithTimeout(parent, p.timeout)
 	defer cancel()
 	opaInput := OpaAuthzInput{
-		Apikey:     req.Apikey,
-		Apiversion: req.Apiversion,
-		UserInfo:   req.UserInfo,
-		SrcIp:      req.SrcIp,
-		DstIp:      req.DstIp,
-		Topics:     strings.Split(req.Topics, ";"),
-		ClientId:   req.ClientId,
+		Apikey:         req.Apikey,
+		Apiversion:     req.Apiversion,
+		UserInfo:       req.UserInfo,
+		SrcIp:          req.SrcIp,
+		DstIp:          req.DstIp,
+		Topics:         strings.Split(req.Topics, ";"),
+		ClientId:       req.ClientId,
+		ConsumerGroups: strings.Split(req.ConsumerGroups, ";"),
 	}
 	opaReq := OpaAuthzRequest{}
 	opaReq.Input = opaInput

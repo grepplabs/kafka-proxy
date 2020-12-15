@@ -58,6 +58,10 @@ type TopicRequestInterface interface {
 	GetTopics() []string
 }
 
+type ConsumerGroupRequestInterface interface {
+	GetConsumerGroups() []string
+}
+
 type RequestTypeFactory struct{}
 
 func (*RequestTypeFactory) Produce(requestKeyVersion *RequestKeyVersion) (req ProtocolBody, err error) {
@@ -116,6 +120,51 @@ func (*RequestTypeFactory) Produce(requestKeyVersion *RequestKeyVersion) (req Pr
 		}
 
 		return req, nil
+	case 11:
+		factory := &JoinGroupRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 12:
+		factory := &HeartbeatRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 13:
+		factory := &LeaveGroupRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 14:
+		factory := &SyncGroupRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 15:
+		factory := &DescribeGroupsRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
 	case 19:
 		factory := &CreateTopicsRequestFactory{}
 		req, err := factory.Produce(requestKeyVersion)
@@ -134,8 +183,53 @@ func (*RequestTypeFactory) Produce(requestKeyVersion *RequestKeyVersion) (req Pr
 		}
 
 		return req, nil
+	case 24:
+		factory := &AddPartitionsToTxnRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 25:
+		factory := &AddOffsetsToTxnRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 27:
+		factory := &WriteTxnMarkersRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 28:
+		factory := &TxnOffsetCommitRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
 	case 37:
 		factory := &CreatePartitionsRequestFactory{}
+		req, err := factory.Produce(requestKeyVersion)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return req, nil
+	case 42:
+		factory := &DeleteGroupsRequestFactory{}
 		req, err := factory.Produce(requestKeyVersion)
 
 		if err != nil {

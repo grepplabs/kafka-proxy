@@ -311,6 +311,33 @@ func (rd *realDecoder) getStringArray() ([]string, error) {
 	return ret, nil
 }
 
+func (rd *realDecoder) getCompactStringArray() ([]string, error) {
+	n, err := rd.getArrayLength()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if n == -1 {
+		return nil, nil
+	}
+
+	if n < -1 {
+		return nil, errInvalidArrayLength
+	}
+
+	ret := make([]string, n)
+	for i := range ret {
+		str, err := rd.getCompactString()
+		if err != nil {
+			return nil, err
+		}
+
+		ret[i] = str
+	}
+	return ret, nil
+}
+
 // subsets
 func (rd *realDecoder) remaining() int {
 	return len(rd.raw) - rd.off
