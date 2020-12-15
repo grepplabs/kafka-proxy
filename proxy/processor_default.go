@@ -113,13 +113,11 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 					}
 
 					if topicsReqIntf, ok := reqBody.(protocol.TopicRequestInterface); ok {
-						fmt.Printf("BBBBBBB")
 						topics = topicsReqIntf.GetTopics()
 					}
 
 					if groupsReqIntf, ok := reqBody.(protocol.ConsumerGroupRequestInterface); ok {
 						consumerGroups = groupsReqIntf.GetConsumerGroups()
-						fmt.Printf("CCCC %v", consumerGroups)
 					}
 
 					authzRequest.Topics = strings.Join(topics, ";")
