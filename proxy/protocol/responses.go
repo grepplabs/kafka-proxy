@@ -3,6 +3,7 @@ package protocol
 import (
 	"errors"
 	"fmt"
+
 	"github.com/grepplabs/kafka-proxy/config"
 )
 
@@ -24,173 +25,173 @@ var (
 
 func createMetadataResponseSchemaVersions() []Schema {
 	metadataBrokerV0 := NewSchema("metadata_broker_v0",
-		&field{name: "node_id", ty: typeInt32},
-		&field{name: hostKeyName, ty: typeStr},
-		&field{name: portKeyName, ty: typeInt32},
+		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
 
 	partitionMetadataV0 := NewSchema("partition_metadata_v0",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "partition", ty: typeInt32},
-		&field{name: "leader", ty: typeInt32},
-		&array{name: "replicas", ty: typeInt32},
-		&array{name: "isr", ty: typeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "partition", Ty: TypeInt32},
+		&Mfield{Name: "leader", Ty: TypeInt32},
+		&Array{Name: "replicas", Ty: TypeInt32},
+		&Array{Name: "isr", Ty: TypeInt32},
 	)
 
 	topicMetadataV0 := NewSchema("topic_metadata_v0",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "topic", ty: typeStr},
-		&array{name: "partition_metadata", ty: partitionMetadataV0},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "topic", Ty: TypeStr},
+		&Array{Name: "partition_metadata", Ty: partitionMetadataV0},
 	)
 
 	metadataResponseV0 := NewSchema("metadata_response_v0",
-		&array{name: brokersKeyName, ty: metadataBrokerV0},
-		&array{name: "topic_metadata", ty: topicMetadataV0},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV0},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV0},
 	)
 
 	metadataBrokerV1 := NewSchema("metadata_broker_v1",
-		&field{name: "node_id", ty: typeInt32},
-		&field{name: hostKeyName, ty: typeStr},
-		&field{name: portKeyName, ty: typeInt32},
-		&field{name: "rack", ty: typeNullableStr},
+		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
+		&Mfield{Name: "rack", Ty: TypeNullableStr},
 	)
 
 	metadataBrokerSchema9 := NewSchema("metadata_broker_schema9",
-		&field{name: "node_id", ty: typeInt32},
-		&field{name: hostKeyName, ty: typeCompactStr},
-		&field{name: portKeyName, ty: typeInt32},
-		&field{name: "rack", ty: typeCompactNullableStr},
-		&taggedFields{"broker_tagged_fields"},
+		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
+		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
+		&SchemaTaggedFields{"broker_tagged_fields"},
 	)
 
 	partitionMetadataV1 := partitionMetadataV0
 
 	partitionMetadataV2 := NewSchema("partition_metadata_v2",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "partition", ty: typeInt32},
-		&field{name: "leader", ty: typeInt32},
-		&array{name: "replicas", ty: typeInt32},
-		&array{name: "isr", ty: typeInt32},
-		&array{name: "offline_replicas", ty: typeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "partition", Ty: TypeInt32},
+		&Mfield{Name: "leader", Ty: TypeInt32},
+		&Array{Name: "replicas", Ty: TypeInt32},
+		&Array{Name: "isr", Ty: TypeInt32},
+		&Array{Name: "offline_replicas", Ty: TypeInt32},
 	)
 
 	partitionMetadataV7 := NewSchema("partition_metadata_v7",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "partition", ty: typeInt32},
-		&field{name: "leader", ty: typeInt32},
-		&field{name: "leader_epoch", ty: typeInt32},
-		&array{name: "replicas", ty: typeInt32},
-		&array{name: "isr", ty: typeInt32},
-		&array{name: "offline_replicas", ty: typeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "partition", Ty: TypeInt32},
+		&Mfield{Name: "leader", Ty: TypeInt32},
+		&Mfield{Name: "leader_epoch", Ty: TypeInt32},
+		&Array{Name: "replicas", Ty: TypeInt32},
+		&Array{Name: "isr", Ty: TypeInt32},
+		&Array{Name: "offline_replicas", Ty: TypeInt32},
 	)
 
 	partitionMetadataSchema9 := NewSchema("partition_metadata_schema9",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "partition", ty: typeInt32},
-		&field{name: "leader", ty: typeInt32},
-		&field{name: "leader_epoch", ty: typeInt32},
-		&compactArray{name: "replicas", ty: typeInt32},
-		&compactArray{name: "isr", ty: typeInt32},
-		&compactArray{name: "offline_replicas", ty: typeInt32},
-		&taggedFields{name: "partition_metadata_tagged_fields"},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "partition", Ty: TypeInt32},
+		&Mfield{Name: "leader", Ty: TypeInt32},
+		&Mfield{Name: "leader_epoch", Ty: TypeInt32},
+		&CompactArray{Name: "replicas", Ty: TypeInt32},
+		&CompactArray{Name: "isr", Ty: TypeInt32},
+		&CompactArray{Name: "offline_replicas", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "partition_metadata_tagged_fields"},
 	)
 
 	topicMetadataV1 := NewSchema("topic_metadata_v1",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "topic", ty: typeStr},
-		&field{name: "is_internal", ty: typeBool},
-		&array{name: "partition_metadata", ty: partitionMetadataV1},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "topic", Ty: TypeStr},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&Array{Name: "partition_metadata", Ty: partitionMetadataV1},
 	)
 
 	topicMetadataV2 := NewSchema("topic_metadata_v2",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "topic", ty: typeStr},
-		&field{name: "is_internal", ty: typeBool},
-		&array{name: "partition_metadata", ty: partitionMetadataV2},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "topic", Ty: TypeStr},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&Array{Name: "partition_metadata", Ty: partitionMetadataV2},
 	)
 
 	topicMetadataV7 := NewSchema("topic_metadata_v7",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "topic", ty: typeStr},
-		&field{name: "is_internal", ty: typeBool},
-		&array{name: "partition_metadata", ty: partitionMetadataV7},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "topic", Ty: TypeStr},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&Array{Name: "partition_metadata", Ty: partitionMetadataV7},
 	)
 
 	topicMetadataV8 := NewSchema("topic_metadata_v8",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "name", ty: typeStr},
-		&field{name: "is_internal", ty: typeBool},
-		&array{name: "partition_metadata", ty: partitionMetadataV7},
-		&field{name: "topic_authorized_operations", ty: typeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "name", Ty: TypeStr},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&Array{Name: "partition_metadata", Ty: partitionMetadataV7},
+		&Mfield{Name: "topic_authorized_operations", Ty: TypeInt32},
 	)
 
 	topicMetadataSchema9 := NewSchema("topic_metadata_schema9",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "name", ty: typeCompactStr},
-		&field{name: "is_internal", ty: typeBool},
-		&compactArray{name: "partition_metadata", ty: partitionMetadataSchema9},
-		&field{name: "topic_authorized_operations", ty: typeInt32},
-		&taggedFields{name: "topic_metadata_tagged_fields"},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "name", Ty: TypeCompactStr},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&CompactArray{Name: "partition_metadata", Ty: partitionMetadataSchema9},
+		&Mfield{Name: "topic_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "topic_metadata_tagged_fields"},
 	)
 
 	metadataResponseV1 := NewSchema("metadata_response_v1",
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV1},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV1},
 	)
 
 	metadataResponseV2 := NewSchema("metadata_response_v2",
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "cluster_id", ty: typeNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV1},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "cluster_id", Ty: TypeNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV1},
 	)
 
 	metadataResponseV3 := NewSchema("metadata_response_v3",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "cluster_id", ty: typeNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV1},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "cluster_id", Ty: TypeNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV1},
 	)
 
 	metadataResponseV4 := metadataResponseV3
 
 	metadataResponseV5 := NewSchema("metadata_response_v5",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "cluster_id", ty: typeNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV2},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "cluster_id", Ty: TypeNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV2},
 	)
 
 	metadataResponseV6 := metadataResponseV5
 
 	metadataResponseV7 := NewSchema("metadata_response_v7",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "cluster_id", ty: typeNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV7},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "cluster_id", Ty: TypeNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV7},
 	)
 
 	metadataResponseV8 := NewSchema("metadata_response_v8",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&array{name: brokersKeyName, ty: metadataBrokerV1},
-		&field{name: "cluster_id", ty: typeNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&array{name: "topic_metadata", ty: topicMetadataV8},
-		&field{name: "cluster_authorized_operations", ty: typeInt32},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
+		&Mfield{Name: "cluster_id", Ty: TypeNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&Array{Name: "topic_metadata", Ty: topicMetadataV8},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 	)
 
 	metadataResponseV9 := NewSchema("metadata_response_v9",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&compactArray{name: brokersKeyName, ty: metadataBrokerSchema9},
-		&field{name: "cluster_id", ty: typeCompactNullableStr},
-		&field{name: "controller_id", ty: typeInt32},
-		&compactArray{name: "topic_metadata", ty: topicMetadataSchema9},
-		&field{name: "cluster_authorized_operations", ty: typeInt32},
-		&taggedFields{name: "response_tagged_fields"},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: metadataBrokerSchema9},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema9},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
 	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9}
@@ -198,37 +199,37 @@ func createMetadataResponseSchemaVersions() []Schema {
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
 	findCoordinatorBrokerV0 := NewSchema("find_coordinator_broker_v0",
-		&field{name: "node_id", ty: typeInt32},
-		&field{name: hostKeyName, ty: typeStr},
-		&field{name: portKeyName, ty: typeInt32},
+		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
 
 	findCoordinatorBrokerSchema9 := NewSchema("find_coordinator_broker_schema9",
-		&field{name: "node_id", ty: typeInt32},
-		&field{name: hostKeyName, ty: typeCompactStr},
-		&field{name: portKeyName, ty: typeInt32},
+		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
 
 	findCoordinatorResponseV0 := NewSchema("find_coordinator_response_v0",
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: coordinatorKeyName, ty: findCoordinatorBrokerV0},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: coordinatorKeyName, Ty: findCoordinatorBrokerV0},
 	)
 
 	findCoordinatorResponseV1 := NewSchema("find_coordinator_response_v1",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "error_message", ty: typeNullableStr},
-		&field{name: coordinatorKeyName, ty: findCoordinatorBrokerV0},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeNullableStr},
+		&Mfield{Name: coordinatorKeyName, Ty: findCoordinatorBrokerV0},
 	)
 
 	findCoordinatorResponseV2 := findCoordinatorResponseV1
 
 	findCoordinatorResponseV3 := NewSchema("find_coordinator_response_v3",
-		&field{name: "throttle_time_ms", ty: typeInt32},
-		&field{name: "error_code", ty: typeInt16},
-		&field{name: "error_message", ty: typeCompactNullableStr},
-		&field{name: coordinatorKeyName, ty: findCoordinatorBrokerSchema9},
-		&taggedFields{name: "response_tagged_fields"},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&Mfield{Name: coordinatorKeyName, Ty: findCoordinatorBrokerSchema9},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
 	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3}
