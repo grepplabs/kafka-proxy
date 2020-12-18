@@ -4,44 +4,44 @@ import "testing"
 
 func TestEncodeDecodeSchema(t *testing.T) {
 	someSchema := NewSchema("some_schema",
-		&field{name: "fieldInt16", ty: typeInt16},
+		&Mfield{Name: "fieldInt16", Ty: TypeInt16},
 	)
 
 	schema := NewSchema("test_schema",
-		&field{name: "fieldInt16", ty: typeInt16},
-		&field{name: "fieldInt32", ty: typeInt32},
-		&field{name: "fieldBool", ty: typeBool},
-		&field{name: "fieldStr", ty: typeStr},
-		&field{name: "fieldNullableStr", ty: typeNullableStr},
-		&field{name: "fieldCompactStr", ty: typeCompactStr},
-		&field{name: "fieldCompactNullableStr", ty: typeCompactNullableStr},
-		&array{name: "arrayOfSomeSchema", ty: someSchema},
+		&Mfield{Name: "fieldInt16", Ty: TypeInt16},
+		&Mfield{Name: "fieldInt32", Ty: TypeInt32},
+		&Mfield{Name: "fieldBool", Ty: TypeBool},
+		&Mfield{Name: "fieldStr", Ty: TypeStr},
+		&Mfield{Name: "fieldNullableStr", Ty: TypeNullableStr},
+		&Mfield{Name: "fieldCompactStr", Ty: TypeCompactStr},
+		&Mfield{Name: "fieldCompactNullableStr", Ty: TypeCompactNullableStr},
+		&Array{Name: "arrayOfSomeSchema", Ty: someSchema},
 	)
 
 	someData := &Struct{
-		schema: someSchema,
-		values: make([]interface{}, 0),
+		Schema: someSchema,
+		Values: make([]interface{}, 0),
 	}
 
 	data := &Struct{
-		schema: schema,
-		values: make([]interface{}, 0),
+		Schema: schema,
+		Values: make([]interface{}, 0),
 	}
 
-	someData.values = append(someData.values, int16(20))
+	someData.Values = append(someData.Values, int16(20))
 
 	nStr := "nullableStr"
 	nCompactStr := "nullableCompactStr"
-	data.values = append(data.values, int16(10))
-	data.values = append(data.values, int32(10))
-	data.values = append(data.values, false)
-	data.values = append(data.values, "str")
-	data.values = append(data.values, &nStr)
-	data.values = append(data.values, "compactStr")
-	data.values = append(data.values, &nCompactStr)
+	data.Values = append(data.Values, int16(10))
+	data.Values = append(data.Values, int32(10))
+	data.Values = append(data.Values, false)
+	data.Values = append(data.Values, "str")
+	data.Values = append(data.Values, &nStr)
+	data.Values = append(data.Values, "compactStr")
+	data.Values = append(data.Values, &nCompactStr)
 	someArr := make([]interface{}, 0)
 	someArr = append(someArr, someData)
-	data.values = append(data.values, someArr)
+	data.Values = append(data.Values, someArr)
 
 	result, err := EncodeSchema(data, schema)
 
@@ -63,8 +63,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldInt16Schema := schema.GetFieldsByName()["fieldInt16"].GetDef().GetSchema()
 
-	if fieldInt16Schema != typeInt16 {
-		t.Fatalf("Got bad schema for typeInt16 field")
+	if fieldInt16Schema != TypeInt16 {
+		t.Fatalf("Got bad schema for TypeInt16 field")
 	}
 
 	val = resultData.Get("fieldInt32")
@@ -75,8 +75,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldInt32Schema := schema.GetFieldsByName()["fieldInt32"].GetDef().GetSchema()
 
-	if fieldInt32Schema != typeInt32 {
-		t.Fatalf("Got bad schema for typeInt32 field")
+	if fieldInt32Schema != TypeInt32 {
+		t.Fatalf("Got bad schema for TypeInt32 field")
 	}
 
 	val = resultData.Get("fieldBool")
@@ -87,8 +87,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldBoolSchema := schema.GetFieldsByName()["fieldBool"].GetDef().GetSchema()
 
-	if fieldBoolSchema != typeBool {
-		t.Fatalf("Got bad schema for typeBool field")
+	if fieldBoolSchema != TypeBool {
+		t.Fatalf("Got bad schema for TypeBool field")
 	}
 
 	val = resultData.Get("fieldStr")
@@ -99,8 +99,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldStrSchema := schema.GetFieldsByName()["fieldStr"].GetDef().GetSchema()
 
-	if fieldStrSchema != typeStr {
-		t.Fatalf("Got bad schema for typeStr field")
+	if fieldStrSchema != TypeStr {
+		t.Fatalf("Got bad schema for TypeStr field")
 	}
 
 	val = resultData.Get("fieldNullableStr")
@@ -111,8 +111,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldNullStrSchema := schema.GetFieldsByName()["fieldNullableStr"].GetDef().GetSchema()
 
-	if fieldNullStrSchema != typeNullableStr {
-		t.Fatalf("Got bad schema for typeNullableStr field")
+	if fieldNullStrSchema != TypeNullableStr {
+		t.Fatalf("Got bad schema for TypeNullableStr field")
 	}
 
 	val = resultData.Get("fieldCompactStr")
@@ -123,7 +123,7 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldCompactStrSchema := schema.GetFieldsByName()["fieldCompactStr"].GetDef().GetSchema()
 
-	if fieldCompactStrSchema != typeCompactStr {
+	if fieldCompactStrSchema != TypeCompactStr {
 		t.Fatalf("Got bad schema for fieldCompactStr field")
 	}
 
@@ -135,7 +135,7 @@ func TestEncodeDecodeSchema(t *testing.T) {
 
 	fieldCompactNullableStrSchema := schema.GetFieldsByName()["fieldCompactNullableStr"].GetDef().GetSchema()
 
-	if fieldCompactNullableStrSchema != typeCompactNullableStr {
+	if fieldCompactNullableStrSchema != TypeCompactNullableStr {
 		t.Fatalf("Got bad schema for fieldCompactNullableStr field")
 	}
 

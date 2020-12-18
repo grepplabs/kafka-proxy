@@ -20,7 +20,7 @@ func (r *ResponseHeaderV1) decode(pd packetDecoder) (err error) {
 	}
 	r.CorrelationID, err = pd.getInt32()
 
-	tf := &taggedFields{}
+	tf := &SchemaTaggedFields{}
 	taggedFields, err := tf.decode(pd)
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func (r *ResponseHeaderV1) encode(pe packetEncoder) (err error) {
 	pe.putInt32(r.Length)
 	pe.putInt32(r.CorrelationID)
 
-	tf := &taggedFields{}
+	tf := &SchemaTaggedFields{}
 	err = tf.encode(pe, r.RawTaggedFields)
 	if err != nil {
 		return err

@@ -171,7 +171,7 @@ func TestEncodeDecodeCompactNullableString(t *testing.T) {
 }
 
 func TestEncodeDecodeCompactArray(t *testing.T) {
-	compactArray := &compactArray{name: "strings", ty: typeStr}
+	compactArray := &CompactArray{Name: "strings", Ty: TypeStr}
 	tt := []struct {
 		name string
 		lens []int
@@ -229,7 +229,7 @@ func TestEncodeDecodeCompactArray(t *testing.T) {
 }
 
 func TestEncodeDecodeCompactNullableArray(t *testing.T) {
-	array := &compactNullableArray{name: "strings", ty: typeNullableStr}
+	array := &CompactNullableArray{Name: "strings", Ty: TypeNullableStr}
 	tt := []struct {
 		name string
 		lens []int
@@ -529,7 +529,7 @@ func (r *CompactNullableStringsHolder) decode(pd packetDecoder) (err error) {
 
 type CompactArrayHolder struct {
 	values []interface{}
-	array  *compactArray
+	array  *CompactArray
 }
 
 func (r *CompactArrayHolder) encode(pe packetEncoder) (err error) {
@@ -555,7 +555,7 @@ func (r *CompactArrayHolder) decode(pd packetDecoder) (err error) {
 
 type CompactNullableArrayHolder struct {
 	values []interface{}
-	array  *compactNullableArray
+	array  *CompactNullableArray
 }
 
 func (r *CompactNullableArrayHolder) encode(pe packetEncoder) (err error) {

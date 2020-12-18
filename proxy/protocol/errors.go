@@ -36,7 +36,7 @@ type SchemaEncodingError struct {
 }
 
 func (err SchemaEncodingError) Error() string {
-	return fmt.Sprintf("schema: error encoding value: %s", err.Info)
+	return fmt.Sprintf("Schema: error encoding value: %s", err.Info)
 }
 
 // SchemaDecodingError is returned from a failure while decoding a schema .
@@ -45,7 +45,7 @@ type SchemaDecodingError struct {
 }
 
 func (err SchemaDecodingError) Error() string {
-	return fmt.Sprintf("schema: error decoding value: %s", err.Info)
+	return fmt.Sprintf("Schema: error decoding value: %s", err.Info)
 }
 
 // KError is the type of error that can be returned directly by the Kafka broker.

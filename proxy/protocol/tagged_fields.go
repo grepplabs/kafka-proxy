@@ -7,7 +7,7 @@ type TaggedFields struct {
 }
 
 func (r *TaggedFields) decode(pd packetDecoder) (err error) {
-	tf := &taggedFields{}
+	tf := &SchemaTaggedFields{}
 	taggedFields, err := tf.decode(pd)
 	if err != nil {
 		return err
@@ -21,7 +21,7 @@ func (r *TaggedFields) decode(pd packetDecoder) (err error) {
 }
 
 func (r *TaggedFields) encode(pe packetEncoder) (err error) {
-	tf := &taggedFields{}
+	tf := &SchemaTaggedFields{}
 	err = tf.encode(pe, r.values)
 	if err != nil {
 		return err

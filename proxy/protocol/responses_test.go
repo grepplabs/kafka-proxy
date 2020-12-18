@@ -54,7 +54,7 @@ func TestDecodeEmptyMetadataResponseV0(t *testing.T) {
 	a.Nil(err)
 	a.Equal(`metadata_response_v0{brokers:[],topic_metadata:[]}`, s.String())
 
-	a.Len(s.values, 2)
+	a.Len(s.Values, 2)
 
 	brokers, ok := s.Get("brokers").([]interface{})
 	a.True(ok)
@@ -93,7 +93,7 @@ func TestMetadataResponseV0WithBrokers(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 	a.Equal(`metadata_response_v0{brokers:[metadata_broker_v0{node_id:44031,host:localhost,port:51} metadata_broker_v0{node_id:66051,host:google.com,port:273}],topic_metadata:[]}`, s.String())
-	a.Len(s.values, 2)
+	a.Len(s.Values, 2)
 
 	brokers, ok := s.Get("brokers").([]interface{})
 	a.True(ok)
@@ -102,7 +102,7 @@ func TestMetadataResponseV0WithBrokers(t *testing.T) {
 	// broker[0]
 	brokerStruct, ok := brokers[0].(*Struct)
 	a.True(ok)
-	a.Len(brokerStruct.values, 3)
+	a.Len(brokerStruct.Values, 3)
 
 	nodeId, ok := brokerStruct.Get("node_id").(int32)
 	a.True(ok)
@@ -119,7 +119,7 @@ func TestMetadataResponseV0WithBrokers(t *testing.T) {
 	// broker[1]
 	brokerStruct, ok = brokers[1].(*Struct)
 	a.True(ok)
-	a.Len(brokerStruct.values, 3)
+	a.Len(brokerStruct.Values, 3)
 
 	nodeId, ok = brokerStruct.Get("node_id").(int32)
 	a.True(ok)
@@ -175,7 +175,7 @@ func TestMetadataResponseV0WithTopics(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 	a.Equal(`metadata_response_v0{brokers:[],topic_metadata:[topic_metadata_v0{error_code:0,topic:foo,partition_metadata:[partition_metadata_v0{error_code:4,partition:1,leader:7,replicas:[1 2 3],isr:[]}]} topic_metadata_v0{error_code:0,topic:bar,partition_metadata:[]}]}`, s.String())
-	a.Len(s.values, 2)
+	a.Len(s.Values, 2)
 
 	brokers, ok := s.Get("brokers").([]interface{})
 	a.True(ok)
@@ -188,7 +188,7 @@ func TestMetadataResponseV0WithTopics(t *testing.T) {
 	// topic_metadata[0]
 	topicMetadataStruct, ok := topicMetadata[0].(*Struct)
 	a.True(ok)
-	a.Len(topicMetadataStruct.values, 3)
+	a.Len(topicMetadataStruct.Values, 3)
 
 	errorCode, ok := topicMetadataStruct.Get("error_code").(int16)
 	a.True(ok)
@@ -205,7 +205,7 @@ func TestMetadataResponseV0WithTopics(t *testing.T) {
 	// partitionMetadata[0]
 	partitionMetadataStruct, ok := partitionMetadata[0].(*Struct)
 	a.True(ok)
-	a.Len(partitionMetadataStruct.values, 5)
+	a.Len(partitionMetadataStruct.Values, 5)
 
 	errorCode, ok = partitionMetadataStruct.Get("error_code").(int16)
 	a.True(ok)
@@ -234,7 +234,7 @@ func TestMetadataResponseV0WithTopics(t *testing.T) {
 	// topic_metadata[1]
 	topicMetadataStruct, ok = topicMetadata[1].(*Struct)
 	a.True(ok)
-	a.Len(topicMetadataStruct.values, 3)
+	a.Len(topicMetadataStruct.Values, 3)
 
 	errorCode, ok = topicMetadataStruct.Get("error_code").(int16)
 	a.True(ok)
@@ -2669,7 +2669,7 @@ func NewDecodeCheck() *decodeCheck {
 
 func (t *decodeCheck) Traverse(s *Struct) error {
 	for i, _ := range s.GetSchema().GetFields() {
-		arg := s.values[i]
+		arg := s.Values[i]
 		if err := t.value(s, arg, i); err != nil {
 			return err
 		}
