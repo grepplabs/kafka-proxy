@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 	"unicode"
 )
 
@@ -23,7 +24,8 @@ type SubjectParser interface {
 
 // NewSubjectParser creates a new default subject parser.
 func NewSubjectParser(input string) SubjectParser {
-	runeInput := []rune(input)
+	// remove single quotes from around the string:
+	runeInput := []rune(strings.TrimPrefix(strings.TrimSuffix(input, "'"), "'"))
 	return &defaultSubjectParser{
 		input:  runeInput,
 		pos:    0,
@@ -119,20 +121,19 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			fieldPos := p.pos
 			field, err := p.readAlphaStringUntil('=')
 			if err != nil {
-				switch err {
-				case io.EOF:
+				if err == io.EOF {
 					// there was no key:
 					return output, &ParserUnexpectedInputError{
 						Expected: []rune("field"),
 						Found:    []rune("none"),
 						Position: fieldPos,
 					}
-				case os.ErrInvalid:
+				}
+				if err == os.ErrInvalid {
 					// there was no key:
 					return output, &ParserInvalidSubjectFieldError{ConsumedString: field}
-				default:
-					return output, &ParserUnexpectedError{Unexpected: err}
 				}
+				return output, &ParserUnexpectedError{Unexpected: err}
 			}
 
 			if _, ok := validSubjectFields[field]; !ok {
@@ -144,16 +145,14 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			// key has been consumed, value must be enclosed in [...]
 			nextRune, lookupErr = p.lookupOne()
 			if lookupErr != nil {
-				switch lookupErr {
-				case io.EOF:
+				if lookupErr == io.EOF {
 					return output, &ParserUnexpectedInputError{
 						Expected: []rune{'['},
 						Found:    []rune("none"),
 						Position: p.pos,
 					}
-				default:
-					return output, &ParserUnexpectedError{Unexpected: err}
 				}
+				return output, &ParserUnexpectedError{Unexpected: err}
 			}
 			if nextRune != '[' {
 				return output, &ParserUnexpectedInputError{
@@ -167,14 +166,13 @@ func (p *defaultSubjectParser) Parse() (ParsedSubject, error) {
 			valuePos := p.pos
 			values, err := p.readValues()
 			if err != nil {
-				switch err {
-				case io.EOF:
+				if err == io.EOF {
 					return output, &ParserValueInsufficientInputError{ValuePos: valuePos}
-				case errUnexpectedPattern:
-					return output, fmt.Errorf("value starting at %d contains patterns but subject is type string", valuePos)
-				default:
-					return output, &ParserUnexpectedError{Unexpected: err}
 				}
+				if err == errUnexpectedPattern {
+					return output, fmt.Errorf("value starting at %d contains patterns but subject is type string", valuePos)
+				}
+				return output, &ParserUnexpectedError{Unexpected: err}
 			}
 
 			regexpKVs := []*regexp.Regexp{}
