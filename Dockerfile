@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine3.12 as builder
+FROM golang:1.16-alpine3.14 as builder
 RUN apk add alpine-sdk ca-certificates
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
@@ -9,7 +9,7 @@ ARG GOOS=linux
 ARG GOARCH=amd64
 RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean ${MAKE_TARGET}
 
-FROM alpine:3.12
+FROM alpine:3.14
 RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build /opt/kafka-proxy/bin

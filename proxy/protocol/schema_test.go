@@ -1,6 +1,9 @@
 package protocol
 
-import "testing"
+import (
+	"github.com/google/uuid"
+	"testing"
+)
 
 func TestEncodeDecodeSchema(t *testing.T) {
 	someSchema := NewSchema("some_schema",
@@ -16,6 +19,7 @@ func TestEncodeDecodeSchema(t *testing.T) {
 		&Mfield{Name: "fieldCompactStr", Ty: TypeCompactStr},
 		&Mfield{Name: "fieldCompactNullableStr", Ty: TypeCompactNullableStr},
 		&Array{Name: "arrayOfSomeSchema", Ty: someSchema},
+		&Mfield{Name: "fieldUuid", Ty: TypeUuid},
 	)
 
 	someData := &Struct{
@@ -42,6 +46,8 @@ func TestEncodeDecodeSchema(t *testing.T) {
 	someArr := make([]interface{}, 0)
 	someArr = append(someArr, someData)
 	data.Values = append(data.Values, someArr)
+	vUUID := uuid.New()
+	data.Values = append(data.Values, vUUID)
 
 	result, err := EncodeSchema(data, schema)
 
@@ -152,4 +158,14 @@ func TestEncodeDecodeSchema(t *testing.T) {
 		t.Fatalf("Child schema bad value, expected 20, got %d", b[0].(*Struct).Get("fieldInt16"))
 	}
 
+	val = resultData.Get("fieldUuid")
+	if val != vUUID {
+		t.Fatalf("Bad value of decoded input, expected %v, got %v", vUUID, val)
+	}
+
+	fieldUuidSchema := schema.GetFieldsByName()["fieldUuid"].GetDef().GetSchema()
+
+	if fieldUuidSchema != TypeUuid {
+		t.Fatalf("Got bad schema for TypeUuid field")
+	}
 }

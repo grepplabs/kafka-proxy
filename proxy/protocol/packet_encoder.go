@@ -1,5 +1,7 @@
 package protocol
 
+import "github.com/google/uuid"
+
 // PacketEncoder is the interface providing helpers for writing with Kafka's encoding rules.
 // Types implementing Encoder only need to worry about calling methods like PutString,
 // not about how a string is represented in Kafka.
@@ -14,6 +16,7 @@ type packetEncoder interface {
 	putBool(in bool)
 
 	putBytes(in []byte) error
+	putUUID(in uuid.UUID) error
 	putString(in string) error
 	putNullableString(in *string) error
 	putStringArray(in []string) error

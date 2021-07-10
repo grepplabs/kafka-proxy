@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"github.com/google/uuid"
 	"math"
 )
 
@@ -137,6 +138,15 @@ func (rd *realDecoder) getRawBytes(length int) ([]byte, error) {
 	start := rd.off
 	rd.off += length
 	return rd.raw[start:rd.off], nil
+}
+
+func (rd *realDecoder) getUUID() (uuid.UUID, error) {
+	r, err := rd.getRawBytes(16)
+	if err != nil {
+		var u uuid.UUID
+		return u, err
+	}
+	return uuid.FromBytes(r)
 }
 
 func (rd *realDecoder) getCompactBytes() ([]byte, error) {

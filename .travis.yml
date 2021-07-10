@@ -1,9 +1,9 @@
-sudo: false
-
+sudo: required
 language: go
+dist: focal
 
 go:
-  - "1.15.x"
+  - "1.16.x"
 
 env:
   global:

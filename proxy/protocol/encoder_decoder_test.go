@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"math"
 	"math/rand"
@@ -166,6 +167,34 @@ func TestEncodeDecodeCompactNullableString(t *testing.T) {
 			if request.values[i] != nil && *request.values[i] != *response.values[i] {
 				t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
 			}
+		}
+	}
+}
+
+func TestEncodeDecodeUUID(t *testing.T) {
+	values := make([]uuid.UUID, 0)
+	for i := 0; i < 10; i++ {
+		value := uuid.New()
+		values = append(values, value)
+	}
+	request := &UUIDsHolder{
+		values: values,
+	}
+	buf, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := &UUIDsHolder{}
+	err = Decode(buf, response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.values) != len(response.values) {
+		t.Fatalf("Values array lengths differ: expected %v, actual %v", request.values, response.values)
+	}
+	for i := range request.values {
+		if request.values[i] != response.values[i] {
+			t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
 		}
 	}
 }
@@ -586,4 +615,33 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+type UUIDsHolder struct {
+	values []uuid.UUID
+}
+
+func (r *UUIDsHolder) encode(pe packetEncoder) (err error) {
+	for _, value := range r.values {
+		err = pe.putUUID(value)
+		if err != nil {
+			return err
+		}
+	}
+	return
+}
+
+func (r *UUIDsHolder) decode(pd packetDecoder) (err error) {
+	r.values = make([]uuid.UUID, 0)
+	var value uuid.UUID
+	for ok := true; ok; ok = pd.remaining() > 0 {
+		if value, err = pd.getUUID(); err != nil {
+			return err
+		}
+		r.values = append(r.values, value)
+	}
+	if pd.remaining() != 0 {
+		return errors.Errorf("remaining bytes %d", pd.remaining())
+	}
+	return
 }

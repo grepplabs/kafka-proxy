@@ -1,5 +1,7 @@
 package protocol
 
+import "github.com/google/uuid"
+
 // PacketDecoder is the interface providing helpers for reading with Kafka's encoding rules.
 // Types implementing Decoder only need to worry about calling methods like GetString,
 // not about how a string is represented in Kafka.
@@ -14,6 +16,7 @@ type packetDecoder interface {
 	getBool() (bool, error)
 
 	getBytes() ([]byte, error)
+	getUUID() (uuid.UUID, error)
 	getString() (string, error)
 	getNullableString() (*string, error)
 	getInt32Array() ([]int32, error)

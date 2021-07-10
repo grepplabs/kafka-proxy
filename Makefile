@@ -2,13 +2,15 @@
 
 .PHONY: clean build all tag release
 
+ROOT_DIR       = $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+
 BINARY        ?= kafka-proxy
 SOURCES        = $(shell find . -name '*.go' | grep -v /vendor/)
 VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.2.8"
+TAG           ?= "v0.2.9"
 GOARCH        ?= amd64
 GOOS          ?= linux
 
@@ -38,7 +40,7 @@ tag:
 
 release: clean
 	git push origin $(TAG)
-	rm -rf ./dist
+	rm -rf $(ROOT_DIR)/dist
 	curl -sL https://git.io/goreleaser | bash
 
 protoc.local-auth:
@@ -74,4 +76,4 @@ plugin.oidc-provider:
 all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider plugin.google-id-info plugin.unsecured-jwt-info plugin.unsecured-jwt-provider plugin.oidc-provider
 
 clean:
-	@rm -rf build
+	rm -rf $(ROOT_DIR)/build

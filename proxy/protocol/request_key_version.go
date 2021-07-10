@@ -29,11 +29,23 @@ func (r *RequestKeyVersion) decode(pd packetDecoder) (err error) {
 func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 	switch r.ApiKey {
 	case 0: // Produce
-		return 0
+		if r.ApiVersion >= 9 {
+			return 1
+		} else {
+			return 0
+		}
 	case 1: // Fetch
-		return 0
+		if r.ApiVersion >= 12 {
+			return 1
+		} else {
+			return 0
+		}
 	case 2: // ListOffset
-		return 0
+		if r.ApiVersion >= 6 {
+			return 1
+		} else {
+			return 0
+		}
 	case 3: // Metadata
 		if r.ApiVersion >= 9 {
 			return 1
@@ -149,15 +161,35 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 			return 0
 		}
 	case 23: // OffsetForLeaderEpoch
-		return 0
+		if r.ApiVersion >= 4 {
+			return 1
+		} else {
+			return 0
+		}
 	case 24: // AddPartitionsToTxn
-		return 0
+		if r.ApiVersion >= 3 {
+			return 1
+		} else {
+			return 0
+		}
 	case 25: // AddOffsetsToTxn
-		return 0
+		if r.ApiVersion >= 3 {
+			return 1
+		} else {
+			return 0
+		}
 	case 26: // EndTxn
-		return 0
+		if r.ApiVersion >= 3 {
+			return 1
+		} else {
+			return 0
+		}
 	case 27: // WriteTxnMarkers
-		return 0
+		if r.ApiVersion >= 1 {
+			return 1
+		} else {
+			return 0
+		}
 	case 28: // TxnOffsetCommit
 		if r.ApiVersion >= 3 {
 			return 1
@@ -183,11 +215,23 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 			return 0
 		}
 	case 32: // DescribeConfigs
-		return 0
+		if r.ApiVersion >= 4 {
+			return 1
+		} else {
+			return 0
+		}
 	case 33: // AlterConfigs
-		return 0
+		if r.ApiVersion >= 2 {
+			return 1
+		} else {
+			return 0
+		}
 	case 34: // AlterReplicaLogDirs
-		return 0
+		if r.ApiVersion >= 2 {
+			return 1
+		} else {
+			return 0
+		}
 	case 35: // DescribeLogDirs
 		if r.ApiVersion >= 2 {
 			return 1
@@ -255,12 +299,52 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 	case 47: // OffsetDelete
 		return 0
 	case 48: // DescribeClientQuotas
-		return 0
+		if r.ApiVersion >= 1 {
+			return 1
+		} else {
+			return 0
+		}
 	case 49: // AlterClientQuotas
-		return 0
+		if r.ApiVersion >= 1 {
+			return 1
+		} else {
+			return 0
+		}
 	case 50: // DescribeUserScramCredentials
 		return 1
 	case 51: // AlterUserScramCredentials
+		return 1
+	case 52: // Vote
+		return 1
+	case 53: // BeginQuorumEpoch
+		return 0
+	case 54: // EndQuorumEpoch
+		return 0
+	case 55: // DescribeQuorum
+		return 1
+	case 56: // DescribeQuorum
+		return 1
+	case 57: // UpdateFeatures
+		return 1
+	case 58: // Envelope
+		return 1
+	case 59: // FetchSnapshot
+		return 1
+	case 60: // DescribeCluster
+		return 1
+	case 61: // DescribeProducers
+		return 1
+	case 62: // BrokerRegistration
+		return 1
+	case 63: // BrokerHeartbeat
+		return 1
+	case 64: // UnregisterBroker
+		return 1
+	case 65: // DescribeTransactions
+		return 1
+	case 66: // ListTransactions
+		return 1
+	case 67: // AllocateProducerIds
 		return 1
 	default:
 		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);

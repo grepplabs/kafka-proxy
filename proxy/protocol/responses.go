@@ -134,6 +134,16 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&SchemaTaggedFields{Name: "topic_metadata_tagged_fields"},
 	)
 
+	topicMetadataSchema10 := NewSchema("topic_metadata_schema10",
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "name", Ty: TypeCompactStr},
+		&Mfield{Name: "topic_id", Ty: TypeUuid},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&CompactArray{Name: "partition_metadata", Ty: partitionMetadataSchema9},
+		&Mfield{Name: "topic_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "topic_metadata_tagged_fields"},
+	)
+
 	metadataResponseV1 := NewSchema("metadata_response_v1",
 		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
@@ -194,7 +204,25 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9}
+	metadataResponseV10 := NewSchema("metadata_response_v10",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: metadataBrokerSchema9},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema10},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+
+	metadataResponseV11 := NewSchema("metadata_response_v11",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: metadataBrokerSchema9},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema10},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9, metadataResponseV10, metadataResponseV11}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {

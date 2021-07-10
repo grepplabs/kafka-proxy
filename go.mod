@@ -1,6 +1,6 @@
 module github.com/grepplabs/kafka-proxy
 
-go 1.15
+go 1.16
 
 require (
 	cloud.google.com/go v0.19.0 // indirect
@@ -12,6 +12,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.2.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.4.2
+	github.com/google/uuid v1.2.0
 	github.com/hashicorp/errwrap v0.0.0-20141028054710-7554cd9344ce // indirect
 	github.com/hashicorp/go-hclog v0.0.0-20180122232401-5bcb0f17e364
 	github.com/hashicorp/go-multierror v0.0.0-20171204182908-b7773ae21874
@@ -46,6 +47,5 @@ require (
 	google.golang.org/appengine v1.0.0 // indirect
 	google.golang.org/genproto v0.0.0-20180316064809-f8c870359523 // indirect
 	google.golang.org/grpc v1.10.0
-	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

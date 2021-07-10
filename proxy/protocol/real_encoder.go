@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"github.com/google/uuid"
 )
 
 type realEncoder struct {
@@ -63,6 +64,10 @@ func (re *realEncoder) putBytes(in []byte) error {
 	}
 	re.putInt32(int32(len(in)))
 	return re.putRawBytes(in)
+}
+
+func (pe *realEncoder) putUUID(in uuid.UUID) error {
+	return pe.putRawBytes(in[:])
 }
 
 func (re *realEncoder) putCompactBytes(in []byte) error {

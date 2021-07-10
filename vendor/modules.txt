@@ -38,6 +38,9 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/google/uuid v1.2.0
+## explicit
+github.com/google/uuid
 # github.com/hashicorp/errwrap v0.0.0-20141028054710-7554cd9344ce
 ## explicit
 github.com/hashicorp/errwrap

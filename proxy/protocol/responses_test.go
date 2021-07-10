@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/google/uuid"
 	"reflect"
 	"strings"
 	"testing"
@@ -2006,25 +2007,8 @@ func TestMetadataResponseV8(t *testing.T) {
 
 func TestMetadataResponseV9(t *testing.T) {
 	apiVersion := int16(9)
-
-	bytes, err := hex.DecodeString("0000000004000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b40000000000010a6c6f63616c686f737400004a9400001763754b7373754b3052726d4950586164374259426b670000000202000010746573742d6e6f2d686561646572730002000000000000000000030000000002000000030200000003010000000000000000000000")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := assert.New(t)
-
-	schema := metadataResponseSchemaVersions[apiVersion]
-
-	s, err := DecodeSchema(bytes, schema)
-	a.Nil(err)
-
-	dc := NewDecodeCheck()
-	err = dc.Traverse(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := []string{
+	payload := "0000000004000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b40000000000010a6c6f63616c686f737400004a9400001763754b7373754b3052726d4950586164374259426b670000000202000010746573742d6e6f2d686561646572730002000000000000000000030000000002000000030200000003010000000000000000000000"
+	expectedInput := []string{
 		"throttle_time_ms int32 0",
 		"[brokers]",
 		"brokers struct",
@@ -2069,28 +2053,7 @@ func TestMetadataResponseV9(t *testing.T) {
 		"cluster_authorized_operations int32 0",
 		"[response_tagged_fields]",
 	}
-
-	a.Equal(expected, dc.AttrValues())
-	resp, err := EncodeSchema(s, schema)
-	a.Nil(err)
-	a.Equal(bytes, resp)
-
-	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.Nil(err)
-	resp, err = modifier.Apply(resp)
-	a.Nil(err)
-	s, err = DecodeSchema(resp, schema)
-	a.Nil(err)
-	dc = NewDecodeCheck()
-	err = dc.Traverse(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected = []string{
+	expectedModified := []string{
 		"throttle_time_ms int32 0",
 		"[brokers]",
 		"brokers struct",
@@ -2135,8 +2098,383 @@ func TestMetadataResponseV9(t *testing.T) {
 		"cluster_authorized_operations int32 0",
 		"[response_tagged_fields]",
 	}
+	testMetadataResponse(t, apiVersion, payload, expectedInput, expectedModified)
+}
 
-	a.Equal(expected, dc.AttrValues())
+func TestMetadataResponseV10(t *testing.T) {
+	apiVersion := int16(10)
+	payload := "0000000004000000010a6c6f63616c686f737400004a940000000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b4000000ffffffff040000135f5f636f6e73756d65725f6f6666736574730000000000000000000000000000000001020000000000010000000100000005040000000100000002000000030400000001000000020000000301008000000000000507746f70696332e76d637e6dbc4c738b528314eea376a800018000000000000007746f70696333000000000000000000000000000000000002000500000000ffffffffffffffff0400000001000000020000000304000000010000000200000003010080000000008000000000"
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 3",
+		"host string localhost",
+		"port int32 39092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"cluster_id *string <nil>",
+		"controller_id int32 -1",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string __consumer_offsets",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 1",
+		"leader int32 1",
+		"leader_epoch int32 5",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 5",
+		"name string topic2",
+		"topic_id uuid e76d637e-6dbc-4c73-8b52-8314eea376a8",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string topic3",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 5",
+		"partition int32 0",
+		"leader int32 -1",
+		"leader_epoch int32 -1",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"cluster_authorized_operations int32 -2147483648",
+		"[response_tagged_fields]",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 3",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"cluster_id *string <nil>",
+		"controller_id int32 -1",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string __consumer_offsets",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 1",
+		"leader int32 1",
+		"leader_epoch int32 5",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 5",
+		"name string topic2",
+		"topic_id uuid e76d637e-6dbc-4c73-8b52-8314eea376a8",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string topic3",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 5",
+		"partition int32 0",
+		"leader int32 -1",
+		"leader_epoch int32 -1",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"cluster_authorized_operations int32 -2147483648",
+		"[response_tagged_fields]",
+	}
+	testMetadataResponse(t, apiVersion, payload, expectedInput, expectedModified)
+}
+
+func TestMetadataResponseV11(t *testing.T) {
+	apiVersion := int16(11)
+	payload := "0000000004000000010a6c6f63616c686f737400004a940000000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b4000000ffffffff040000135f5f636f6e73756d65725f6f6666736574730000000000000000000000000000000001020000000000010000000100000005040000000100000002000000030400000001000000020000000301008000000000000507746f706963323293e5edee894e2cb924edb932be3d6e00018000000000000007746f70696333000000000000000000000000000000000002000500000000ffffffffffffffff04000000010000000200000003040000000100000002000000030100800000000000"
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 3",
+		"host string localhost",
+		"port int32 39092",
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"cluster_id *string <nil>",
+		"controller_id int32 -1",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string __consumer_offsets",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 1",
+		"leader int32 1",
+		"leader_epoch int32 5",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 5",
+		"name string topic2",
+		"topic_id uuid 3293e5ed-ee89-4e2c-b924-edb932be3d6e",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string topic3",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 5",
+		"partition int32 0",
+		"leader int32 -1",
+		"leader_epoch int32 -1",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"[response_tagged_fields]",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"[brokers]",
+		"brokers struct",
+		"node_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"brokers struct",
+		"node_id int32 3",
+		"host string myhost3", // replaced
+		"port int32 34003",    // replaced
+		"rack *string <nil>",
+		"[broker_tagged_fields]",
+		"cluster_id *string <nil>",
+		"controller_id int32 -1",
+		"[topic_metadata]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string __consumer_offsets",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool true",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 0",
+		"partition int32 1",
+		"leader int32 1",
+		"leader_epoch int32 5",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 5",
+		"name string topic2",
+		"topic_id uuid 3293e5ed-ee89-4e2c-b924-edb932be3d6e",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"topic_metadata struct",
+		"error_code int16 0",
+		"name string topic3",
+		"topic_id uuid 00000000-0000-0000-0000-000000000000",
+		"is_internal bool false",
+		"[partition_metadata]",
+		"partition_metadata struct",
+		"error_code int16 5",
+		"partition int32 0",
+		"leader int32 -1",
+		"leader_epoch int32 -1",
+		"[replicas]",
+		"replicas int32 1",
+		"replicas int32 2",
+		"replicas int32 3",
+		"[isr]",
+		"isr int32 1",
+		"isr int32 2",
+		"isr int32 3",
+		"[offline_replicas]",
+		"[partition_metadata_tagged_fields]",
+		"topic_authorized_operations int32 -2147483648",
+		"[topic_metadata_tagged_fields]",
+		"[response_tagged_fields]",
+	}
+	testMetadataResponse(t, apiVersion, payload, expectedInput, expectedModified)
+}
+
+func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expectedInput, expectedModified []string) {
+	bytes, err := hex.DecodeString(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := assert.New(t)
+
+	schema := metadataResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := NewDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, av := range dc.AttrValues() {
+		fmt.Printf("\"%s\",\n", av)
+	}
+	a.Equal(expectedInput, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = NewDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Equal(expectedModified, dc.AttrValues())
 }
 
 func TestFindCoordinatorResponseV0(t *testing.T) {
@@ -2717,6 +3055,8 @@ func (t *decodeCheck) value(s *Struct, arg interface{}, sindex int) error {
 				return err
 			}
 		}
+	case uuid.UUID:
+		t.append(name, "uuid", v)
 	default:
 		return fmt.Errorf("unknow type for value %v: %v", arg, reflect.TypeOf(arg))
 	}

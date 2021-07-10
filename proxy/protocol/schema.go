@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"fmt"
+	"github.com/google/uuid"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -16,6 +17,7 @@ var (
 	TypeNullableStr        = &NullableStr{}
 	TypeCompactStr         = &CompactStr{}
 	TypeCompactNullableStr = &CompactNullableStr{}
+	TypeUuid               = &Uuid{}
 )
 
 type EncoderDecoder interface {
@@ -283,6 +285,35 @@ func (f *CompactNullableStr) GetFieldsByName() map[string]*boundField {
 
 func (f *CompactNullableStr) GetName() string {
 	return "compactnullablestr"
+}
+
+// Field string
+
+type Uuid struct {
+}
+
+func (f *Uuid) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getUUID()
+}
+
+func (f *Uuid) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(uuid.UUID)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a uuid", value)}
+	}
+	return pe.putUUID(in)
+}
+
+func (f *Uuid) GetFields() []boundField {
+	return nil
+}
+
+func (f *Uuid) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Uuid) GetName() string {
+	return "uuid"
 }
 
 // Arrays helper

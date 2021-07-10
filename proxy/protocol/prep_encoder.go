@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/google/uuid"
 	"math"
 )
 
@@ -52,6 +53,11 @@ func (pe *prepEncoder) putBytes(in []byte) error {
 		return nil
 	}
 	return pe.putRawBytes(in)
+}
+
+func (pe *prepEncoder) putUUID(in uuid.UUID) error {
+	pe.length += 16
+	return nil
 }
 
 func (pe *prepEncoder) putVarintBytes(in []byte) error {
