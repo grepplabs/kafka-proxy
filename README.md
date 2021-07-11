@@ -30,6 +30,16 @@ See:
 * [Kafka protocol guide](http://kafka.apache.org/protocol.html)
 
 
+### Supported Kafka versions
+Following table provides overview of supported Kafka versions (specified one and all previous Kafka versions).
+As not every Kafka release adds new messages/versions which are relevant to the Kafka proxy, newer Kafka versions can also work.
+
+
+| Kafka proxy version | Kafka version |
+| ------------------  | -----------   |
+| 0.2.9               | 2.8.0         |
+
+
 ### Install binary release
 
 1. Download the latest release
