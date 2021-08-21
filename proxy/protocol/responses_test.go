@@ -2452,9 +2452,11 @@ func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expect
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, av := range dc.AttrValues() {
-		fmt.Printf("\"%s\",\n", av)
-	}
+	/*
+		for _, av := range dc.AttrValues() {
+			fmt.Printf("\"%s\",\n", av)
+		}
+	*/
 	a.Equal(expectedInput, dc.AttrValues())
 	resp, err := EncodeSchema(s, schema)
 	a.Nil(err)

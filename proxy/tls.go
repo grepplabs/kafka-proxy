@@ -6,74 +6,48 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"net"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/klauspost/cpuid"
 	"github.com/pkg/errors"
 )
 
-type clientCertSubjectField string
-
-const (
-	clientCertSubjectCommonName         = "CN"
-	clientCertSubjectCountry            = "C"
-	clientCertSubjectProvince           = "S"
-	clientCertSubjectLocality           = "L"
-	clientCertSubjectOrganization       = "O"
-	clientCertSubjectOrganizationalUnit = "OU"
-)
-
 var (
-	defaultCurvePreferences = []tls.CurveID{
-		tls.CurveP256,
-		tls.X25519,
-	}
-
 	supportedCurvesMap = map[string]tls.CurveID{
 		"X25519": tls.X25519,
 		"P256":   tls.CurveP256,
 		"P384":   tls.CurveP384,
 		"P521":   tls.CurveP521,
 	}
-
-	defaultCiphers = []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-	}
-
-	defaultCiphersNonAESNI = []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-	}
-	// https://github.com/mholt/caddy/blob/master/caddytls/config.go
 	supportedCiphersMap = map[string]uint16{
-		"ECDHE-ECDSA-AES256-GCM-SHA384":      tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		"ECDHE-RSA-AES256-GCM-SHA384":        tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		"ECDHE-ECDSA-AES128-GCM-SHA256":      tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		"ECDHE-RSA-AES128-GCM-SHA256":        tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		"ECDHE-ECDSA-WITH-CHACHA20-POLY1305": tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		"ECDHE-RSA-WITH-CHACHA20-POLY1305":   tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		"ECDHE-RSA-AES256-CBC-SHA":           tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-		"ECDHE-RSA-AES128-CBC-SHA":           tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-		"ECDHE-RSA-AES128-CBC-SHA256":        tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-		"ECDHE-ECDSA-AES256-CBC-SHA":         tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-		"ECDHE-ECDSA-AES128-CBC-SHA":         tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-		"RSA-AES256-CBC-SHA":                 tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		"RSA-AES128-CBC-SHA":                 tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		"ECDHE-RSA-3DES-EDE-CBC-SHA":         tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-		"RSA-3DES-EDE-CBC-SHA":               tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		"TLS_RSA_WITH_RC4_128_SHA":                      tls.TLS_RSA_WITH_RC4_128_SHA,
+		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":                 tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		"TLS_RSA_WITH_AES_128_CBC_SHA":                  tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_RSA_WITH_AES_256_CBC_SHA":                  tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		"TLS_RSA_WITH_AES_128_CBC_SHA256":               tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+		"TLS_RSA_WITH_AES_128_GCM_SHA256":               tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		"TLS_RSA_WITH_AES_256_GCM_SHA384":               tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+		"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":              tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":          tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":          tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_RC4_128_SHA":                tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256":       tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256":       tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384":       tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256":   tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256": tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+		"TLS_AES_128_GCM_SHA256":                        tls.TLS_AES_128_GCM_SHA256,
+		"TLS_AES_256_GCM_SHA384":                        tls.TLS_AES_256_GCM_SHA384,
+		"TLS_CHACHA20_POLY1305_SHA256":                  tls.TLS_CHACHA20_POLY1305_SHA256,
 	}
-
 	zeroTime = time.Time{}
 )
 
@@ -102,10 +76,6 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 	cipherSuites, err := getCipherSuites(opts.ListenerCipherSuites)
 	if err != nil {
 		return nil, err
-	}
-	// for security, ensure TLS_FALLBACK_SCSV is always included first
-	if len(cipherSuites) == 0 || cipherSuites[0] != tls.TLS_FALLBACK_SCSV {
-		cipherSuites = append([]uint16{tls.TLS_FALLBACK_SCSV}, cipherSuites...)
 	}
 	curvePreferences, err := getCurvePreferences(opts.ListenerCurvePreferences)
 	if err != nil {
@@ -142,43 +112,19 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 	return cfg, nil
 }
 
-func removeEmptyStrings(input []string) []string {
-	output := []string{}
-	for _, value := range input {
-		if value == "" {
-			continue
-		}
-		output = append(output, value)
-	}
-	return output
-}
-
 func getCipherSuites(enabledCipherSuites []string) ([]uint16, error) {
 	suites := make([]uint16, 0)
 	for _, suite := range enabledCipherSuites {
 		cipher, ok := supportedCiphersMap[strings.TrimSpace(suite)]
 		if !ok {
-			return nil, errors.Errorf("invalid cipher suite '%s' selected", suite)
+			return nil, errors.Errorf("invalid cipher suite '%s' selected, supported ciphers %v", suite, reflect.ValueOf(supportedCiphersMap).MapKeys())
 		}
 		suites = append(suites, cipher)
 	}
 	if len(suites) == 0 {
-		return getPreferredDefaultCiphers(), nil
+		return nil, nil
 	}
 	return suites, nil
-}
-
-// getPreferredDefaultCiphers returns an appropriate cipher suite to use, depending on
-// the hardware support available for AES-NI.
-//
-// See https://github.com/mholt/caddy/issues/1674
-func getPreferredDefaultCiphers() []uint16 {
-	if cpuid.CPU.AesNi() {
-		return defaultCiphers
-	}
-
-	// Return a cipher suite that prefers ChaCha20
-	return defaultCiphersNonAESNI
 }
 
 func getCurvePreferences(enabledCurvePreferences []string) ([]tls.CurveID, error) {
@@ -186,12 +132,12 @@ func getCurvePreferences(enabledCurvePreferences []string) ([]tls.CurveID, error
 	for _, curveID := range enabledCurvePreferences {
 		curvePreference, ok := supportedCurvesMap[strings.TrimSpace(curveID)]
 		if !ok {
-			return nil, errors.Errorf("invalid curveID '%s' selected", curveID)
+			return nil, errors.Errorf("invalid curveID '%s' selected, supported curveIDs %v", curveID, reflect.ValueOf(supportedCurvesMap).MapKeys())
 		}
 		curvePreferences = append(curvePreferences, curvePreference)
 	}
 	if len(curvePreferences) == 0 {
-		return defaultCurvePreferences, nil
+		return nil, nil
 	}
 	return curvePreferences, nil
 }

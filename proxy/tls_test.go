@@ -25,15 +25,16 @@ func TestDefaultCipherSuites(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.ListenerCipherSuites = []string{}
+	c.Proxy.TLS.ListenerCurvePreferences = []string{}
 
 	serverConfig, err := newTLSListenerConfig(c)
 	a.Nil(err)
-	// TLS_FALLBACK_SCSV is added as first
-	a.Equal(len(getPreferredDefaultCiphers())+1, len(serverConfig.CipherSuites))
-	a.Equal(len(defaultCurvePreferences), len(serverConfig.CurvePreferences))
+	a.Nil(serverConfig.CipherSuites)
+	a.Nil(serverConfig.CurvePreferences)
 }
 
-func TestEnabledCipherSuites(t *testing.T) {
+func TestEnabledCipherSuitesAndCurves(t *testing.T) {
 	a := assert.New(t)
 
 	bundle := NewCertsBundle()
@@ -42,14 +43,70 @@ func TestEnabledCipherSuites(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.ListenerCipherSuites = []string{"ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384"}
+	c.Proxy.TLS.ListenerCipherSuites = []string{"TLS_AES_128_GCM_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"}
 	c.Proxy.TLS.ListenerCurvePreferences = []string{"P521"}
 
 	serverConfig, err := newTLSListenerConfig(c)
 	a.Nil(err)
-	// TLS_FALLBACK_SCSV is added as first
-	a.Equal(3, len(serverConfig.CipherSuites))
+	a.Equal(2, len(serverConfig.CipherSuites))
 	a.Equal(1, len(serverConfig.CurvePreferences))
+}
+
+func TestAllCipherSuitesAndCurves(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	allSupportedCipherSuites := make([]string, 0)
+	for k := range supportedCiphersMap {
+		allSupportedCipherSuites = append(allSupportedCipherSuites, k)
+	}
+	allSupportedCurvesSuites := make([]string, 0)
+	for k := range supportedCurvesMap {
+		allSupportedCurvesSuites = append(allSupportedCurvesSuites, k)
+	}
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.ListenerCipherSuites = allSupportedCipherSuites
+	c.Proxy.TLS.ListenerCurvePreferences = allSupportedCurvesSuites
+
+	serverConfig, err := newTLSListenerConfig(c)
+	a.Nil(err)
+	a.Equal(len(allSupportedCipherSuites), len(serverConfig.CipherSuites))
+	a.Equal(len(allSupportedCurvesSuites), len(serverConfig.CurvePreferences))
+}
+
+func TestUnsupportedCipherSuite(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.ListenerCipherSuites = []string{"TLS_unknown"}
+
+	_, err := newTLSListenerConfig(c)
+	a.NotNil(err)
+}
+
+func TestUnsupportedCurve(t *testing.T) {
+	a := assert.New(t)
+
+	bundle := NewCertsBundle()
+	defer bundle.Close()
+
+	c := new(config.Config)
+	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
+	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
+	c.Proxy.TLS.ListenerCurvePreferences = []string{"unknown"}
+
+	_, err := newTLSListenerConfig(c)
+	a.NotNil(err)
 }
 
 func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
