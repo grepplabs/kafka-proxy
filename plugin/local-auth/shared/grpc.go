@@ -28,6 +28,8 @@ func (m *GRPCClient) Authenticate(username, password string) (bool, int32, error
 type GRPCServer struct {
 	broker *plugin.GRPCBroker
 	Impl   apis.PasswordAuthenticator
+
+	proto.UnimplementedPasswordAuthenticatorServer
 }
 
 func (m *GRPCServer) Authenticate(

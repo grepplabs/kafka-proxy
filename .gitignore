@@ -3,6 +3,7 @@ build/
 /kafka-proxy
 /google-id-info
 /google-id-provider
+.tools
 
 # goreleaser
 dist/

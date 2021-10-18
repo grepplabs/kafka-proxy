@@ -22,6 +22,8 @@ func (m *GRPCClient) GetToken(ctx context.Context, request apis.TokenRequest) (a
 type GRPCServer struct {
 	broker *plugin.GRPCBroker
 	Impl   apis.TokenProvider
+
+	proto.UnimplementedTokenProviderServer
 }
 
 func (m *GRPCServer) GetToken(

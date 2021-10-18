@@ -13,8 +13,18 @@ LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -
 TAG           ?= "v0.3.0"
 GOARCH        ?= amd64
 GOOS          ?= linux
+TOOLS_DIR   := .tools
+PROTOC_VERSION ?= 3.18.1
+PROTOC_GO_VERSION ?= v1.27.1
+PROTOC_GRPC_VERSION ?= v1.1
+PROTOC      := $(TOOLS_DIR)/protoc
 
 default: build
+
+dep-check:
+ifeq ("$(wildcard $(PROTOC))","")
+	$(error Could not find protoc install, please run 'make protoc')
+endif
 
 test.race:
 	go test -v -race -count=1 `go list ./...`
@@ -43,14 +53,31 @@ release: clean
 	rm -rf $(ROOT_DIR)/dist
 	curl -sL https://git.io/goreleaser | bash
 
-protoc.local-auth:
-	protoc -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=plugins=grpc:plugin/local-auth/proto/
+protoc: protoc_plugin
+	@{ \
+		set -e;\
+		mkdir -p $(TOOLS_DIR) ;\
+		cd $(TOOLS_DIR);\
+	    wget -q https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip ;\
+	    unzip -qoj protoc-$(PROTOC_VERSION)-linux-x86_64.zip bin/protoc ;\
+	    rm -f protoc-$(PROTOC_VERSION)-linux-x86_64.zip ;\
+	}
 
-protoc.token-provider:
-	protoc -I plugin/token-provider/proto/ plugin/token-provider/proto/token-provider.proto --go_out=plugins=grpc:plugin/token-provider/proto/
+protoc_plugin:
+	# get go plugin
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GO_VERSION)
+	# get protoc plugin
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GRPC_VERSION)
 
-protoc.token-info:
-	protoc -I plugin/token-info/proto/ plugin/token-info/proto/token-info.proto --go_out=plugins=grpc:plugin/token-info/proto/
+
+protoc.local-auth: dep-check $(GRPC_PLUGIN)
+	$(PROTOC) -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=paths=source_relative:plugin/local-auth/proto/ --go-grpc_out=paths=source_relative:plugin/local-auth/proto/
+
+protoc.token-provider: dep-check $(GRPC_PLUGIN)
+	$(PROTOC) -I plugin/token-provider/proto/ plugin/token-provider/proto/token-provider.proto --go_out=paths=source_relative:plugin/token-provider/proto/ --go-grpc_out=paths=source_relative:plugin/token-provider/proto/
+
+protoc.token-info: dep-check $(GRPC_PLUGIN)
+	$(PROTOC) -I plugin/token-info/proto/ plugin/token-info/proto/token-info.proto --go_out=paths=source_relative:plugin/token-info/proto/ --go-grpc_out=paths=source_relative:plugin/token-info/proto/
 
 plugin.auth-user:
 	CGO_ENABLED=0 go build -o build/auth-user $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-user/main.go
