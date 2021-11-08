@@ -24,7 +24,7 @@ notifications:
 script:
   - go build .
   - go test ./...
-  - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"; fi`
+  - export TAG=`if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then echo "latest"; else echo "${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}" | sed 's/\//_/g'; fi`
   - echo "docker tags $TAG and ${TAG}-all"
   - docker build --build-arg MAKE_TARGET="test build" -t $REPO:$TAG -f Dockerfile .
   - docker build --build-arg MAKE_TARGET="all" -t $REPO:${TAG}-all -f Dockerfile .
