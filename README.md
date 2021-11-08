@@ -1,7 +1,6 @@
 ## kafka-proxy
-**Work in progress**
 
-[![Build Status](https://travis-ci.com/grepplabs/kafka-proxy.svg?branch=master)](https://travis-ci.com/grepplabs/kafka-proxy)
+[![Build Status](https://app.travis-ci.com/grepplabs/kafka-proxy.svg?branch=master)](https://app.travis-ci.com/grepplabs/kafka-proxy)
 [![Docker Hub](https://img.shields.io/badge/docker-latest-blue.svg)](https://hub.docker.com/r/grepplabs/kafka-proxy)
 [![Docker Pulls](https://img.shields.io/docker/pulls/grepplabs/kafka-proxy)](https://hub.docker.com/r/grepplabs/kafka-proxy)
 
