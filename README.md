@@ -1,7 +1,6 @@
 ## kafka-proxy
-**Work in progress**
 
-[![Build Status](https://travis-ci.com/grepplabs/kafka-proxy.svg?branch=master)](https://travis-ci.com/grepplabs/kafka-proxy)
+[![Build Status](https://app.travis-ci.com/grepplabs/kafka-proxy.svg?branch=master)](https://app.travis-ci.com/grepplabs/kafka-proxy)
 [![Docker Hub](https://img.shields.io/badge/docker-latest-blue.svg)](https://hub.docker.com/r/grepplabs/kafka-proxy)
 [![Docker Pulls](https://img.shields.io/docker/pulls/grepplabs/kafka-proxy)](https://hub.docker.com/r/grepplabs/kafka-proxy)
 
@@ -137,7 +136,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
           --bootstrap-server-mapping stringArray                                         Mapping of Kafka bootstrap server address to local address (host:port,host:port(,advhost:advport))
           --debug-enable                                                                 Enable Debug endpoint
           --debug-listen-address string                                                  Debug listen address (default "0.0.0.0:6060")
-          --default-listener-ip string                                                   Default listener IP (default "127.0.0.1")
+          --default-listener-ip string                                                   Default listener IP (default "0.0.0.0")
           --dial-address-mapping stringArray                                             Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
           --dynamic-advertised-listener string                                           Advertised address for dynamic listeners. If empty, default-listener-ip is used
           --dynamic-listeners-disable                                                    Disable dynamic listeners.
