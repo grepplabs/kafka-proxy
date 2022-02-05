@@ -38,7 +38,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	github.com/xdg/stringprep v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
+	golang.org/x/crypto v0.0.0-20201216223049-8b5274cf687f // indirect
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/oauth2 v0.0.0-20180314180239-fdc9e635145a
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
