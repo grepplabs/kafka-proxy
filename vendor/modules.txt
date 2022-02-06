@@ -2,6 +2,7 @@
 ## explicit
 cloud.google.com/go/compute/metadata
 # github.com/Azure/go-ntlmssp v0.0.0-20200615164410-66371956d46c
+## explicit
 github.com/Azure/go-ntlmssp
 # github.com/BurntSushi/toml v0.3.1
 ## explicit
@@ -9,30 +10,34 @@ github.com/Azure/go-ntlmssp
 ## explicit
 github.com/armon/go-socks5
 # github.com/beorn7/perks v1.0.1
+## explicit; go 1.11
 github.com/beorn7/perks/quantile
 # github.com/cenkalti/backoff v1.1.0
 ## explicit
 github.com/cenkalti/backoff
 # github.com/cespare/xxhash/v2 v2.1.1
+## explicit; go 1.11
 github.com/cespare/xxhash/v2
 # github.com/davecgh/go-spew v1.1.1
+## explicit
 github.com/davecgh/go-spew/spew
 # github.com/elazarl/goproxy v0.0.0-20171101143503-a96fa3a31826
 ## explicit
 github.com/elazarl/goproxy
 github.com/elazarl/goproxy/ext/auth
 # github.com/fsnotify/fsnotify v1.4.9
-## explicit
+## explicit; go 1.13
 github.com/fsnotify/fsnotify
 # github.com/go-asn1-ber/asn1-ber v1.5.1
+## explicit; go 1.13
 github.com/go-asn1-ber/asn1-ber
 # github.com/go-ldap/ldap/v3 v3.2.3
-## explicit
+## explicit; go 1.13
 github.com/go-ldap/ldap/v3
 # github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 ## explicit
 # github.com/golang/protobuf v1.4.2
-## explicit
+## explicit; go 1.9
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -71,15 +76,14 @@ github.com/hashicorp/yamux
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
-# github.com/klauspost/cpuid v1.2.0
-## explicit
-github.com/klauspost/cpuid
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
+## explicit
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/magiconair/properties v1.8.0
 ## explicit
 github.com/magiconair/properties
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
+## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77
 ## explicit
@@ -88,7 +92,7 @@ github.com/mitchellh/go-testing-interface
 ## explicit
 github.com/mitchellh/mapstructure
 # github.com/oklog/run v1.1.0
-## explicit
+## explicit; go 1.13
 github.com/oklog/run
 # github.com/pelletier/go-toml v1.2.0
 ## explicit
@@ -97,24 +101,28 @@ github.com/pelletier/go-toml
 ## explicit
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
+## explicit
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.7.1
-## explicit
+## explicit; go 1.11
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.2.0
+## explicit; go 1.9
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.10.0
+## explicit; go 1.11
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.1.3
+## explicit; go 1.12
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/sirupsen/logrus v1.6.0
-## explicit
+## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/spf13/afero v1.1.1
 ## explicit
@@ -145,11 +153,11 @@ github.com/xdg/scram
 ## explicit
 github.com/xdg/stringprep
 # golang.org/x/crypto v0.0.0-20201216223049-8b5274cf687f
-## explicit
+## explicit; go 1.11
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
 # golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
-## explicit
+## explicit; go 1.11
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -169,7 +177,7 @@ golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
-## explicit
+## explicit; go 1.12
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -228,6 +236,7 @@ google.golang.org/grpc/status
 google.golang.org/grpc/tap
 google.golang.org/grpc/transport
 # google.golang.org/protobuf v1.23.0
+## explicit; go 1.9
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -258,8 +267,6 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225
-## explicit
 # gopkg.in/yaml.v2 v2.3.0
 ## explicit
 gopkg.in/yaml.v2

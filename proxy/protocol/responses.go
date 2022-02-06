@@ -15,7 +15,8 @@ const (
 	hostKeyName    = "host"
 	portKeyName    = "port"
 
-	coordinatorKeyName = "coordinator"
+	coordinatorKeyName  = "coordinator"
+	coordinatorsKeyName = "coordinators"
 )
 
 var (
@@ -144,6 +145,16 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&SchemaTaggedFields{Name: "topic_metadata_tagged_fields"},
 	)
 
+	topicMetadataSchema12 := NewSchema("topic_metadata_schema12",
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "name", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "topic_id", Ty: TypeUuid},
+		&Mfield{Name: "is_internal", Ty: TypeBool},
+		&CompactArray{Name: "partition_metadata", Ty: partitionMetadataSchema9},
+		&Mfield{Name: "topic_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "topic_metadata_tagged_fields"},
+	)
+
 	metadataResponseV1 := NewSchema("metadata_response_v1",
 		&Array{Name: brokersKeyName, Ty: metadataBrokerV1},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
@@ -222,7 +233,17 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema10},
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9, metadataResponseV10, metadataResponseV11}
+
+	metadataResponseV12 := NewSchema("metadata_response_v12",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: metadataBrokerSchema9},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema12},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+
+	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9, metadataResponseV10, metadataResponseV11, metadataResponseV12}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
@@ -260,7 +281,19 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
-	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3}
+	findCoordinatorCoordinatorsSchema4 := NewSchema("find_coordinator_coordinators_schema4",
+		&Mfield{Name: "key", Ty: TypeCompactStr},
+		&Mfield{Name: coordinatorKeyName, Ty: findCoordinatorBrokerSchema9},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&SchemaTaggedFields{"coordinators_tagged_fields"},
+	)
+	findCoordinatorResponseV4 := NewSchema("find_coordinator_response_v4",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: coordinatorsKeyName, Ty: findCoordinatorCoordinatorsSchema4},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3, findCoordinatorResponseV4}
 }
 
 func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
@@ -316,6 +349,25 @@ func modifyFindCoordinatorResponse(decodedStruct *Struct, fn config.NetAddressMa
 	if fn == nil {
 		return errors.New("net address mapper must not be nil")
 	}
+	coordinators := decodedStruct.Get(coordinatorsKeyName)
+	if coordinators != nil {
+		coordinatorsArray, ok := coordinators.([]interface{})
+		if !ok {
+			return errors.New("coordinators list not found")
+		}
+		for _, coordinatorElement := range coordinatorsArray {
+			coordinatorStruct := coordinatorElement.(*Struct)
+			if err := modifyCoordinator(coordinatorStruct, fn); err != nil {
+				return err
+			}
+		}
+		return nil
+	} else {
+		return modifyCoordinator(decodedStruct, fn)
+	}
+}
+
+func modifyCoordinator(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
 	coordinator, ok := decodedStruct.Get(coordinatorKeyName).(*Struct)
 	if !ok {
 		return errors.New("coordinator not found")
