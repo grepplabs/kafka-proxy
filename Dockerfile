@@ -1,4 +1,4 @@
-FROM golang:1.16-alpine3.14 as builder
+FROM golang:1.17-alpine3.14 as builder
 RUN apk add alpine-sdk ca-certificates
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
