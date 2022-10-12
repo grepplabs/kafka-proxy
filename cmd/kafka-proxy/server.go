@@ -166,6 +166,14 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
 	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512")
 
+	// SASL GSSAPI
+	Server.Flags().BoolVar(&c.Kafka.GSSAPI.Enable, "gssapi-enable", false, "Connect using SASL_GSSAPI")
+	Server.Flags().StringVar(&c.Kafka.GSSAPI.ServiceName, "gssapi-servicename", "kafka", "ServiceName")
+	Server.Flags().StringVar(&c.Kafka.GSSAPI.Username, "gssapi-username", "kafka", "Username")
+	Server.Flags().StringVar(&c.Kafka.GSSAPI.Realm, "gssapi-realm", "", "Realm")
+	Server.Flags().StringVar(&c.Kafka.GSSAPI.KerberosConfigPath, "gssapi-krb5", "/etc/krb5.conf", "krb5.conf file path, default: /etc/krb5.conf")
+	Server.Flags().StringVar(&c.Kafka.GSSAPI.KeyTabPath, "gssapi-keytab", "", "KeyTabPath")
+
 	// SASL by Proxy plugin
 	Server.Flags().BoolVar(&c.Kafka.SASL.Plugin.Enable, "sasl-plugin-enable", false, "Use plugin for SASL authentication")
 	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.Command, "sasl-plugin-command", "", "Path to authentication plugin binary")

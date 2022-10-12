@@ -201,6 +201,12 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
           --tls-enable                                                                   Whether or not to use TLS when connecting to the broker
           --tls-insecure-skip-verify                                                     It controls whether a client verifies the server's certificate chain and host name
           --tls-same-client-cert-enable                                                  Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)
+          --gssapi-enable                                                                Connect using GSSAPI
+          --gssapi-servicename                                                           GSSAPI servicename (default: kafka)
+          --gssapi-username                                                              GSSAPI userName
+          --gssapi-realm                                                                 GSSAPI realm
+          --gssapi-krb5                                                                  GSSAPI krb5 file (default: /etc/krb5.conf)
+          --gssapi-keytab                                                                GSSAPI keytab file 
 
 ### Usage example
 	
@@ -382,6 +388,21 @@ Connect through test HTTP Proxy server using CONNECT method
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
                        --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy http://my-proxy-user:my-proxy-password@localhost:3128
+```
+
+### GSSAPI authentication example
+
+```
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
+                       --gssapi-enable \
+                       --gssapi-servicename kafka \
+                       --gssapi-username kafka/node1.com \
+                       --gssapi-realm EXAMPLE.COM \
+                       --gssapi-krb5 /etc/krb5.conf \
+                       --gssapi-keytab /etc/security/keytabs/kafka.keytab
+
 ```
 
 ### Validating client certificate DN
