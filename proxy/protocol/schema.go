@@ -44,7 +44,6 @@ type schema struct {
 	fieldsByName map[string]*boundField
 }
 
-//
 type Mfield struct {
 	Name string
 	Ty   Schema

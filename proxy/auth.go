@@ -21,7 +21,7 @@ type AuthClient struct {
 	tokenProvider apis.TokenProvider
 }
 
-//TODO: reset deadlines after method - ok
+// TODO: reset deadlines after method - ok
 func (b *AuthClient) sendAndReceiveGatewayAuth(conn DeadlineReaderWriter) error {
 	//TODO: timeout
 	//	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.timeout)*time.Second)
@@ -77,7 +77,7 @@ type AuthServer struct {
 	tokenInfo apis.TokenInfo
 }
 
-//TODO: reset deadlines after method - ok
+// TODO: reset deadlines after method - ok
 func (b *AuthServer) receiveAndSendGatewayAuth(conn DeadlineReaderWriter) error {
 	err := conn.SetDeadline(time.Now().Add(b.timeout))
 	if err != nil {

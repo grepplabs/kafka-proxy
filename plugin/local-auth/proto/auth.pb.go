@@ -5,9 +5,11 @@
 Package proto is a generated protocol buffer package.
 
 It is generated from these files:
+
 	auth.proto
 
 It has these top-level messages:
+
 	CredentialsRequest
 	AuthenticateResponse
 */
