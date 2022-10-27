@@ -145,6 +145,14 @@ type Config struct {
 				Timeout    time.Duration
 			}
 		}
+		GSSAPI struct {
+			Enable             bool
+			KeyTabPath         string
+			KerberosConfigPath string
+			ServiceName        string
+			Username           string
+			Realm              string
+		}
 		Producer struct {
 			Acks0Disabled bool
 		}

@@ -39,6 +39,7 @@ type Client struct {
 
 	saslAuthByProxy SASLAuthByProxy
 	authClient      *AuthClient
+	gssapiKerberosAuth *GSSAPIKerberosAuth
 
 	dialAddressMapping map[string]config.DialAddressMapping
 
@@ -121,13 +122,28 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 			return nil, errors.Errorf("SASL Mechanism not valid '%s'", c.Kafka.SASL.Method)
 		}
 	}
+
+	var gssapiKerberosAuth *GSSAPIKerberosAuth
+	if c.Kafka.GSSAPI.Enable {
+		gssapiKerberosAuth = &GSSAPIKerberosAuth{
+			Config: &GSSAPIConfig{
+				KeyTabPath:         c.Kafka.GSSAPI.KeyTabPath,
+				KerberosConfigPath: c.Kafka.GSSAPI.KerberosConfigPath,
+				ServiceName:        c.Kafka.GSSAPI.ServiceName,
+				Username:           c.Kafka.GSSAPI.Username,
+				Realm:              c.Kafka.GSSAPI.Realm,
+			},
+		}
+	}
+
 	dialAddressMapping, err := getAddressToDialAddressMapping(c)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Client{conns: conns, config: c, dialer: dialer, tcpConnOptions: tcpConnOptions, stopRun: make(chan struct{}, 1),
-		saslAuthByProxy: saslAuthByProxy,
+		saslAuthByProxy:    saslAuthByProxy,
+		gssapiKerberosAuth: gssapiKerberosAuth,
 		authClient: &AuthClient{
 			enabled:       c.Auth.Gateway.Client.Enable,
 			magic:         c.Auth.Gateway.Client.Magic,
@@ -304,14 +320,14 @@ func (c *Client) DialAndAuth(brokerAddress string) (net.Conn, error) {
 		_ = conn.Close()
 		return nil, err
 	}
-	err = c.auth(conn)
+	err = c.auth(conn, brokerAddress)
 	if err != nil {
 		return nil, err
 	}
 	return conn, nil
 }
 
-func (c *Client) auth(conn net.Conn) error {
+func (c *Client) auth(conn net.Conn, brokerAddress string) error {
 	if c.config.Auth.Gateway.Client.Enable {
 		if err := c.authClient.sendAndReceiveGatewayAuth(conn); err != nil {
 			_ = conn.Close()
@@ -324,6 +340,18 @@ func (c *Client) auth(conn net.Conn) error {
 	}
 	if c.config.Kafka.SASL.Enable {
 		err := c.saslAuthByProxy.sendAndReceiveSASLAuth(conn)
+		if err != nil {
+			_ = conn.Close()
+			return err
+		}
+		if err := conn.SetDeadline(time.Time{}); err != nil {
+			_ = conn.Close()
+			return err
+		}
+	}
+
+	if c.config.Kafka.GSSAPI.Enable {
+		err := c.gssapiKerberosAuth.sendAndReceiveGSSAPIAuth(conn, brokerAddress)
 		if err != nil {
 			_ = conn.Close()
 			return err
