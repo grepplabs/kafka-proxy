@@ -19,7 +19,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spf13/cobra v0.0.1
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.8.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
@@ -42,7 +42,7 @@ require (
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
@@ -59,7 +59,7 @@ require (
 	github.com/spf13/afero v1.1.1 // indirect
 	github.com/spf13/cast v1.2.0 // indirect
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec // indirect
-	github.com/spf13/pflag v1.0.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect

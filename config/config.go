@@ -11,7 +11,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultClientID = "kafka-proxy"
+const (
+	defaultClientID  = "kafka-proxy"
+	KRB5_USER_AUTH   = "USER"
+	KRB5_KEYTAB_AUTH = "KEYTAB"
+)
 
 var (
 	// Version is the current version of the app, generated at build time
@@ -28,6 +32,18 @@ type ListenerConfig struct {
 type DialAddressMapping struct {
 	SourceAddress      string
 	DestinationAddress string
+}
+
+type GSSAPIConfig struct {
+	AuthType           string
+	KeyTabPath         string
+	KerberosConfigPath string
+	ServiceName        string
+	Username           string
+	Password           string
+	Realm              string
+	DisablePAFXFAST    bool
+	SPNHostsMapping    map[string]string
 }
 
 type Config struct {
@@ -144,14 +160,7 @@ type Config struct {
 				LogLevel   string
 				Timeout    time.Duration
 			}
-		}
-		GSSAPI struct {
-			Enable             bool
-			KeyTabPath         string
-			KerberosConfigPath string
-			ServiceName        string
-			Username           string
-			Realm              string
+			GSSAPI GSSAPIConfig
 		}
 		Producer struct {
 			Acks0Disabled bool
@@ -288,8 +297,32 @@ func (c *Config) Validate() error {
 				return errors.New("Mechanism OAUTHBEARER is required when Kafka.SASL.Plugin.Enable is enabled")
 			}
 		} else {
-			if c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "" {
-				return errors.New("SASL.Username and SASL.Password are required when SASL is enabled and plugin is not used")
+			if c.Kafka.SASL.Method == "GSSAPI" {
+				switch c.Kafka.SASL.GSSAPI.AuthType {
+				case KRB5_USER_AUTH:
+					if c.Kafka.SASL.GSSAPI.Password == "" {
+						return errors.New("GSSAPI.Password is required for GSSAPI.AuthType USER")
+					}
+				case KRB5_KEYTAB_AUTH:
+					if c.Kafka.SASL.GSSAPI.KeyTabPath == "" {
+						return errors.New("GSSAPI.KeyTabPath is required for GSSAPI.AuthType KEYTAB")
+					}
+				default:
+					return errors.Errorf("Unsupported GSSAPI.AuthType %s", c.Kafka.SASL.GSSAPI.AuthType)
+				}
+				if c.Kafka.SASL.GSSAPI.KerberosConfigPath == "" {
+					return errors.New("GSSAPI KerberosConfigPath must not be empty")
+				}
+				if c.Kafka.SASL.GSSAPI.Username == "" {
+					return errors.New("GSSAPI Username must not be empty")
+				}
+				if c.Kafka.SASL.GSSAPI.Realm == "" {
+					return errors.New("GSSAPI Realm must not be empty")
+				}
+			} else {
+				if c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "" {
+					return errors.New("SASL.Username and SASL.Password are required when SASL is enabled and plugin is not used")
+				}
 			}
 		}
 	} else {

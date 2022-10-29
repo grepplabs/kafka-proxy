@@ -18,6 +18,7 @@ const (
 	SASLOAuthBearer = "OAUTHBEARER"
 	SASLSCRAM256    = "SCRAM-SHA-256"
 	SASLSCRAM512    = "SCRAM-SHA-512"
+	SASLSGSSAPI     = "GSSAPI"
 )
 
 type SASLHandshake struct {
@@ -49,25 +50,25 @@ type SASLPlainAuth struct {
 }
 
 type SASLAuthByProxy interface {
-	sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error
+	sendAndReceiveSASLAuth(conn DeadlineReaderWriter, brokerAddress string) error
 }
 
 // In SASL Plain, Kafka expects the auth header to be in the following format
 // Message format (from https://tools.ietf.org/html/rfc4616):
 //
-//   message   = [authzid] UTF8NUL authcid UTF8NUL passwd
-//   authcid   = 1*SAFE ; MUST accept up to 255 octets
-//   authzid   = 1*SAFE ; MUST accept up to 255 octets
-//   passwd    = 1*SAFE ; MUST accept up to 255 octets
-//   UTF8NUL   = %x00 ; UTF-8 encoded NUL character
+//	message   = [authzid] UTF8NUL authcid UTF8NUL passwd
+//	authcid   = 1*SAFE ; MUST accept up to 255 octets
+//	authzid   = 1*SAFE ; MUST accept up to 255 octets
+//	passwd    = 1*SAFE ; MUST accept up to 255 octets
+//	UTF8NUL   = %x00 ; UTF-8 encoded NUL character
 //
-//   SAFE      = UTF1 / UTF2 / UTF3 / UTF4
-//                  ;; any UTF-8 encoded Unicode character except NUL
+//	SAFE      = UTF1 / UTF2 / UTF3 / UTF4
+//	               ;; any UTF-8 encoded Unicode character except NUL
 //
 // When credentials are valid, Kafka returns a 4 byte array of null characters.
 // When credentials are invalid, Kafka closes the connection. This does not seem to be the ideal way
 // of responding to bad credentials but thats how its being done today.
-func (b *SASLPlainAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error {
+func (b *SASLPlainAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter, _ string) error {
 
 	saslHandshake := &SASLHandshake{
 		clientID:     b.clientID,
@@ -185,7 +186,7 @@ func (b *SASLOAuthBearerAuth) getOAuthBearerToken() (string, error) {
 	return resp.Token, nil
 }
 
-func (b *SASLOAuthBearerAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error {
+func (b *SASLOAuthBearerAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter, _ string) error {
 
 	token, err := b.getOAuthBearerToken()
 	if err != nil {

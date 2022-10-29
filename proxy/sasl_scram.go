@@ -39,7 +39,7 @@ var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
 var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
 
 // Maps to Sarama sendAndReceiveSASLSCRAMv1
-func (b *SASLSCRAMAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter) error {
+func (b *SASLSCRAMAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter, _ string) error {
 
 	err := b.sendAndReceiveSASLHandshake(conn)
 	if err != nil {

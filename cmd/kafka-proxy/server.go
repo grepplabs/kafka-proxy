@@ -164,15 +164,18 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.SASL.Username, "sasl-username", "", "SASL user name")
 	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", "", "SASL user password")
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
-	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512")
+	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI")
 
 	// SASL GSSAPI
-	Server.Flags().BoolVar(&c.Kafka.GSSAPI.Enable, "gssapi-enable", false, "Connect using SASL_GSSAPI")
-	Server.Flags().StringVar(&c.Kafka.GSSAPI.ServiceName, "gssapi-servicename", "kafka", "ServiceName")
-	Server.Flags().StringVar(&c.Kafka.GSSAPI.Username, "gssapi-username", "kafka", "Username")
-	Server.Flags().StringVar(&c.Kafka.GSSAPI.Realm, "gssapi-realm", "", "Realm")
-	Server.Flags().StringVar(&c.Kafka.GSSAPI.KerberosConfigPath, "gssapi-krb5", "/etc/krb5.conf", "krb5.conf file path, default: /etc/krb5.conf")
-	Server.Flags().StringVar(&c.Kafka.GSSAPI.KeyTabPath, "gssapi-keytab", "", "KeyTabPath")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.AuthType, "gssapi-auth-type", config.KRB5_KEYTAB_AUTH, "GSSAPI auth type: KEYTAB or USER")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.ServiceName, "gssapi-servicename", "kafka", "ServiceName")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Username, "gssapi-username", "kafka", "Username")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Password, "gssapi-password", "", "Password for auth type USER")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Realm, "gssapi-realm", "", "Realm")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.KerberosConfigPath, "gssapi-krb5", "/etc/krb5.conf", "krb5.conf file path, default: /etc/krb5.conf")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.KeyTabPath, "gssapi-keytab", "", "krb5.keytab file location")
+	Server.Flags().BoolVar(&c.Kafka.SASL.GSSAPI.DisablePAFXFAST, "gssapi-disable-pa-fx-fast", false, "Used to configure the client to not use PA_FX_FAST.")
+	Server.Flags().StringToStringVar(&c.Kafka.SASL.GSSAPI.SPNHostsMapping, "gssapi-spn-host-mapping", map[string]string{}, "Mapping of Kafka servers address to SPN hosts")
 
 	// SASL by Proxy plugin
 	Server.Flags().BoolVar(&c.Kafka.SASL.Plugin.Enable, "sasl-plugin-enable", false, "Use plugin for SASL authentication")
