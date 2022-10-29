@@ -3,7 +3,7 @@ language: go
 dist: focal
 
 go:
-  - "1.17.x"
+  - "1.19.x"
 
 env:
   global:
