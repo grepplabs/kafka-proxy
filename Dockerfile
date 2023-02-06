@@ -11,7 +11,16 @@ RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean ${MAKE_TARGET}
 
 FROM alpine:3.14
 RUN apk add --no-cache ca-certificates
+RUN adduser \
+        --disabled-password \
+        --gecos "" \
+        --home "/nonexistent" \
+        --shell "/sbin/nologin" \
+        --no-create-home \
+        kafka-proxy
 
 COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build /opt/kafka-proxy/bin
+USER kafka-proxy
 ENTRYPOINT ["/opt/kafka-proxy/bin/kafka-proxy"]
 CMD ["--help"]
+
