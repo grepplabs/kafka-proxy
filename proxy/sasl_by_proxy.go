@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io"
-	"time"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 	SASLSCRAM256    = "SCRAM-SHA-256"
 	SASLSCRAM512    = "SCRAM-SHA-512"
 	SASLSGSSAPI     = "GSSAPI"
+	SASLIAMAAUTH    = "AWS_MSK_IAM"
 )
 
 type SASLHandshake struct {

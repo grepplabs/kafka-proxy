@@ -160,7 +160,8 @@ type Config struct {
 				LogLevel   string
 				Timeout    time.Duration
 			}
-			GSSAPI GSSAPIConfig
+			GSSAPI    GSSAPIConfig
+			AWSRegion string
 		}
 		Producer struct {
 			Acks0Disabled bool
@@ -319,6 +320,8 @@ func (c *Config) Validate() error {
 				if c.Kafka.SASL.GSSAPI.Realm == "" {
 					return errors.New("GSSAPI Realm must not be empty")
 				}
+			} else if c.Kafka.SASL.Method == "AWS_MSK_IAM" {
+
 			} else {
 				if c.Kafka.SASL.Username == "" || c.Kafka.SASL.Password == "" {
 					return errors.New("SASL.Username and SASL.Password are required when SASL is enabled and plugin is not used")
