@@ -4,6 +4,8 @@ go 1.17
 
 require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
+	github.com/aws/aws-sdk-go-v2 v1.17.2
+	github.com/aws/aws-sdk-go-v2/config v1.18.4
 	github.com/cenkalti/backoff v1.1.0
 	github.com/elazarl/goproxy v0.0.0-20171101143503-a96fa3a31826
 	github.com/fsnotify/fsnotify v1.4.9
@@ -23,7 +25,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.8.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
-	golang.org/x/net v0.0.0-20220725212005-46097bf591d3
+	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 	google.golang.org/api v0.0.0-20180313183023-c24aa0e5ed34
 	google.golang.org/grpc v1.10.0
@@ -33,8 +35,6 @@ require (
 	cloud.google.com/go v0.34.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20200615164410-66371956d46c // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.17.2 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.18.4 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.4 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.20 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.26 // indirect
@@ -74,8 +74,8 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/text v0.3.8 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20180316064809-f8c870359523 // indirect
 	google.golang.org/protobuf v1.26.0-rc.1 // indirect
