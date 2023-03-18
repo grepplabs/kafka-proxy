@@ -120,7 +120,7 @@ func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 
 	_, _, _, err := makeTLSPipe(c, nil)
-	a.EqualError(err, "x509: certificate signed by unknown authority")
+	a.EqualError(err, "tls: failed to verify certificate: x509: certificate signed by unknown authority")
 }
 
 func TestTLSUnknownAuthorityWrongCAChainCert(t *testing.T) {
@@ -139,7 +139,7 @@ func TestTLSUnknownAuthorityWrongCAChainCert(t *testing.T) {
 	c.Kafka.TLS.CAChainCertFile = bundle2.ServerCert.Name()
 
 	_, _, _, err := makeTLSPipe(c, nil)
-	a.EqualError(err, "x509: certificate signed by unknown authority")
+	a.EqualError(err, "tls: failed to verify certificate: x509: certificate signed by unknown authority")
 }
 
 func TestTLSInsecureSkipVerify(t *testing.T) {
@@ -387,7 +387,7 @@ func TestTLSBadClientCert(t *testing.T) {
 	_, _, _, err := makeTLSPipe(c, nil)
 
 	a.NotNil(err)
-	a.Contains(err.Error(), "tls: failed to verify client certificate")
+	a.Contains(err.Error(), "tls: failed to verify certificate: x509: certificate signed by unknown authority")
 }
 
 func TestTLSVerifySameClientCert(t *testing.T) {
