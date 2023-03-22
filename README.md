@@ -35,9 +35,10 @@ As not every Kafka release adds new messages/versions which are relevant to the 
 
 
 | Kafka proxy version | Kafka version |
-| ------------------  | -----------   |
-| 0.2.9               | 2.8.0         |
-| 0.3.1               | 3.1.0-3.2.1   |
+|---------------------|---------------|
+|                     | from 0.11.0   |
+| 0.2.9               | to 2.8.0      |
+| 0.3.1               | to 3.4.0      |
 
 
 ### Install binary release

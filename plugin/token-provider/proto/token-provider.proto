@@ -1,5 +1,6 @@
 syntax = "proto3";
 package proto;
+option go_package = "github.com/grepplabs/kafka-proxy/plugin/token-provider/proto";
 
 message TokenRequest {
     repeated string params = 1;

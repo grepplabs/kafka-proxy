@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package plugin
 
 import (
@@ -32,11 +35,11 @@ func flattenKVPairs(kvs []*logEntryKV) []interface{} {
 }
 
 // parseJSON handles parsing JSON output
-func parseJSON(input string) (*logEntry, error) {
+func parseJSON(input []byte) (*logEntry, error) {
 	var raw map[string]interface{}
 	entry := &logEntry{}
 
-	err := json.Unmarshal([]byte(input), &raw)
+	err := json.Unmarshal(input, &raw)
 	if err != nil {
 		return nil, err
 	}

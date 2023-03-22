@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All rights reserved.
+// Copyright 2011 Google LLC. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,8 +15,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
-	"google.golang.org/api/googleapi/internal/uritemplates"
+	"google.golang.org/api/internal/third_party/uritemplates"
 )
 
 // ContentTyper is an interface for Readers which know (or would like
@@ -37,24 +38,28 @@ type SizeReaderAt interface {
 // ServerResponse is embedded in each Do response and
 // provides the HTTP status code and header sent by the server.
 type ServerResponse struct {
-	// HTTPStatusCode is the server's response status code.
-	// When using a resource method's Do call, this will always be in the 2xx range.
+	// HTTPStatusCode is the server's response status code. When using a
+	// resource method's Do call, this will always be in the 2xx range.
 	HTTPStatusCode int
 	// Header contains the response header fields from the server.
 	Header http.Header
 }
 
 const (
+	// Version defines the gax version being used. This is typically sent
+	// in an HTTP header to services.
 	Version = "0.5"
 
 	// UserAgent is the header string used to identify this package.
 	UserAgent = "google-api-go-client/" + Version
 
-	// The default chunk size to use for resumable uploads if not specified by the user.
-	DefaultUploadChunkSize = 8 * 1024 * 1024
+	// DefaultUploadChunkSize is the default chunk size to use for resumable
+	// uploads if not specified by the user.
+	DefaultUploadChunkSize = 16 * 1024 * 1024
 
-	// The minimum chunk size that can be used for resumable uploads.  All
-	// user-specified chunk sizes must be multiple of this value.
+	// MinUploadChunkSize is the minimum chunk size that can be used for
+	// resumable uploads.  All user-specified chunk sizes must be multiple of
+	// this value.
 	MinUploadChunkSize = 256 * 1024
 )
 
@@ -65,6 +70,8 @@ type Error struct {
 	// Message is the server response message and is only populated when
 	// explicitly referenced by the JSON server response.
 	Message string `json:"message"`
+	// Details provide more context to an error.
+	Details []interface{} `json:"details"`
 	// Body is the raw response returned by the server.
 	// It is often but not always JSON, depending on how the request fails.
 	Body string
@@ -72,6 +79,9 @@ type Error struct {
 	Header http.Header
 
 	Errors []ErrorItem
+	// err is typically a wrapped apierror.APIError, see
+	// google-api-go-client/internal/gensupport/error.go.
+	err error
 }
 
 // ErrorItem is a detailed error code & message from the Google API frontend.
@@ -91,6 +101,16 @@ func (e *Error) Error() string {
 	if e.Message != "" {
 		fmt.Fprintf(&buf, "%s", e.Message)
 	}
+	if len(e.Details) > 0 {
+		var detailBuf bytes.Buffer
+		enc := json.NewEncoder(&detailBuf)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(e.Details); err == nil {
+			fmt.Fprint(&buf, "\nDetails:")
+			fmt.Fprintf(&buf, "\n%s", detailBuf.String())
+
+		}
+	}
 	if len(e.Errors) == 0 {
 		return strings.TrimSpace(buf.String())
 	}
@@ -103,6 +123,15 @@ func (e *Error) Error() string {
 		fmt.Fprintf(&buf, "Reason: %s, Message: %s\n", v.Reason, v.Message)
 	}
 	return buf.String()
+}
+
+// Wrap allows an existing Error to wrap another error. See also [Error.Unwrap].
+func (e *Error) Wrap(err error) {
+	e.err = err
+}
+
+func (e *Error) Unwrap() error {
+	return e.err
 }
 
 type errorReply struct {
@@ -124,6 +153,7 @@ func CheckResponse(res *http.Response) error {
 				jerr.Error.Code = res.StatusCode
 			}
 			jerr.Error.Body = string(slurp)
+			jerr.Error.Header = res.Header
 			return jerr.Error
 		}
 	}
@@ -156,14 +186,19 @@ func CheckMediaResponse(res *http.Response) error {
 	}
 	slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 1<<20))
 	return &Error{
-		Code: res.StatusCode,
-		Body: string(slurp),
+		Code:   res.StatusCode,
+		Body:   string(slurp),
+		Header: res.Header,
 	}
 }
 
+// MarshalStyle defines whether to marshal JSON with a {"data": ...} wrapper.
 type MarshalStyle bool
 
+// WithDataWrapper marshals JSON with a {"data": ...} wrapper.
 var WithDataWrapper = MarshalStyle(true)
+
+// WithoutDataWrapper marshals JSON without a {"data": ...} wrapper.
 var WithoutDataWrapper = MarshalStyle(false)
 
 func (wrap MarshalStyle) JSONReader(v interface{}) (io.Reader, error) {
@@ -181,37 +216,12 @@ func (wrap MarshalStyle) JSONReader(v interface{}) (io.Reader, error) {
 	return buf, nil
 }
 
-// endingWithErrorReader from r until it returns an error.  If the
-// final error from r is io.EOF and e is non-nil, e is used instead.
-type endingWithErrorReader struct {
-	r io.Reader
-	e error
-}
-
-func (er endingWithErrorReader) Read(p []byte) (n int, err error) {
-	n, err = er.r.Read(p)
-	if err == io.EOF && er.e != nil {
-		err = er.e
-	}
-	return
-}
-
-// countingWriter counts the number of bytes it receives to write, but
-// discards them.
-type countingWriter struct {
-	n *int64
-}
-
-func (w countingWriter) Write(p []byte) (int, error) {
-	*w.n += int64(len(p))
-	return len(p), nil
-}
-
 // ProgressUpdater is a function that is called upon every progress update of a resumable upload.
 // This is the only part of a resumable upload (from googleapi) that is usable by the developer.
 // The remaining usable pieces of resumable uploads is exposed in each auto-generated API.
 type ProgressUpdater func(current, total int64)
 
+// MediaOption defines the interface for setting media options.
 type MediaOption interface {
 	setOptions(o *MediaOptions)
 }
@@ -250,12 +260,30 @@ func ChunkSize(size int) MediaOption {
 	return chunkSizeOption(size)
 }
 
+type chunkRetryDeadlineOption time.Duration
+
+func (cd chunkRetryDeadlineOption) setOptions(o *MediaOptions) {
+	o.ChunkRetryDeadline = time.Duration(cd)
+}
+
+// ChunkRetryDeadline returns a MediaOption which sets a per-chunk retry
+// deadline. If a single chunk has been attempting to upload for longer than
+// this time and the request fails, it will no longer be retried, and the error
+// will be returned to the caller.
+// This is only applicable for files which are large enough to require
+// a multi-chunk resumable upload.
+// The default value is 32s.
+// To set a deadline on the entire upload, use context timeout or cancellation.
+func ChunkRetryDeadline(deadline time.Duration) MediaOption {
+	return chunkRetryDeadlineOption(deadline)
+}
+
 // MediaOptions stores options for customizing media upload.  It is not used by developers directly.
 type MediaOptions struct {
 	ContentType           string
 	ForceEmptyContentType bool
-
-	ChunkSize int
+	ChunkSize             int
+	ChunkRetryDeadline    time.Duration
 }
 
 // ProcessMediaOptions stores options from opts in a MediaOptions.
@@ -268,13 +296,35 @@ func ProcessMediaOptions(opts []MediaOption) *MediaOptions {
 	return mo
 }
 
+// ResolveRelative resolves relatives such as "http://www.golang.org/" and
+// "topics/myproject/mytopic" into a single string, such as
+// "http://www.golang.org/topics/myproject/mytopic". It strips all parent
+// references (e.g. ../..) as well as anything after the host
+// (e.g. /bar/gaz gets stripped out of foo.com/bar/gaz).
+//
+// ResolveRelative panics if either basestr or relstr is not able to be parsed.
 func ResolveRelative(basestr, relstr string) string {
-	u, _ := url.Parse(basestr)
-	rel, _ := url.Parse(relstr)
+	u, err := url.Parse(basestr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse %q", basestr))
+	}
+	afterColonPath := ""
+	if i := strings.IndexRune(relstr, ':'); i > 0 {
+		afterColonPath = relstr[i+1:]
+		relstr = relstr[:i]
+	}
+	rel, err := url.Parse(relstr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse %q", relstr))
+	}
 	u = u.ResolveReference(rel)
 	us := u.String()
+	if afterColonPath != "" {
+		us = fmt.Sprintf("%s:%s", us, afterColonPath)
+	}
 	us = strings.Replace(us, "%7B", "{", -1)
 	us = strings.Replace(us, "%7D", "}", -1)
+	us = strings.Replace(us, "%2A", "*", -1)
 	return us
 }
 
@@ -334,7 +384,7 @@ func ConvertVariant(v map[string]interface{}, dst interface{}) bool {
 }
 
 // A Field names a field to be retrieved with a partial response.
-// See https://developers.google.com/gdata/docs/2.0/basics#PartialResponse
+// https://cloud.google.com/storage/docs/json_api/v1/how-tos/performance
 //
 // Partial responses can dramatically reduce the amount of data that must be sent to your application.
 // In order to request partial responses, you can specify the full list of fields
@@ -345,14 +395,11 @@ func ConvertVariant(v map[string]interface{}, dst interface{}) bool {
 // For example, if your response has a "NextPageToken" and a slice of "Items" with "Id" fields,
 // you could request just those fields like this:
 //
-//     svc.Events.List().Fields("nextPageToken", "items/id").Do()
+//	svc.Events.List().Fields("nextPageToken", "items/id").Do()
 //
 // or if you were also interested in each Item's "Updated" field, you can combine them like this:
 //
-//     svc.Events.List().Fields("nextPageToken", "items(id,updated)").Do()
-//
-// More information about field formatting can be found here:
-// https://developers.google.com/+/api/#fields-syntax
+//	svc.Events.List().Fields("nextPageToken", "items(id,updated)").Do()
 //
 // Another way to find field names is through the Google API explorer:
 // https://developers.google.com/apis-explorer/#p/
@@ -375,6 +422,14 @@ func CombineFields(s []Field) string {
 // an API call is common across many APIs, and is thus a CallOption.
 type CallOption interface {
 	Get() (key, value string)
+}
+
+// A MultiCallOption is an option argument to an API call and can be passed
+// anywhere a CallOption is accepted. It additionally supports returning a slice
+// of values for a given key.
+type MultiCallOption interface {
+	CallOption
+	GetMulti() (key string, value []string)
 }
 
 // QuotaUser returns a CallOption that will set the quota user for a call.
@@ -402,5 +457,25 @@ func Trace(traceToken string) CallOption { return traceTok(traceToken) }
 type traceTok string
 
 func (t traceTok) Get() (string, string) { return "trace", "token:" + string(t) }
+
+type queryParameter struct {
+	key    string
+	values []string
+}
+
+// QueryParameter allows setting the value(s) of an arbitrary key.
+func QueryParameter(key string, values ...string) CallOption {
+	return queryParameter{key: key, values: append([]string{}, values...)}
+}
+
+// Get will never actually be called -- GetMulti will.
+func (q queryParameter) Get() (string, string) {
+	return "", ""
+}
+
+// GetMulti returns the key and values values associated to that key.
+func (q queryParameter) GetMulti() (string, []string) {
+	return q.key, q.values
+}
 
 // TODO: Fields too

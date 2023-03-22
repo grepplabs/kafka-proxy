@@ -22,6 +22,7 @@ func (m *GRPCClient) VerifyToken(ctx context.Context, request apis.VerifyRequest
 type GRPCServer struct {
 	broker *plugin.GRPCBroker
 	Impl   apis.TokenInfo
+	proto.UnimplementedTokenInfoServer
 }
 
 func (m *GRPCServer) VerifyToken(

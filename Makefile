@@ -14,6 +14,13 @@ TAG           ?= "v0.3.3"
 GOARCH        ?= amd64
 GOOS          ?= linux
 
+
+PROTOC_GO_VERSION ?= v1.30
+PROTOC_GRPC_VERSION ?= v1.2
+PROTOC_VERSION ?= 22.2
+PROTOC_BIN_DIR := .tools
+PROTOC := $(PROTOC_BIN_DIR)/protoc
+
 default: build
 
 test.race:
@@ -43,14 +50,37 @@ release: clean
 	rm -rf $(ROOT_DIR)/dist
 	curl -sL https://git.io/goreleaser | bash
 
-protoc.local-auth:
-	protoc -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=plugins=grpc:plugin/local-auth/proto/
+protoc.plugin.install:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GO_VERSION)
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GRPC_VERSION)
 
-protoc.token-provider:
-	protoc -I plugin/token-provider/proto/ plugin/token-provider/proto/token-provider.proto --go_out=plugins=grpc:plugin/token-provider/proto/
+protoc.bin.install: protoc.plugin.install
+	@{ \
+		set -e;\
+		mkdir -p $(PROTOC_BIN_DIR) ;\
+		cd $(PROTOC_BIN_DIR);\
+	    wget https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip ;\
+	    unzip -qoj protoc-$(PROTOC_VERSION)-linux-x86_64.zip bin/protoc ;\
+	    rm -f protoc-$(PROTOC_VERSION)-linux-x86_64.zip ;\
+	}
 
-protoc.token-info:
-	protoc -I plugin/token-info/proto/ plugin/token-info/proto/token-info.proto --go_out=plugins=grpc:plugin/token-info/proto/
+
+dep-check:
+ifeq ("$(wildcard $(PROTOC))","")
+	$(error Could not find protoc install, please run 'make protoc.install')
+endif
+
+protoc.local-auth: dep-check
+	$(PROTOC) -I plugin/local-auth/proto/ plugin/local-auth/proto/auth.proto --go_out=paths=source_relative:plugin/local-auth/proto/ --go-grpc_out=paths=source_relative:plugin/local-auth/proto/
+
+protoc.token-provider: dep-check
+	$(PROTOC) -I plugin/token-provider/proto/ plugin/token-provider/proto/token-provider.proto --go_out=paths=source_relative:plugin/token-provider/proto/ --go-grpc_out=paths=source_relative:plugin/token-provider/proto/
+
+protoc.token-info: dep-check
+	$(PROTOC) -I plugin/token-info/proto/ plugin/token-info/proto/token-info.proto --go_out=paths=source_relative:plugin/token-info/proto/ --go-grpc_out=paths=source_relative:plugin/token-info/proto/
+
+.PHONY: protoc
+protoc: protoc.local-auth protoc.token-provider protoc.token-info
 
 plugin.auth-user:
 	CGO_ENABLED=0 go build -o build/auth-user $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-user/main.go

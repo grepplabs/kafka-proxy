@@ -2,17 +2,14 @@
   "auth": {
     "oauth2": {
       "scopes": {
-        "https://www.googleapis.com/auth/plus.login": {
-          "description": "Know the list of people in your circles, your age range, and language"
-        },
-        "https://www.googleapis.com/auth/plus.me": {
-          "description": "Know who you are on Google"
-        },
         "https://www.googleapis.com/auth/userinfo.email": {
-          "description": "View your email address"
+          "description": "See your primary Google Account email address"
         },
         "https://www.googleapis.com/auth/userinfo.profile": {
-          "description": "View your basic profile info"
+          "description": "See your personal info, including any personal info you've made publicly available"
+        },
+        "openid": {
+          "description": "Associate you with your personal info on Google"
         }
       }
     }
@@ -22,8 +19,8 @@
   "batchPath": "batch/oauth2/v2",
   "description": "Obtains end-user authorization grants for use with other Google APIs.",
   "discoveryVersion": "v1",
-  "documentationLink": "https://developers.google.com/accounts/docs/OAuth2",
-  "etag": "\"-iA1DTNe4s-I6JZXPt1t1Ypy8IU/aptYwkK59DHRE1vI13GjvaLFO4s\"",
+  "documentationLink": "https://developers.google.com/identity/protocols/oauth2/",
+  "etag": "\"u9GIe6H63LSGq-9_t39K2Zx_EAc/VCyF6WfWVwIuhIs_gw3LA4B3w1E\"",
   "icons": {
     "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
     "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
@@ -31,14 +28,6 @@
   "id": "oauth2:v2",
   "kind": "discovery#restDescription",
   "methods": {
-    "getCertForOpenIdConnect": {
-      "httpMethod": "GET",
-      "id": "oauth2.getCertForOpenIdConnect",
-      "path": "oauth2/v2/certs",
-      "response": {
-        "$ref": "Jwk"
-      }
-    },
     "tokeninfo": {
       "httpMethod": "POST",
       "id": "oauth2.tokeninfo",
@@ -48,10 +37,6 @@
           "type": "string"
         },
         "id_token": {
-          "location": "query",
-          "type": "string"
-        },
-        "token_handle": {
           "location": "query",
           "type": "string"
         }
@@ -100,12 +85,12 @@
       "type": "boolean"
     },
     "quotaUser": {
-      "description": "Available to use for quota purposes for server-side applications. Can be any arbitrary string assigned to a user, but should not exceed 40 characters. Overrides userIp if both are provided.",
+      "description": "An opaque string that represents a user for quota purposes. Must not exceed 40 characters.",
       "location": "query",
       "type": "string"
     },
     "userIp": {
-      "description": "IP address of the site where the request originates. Use this if you want to enforce per-user limits.",
+      "description": "Deprecated. Please use quotaUser instead.",
       "location": "query",
       "type": "string"
     }
@@ -119,11 +104,10 @@
           "id": "oauth2.userinfo.get",
           "path": "oauth2/v2/userinfo",
           "response": {
-            "$ref": "Userinfoplus"
+            "$ref": "Userinfo"
           },
           "scopes": [
-            "https://www.googleapis.com/auth/plus.login",
-            "https://www.googleapis.com/auth/plus.me",
+            "openid",
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile"
           ]
@@ -139,11 +123,10 @@
                   "id": "oauth2.userinfo.v2.me.get",
                   "path": "userinfo/v2/me",
                   "response": {
-                    "$ref": "Userinfoplus"
+                    "$ref": "Userinfo"
                   },
                   "scopes": [
-                    "https://www.googleapis.com/auth/plus.login",
-                    "https://www.googleapis.com/auth/plus.me",
+                    "openid",
                     "https://www.googleapis.com/auth/userinfo.email",
                     "https://www.googleapis.com/auth/userinfo.profile"
                   ]
@@ -155,51 +138,12 @@
       }
     }
   },
-  "revision": "20180108",
+  "revision": "20200213",
   "rootUrl": "https://www.googleapis.com/",
   "schemas": {
-    "Jwk": {
-      "id": "Jwk",
-      "properties": {
-        "keys": {
-          "items": {
-            "properties": {
-              "alg": {
-                "default": "RS256",
-                "type": "string"
-              },
-              "e": {
-                "type": "string"
-              },
-              "kid": {
-                "type": "string"
-              },
-              "kty": {
-                "default": "RSA",
-                "type": "string"
-              },
-              "n": {
-                "type": "string"
-              },
-              "use": {
-                "default": "sig",
-                "type": "string"
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
     "Tokeninfo": {
       "id": "Tokeninfo",
       "properties": {
-        "access_type": {
-          "description": "The access type granted with this token. It can be offline or online.",
-          "type": "string"
-        },
         "audience": {
           "description": "Who is the intended audience for this token. In general the same as issued_to.",
           "type": "string"
@@ -221,10 +165,6 @@
           "description": "The space separated list of scopes granted to this token.",
           "type": "string"
         },
-        "token_handle": {
-          "description": "The token handle associated with this token.",
-          "type": "string"
-        },
         "user_id": {
           "description": "The obfuscated user id.",
           "type": "string"
@@ -236,8 +176,8 @@
       },
       "type": "object"
     },
-    "Userinfoplus": {
-      "id": "Userinfoplus",
+    "Userinfo": {
+      "id": "Userinfo",
       "properties": {
         "email": {
           "description": "The user's email address.",
