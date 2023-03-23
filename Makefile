@@ -24,10 +24,10 @@ PROTOC := $(PROTOC_BIN_DIR)/protoc
 default: build
 
 test.race:
-	go test -v -race -count=1 `go list ./...`
+	go test -v -race -count=1 -mod=vendor `go list ./...`
 
 test:
-	go test -v -count=1 `go list ./...`
+	go test -v -count=1 -mod=vendor `go list ./...`
 
 fmt:
 	go fmt $(GOPKGS)
@@ -36,11 +36,12 @@ check:
 	golint $(GOPKGS)
 	go vet $(GOPKGS)
 
-
+.PHONY: build
 build: build/$(BINARY)
 
+.PHONY: build/$(BINARY)
 build/$(BINARY): $(SOURCES)
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -mod=vendor -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
 
 tag:
 	git tag $(TAG)
