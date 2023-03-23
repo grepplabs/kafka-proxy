@@ -164,7 +164,7 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.SASL.Username, "sasl-username", "", "SASL user name")
 	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", "", "SASL user password")
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
-	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI")
+	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, AWS_MSK_IAM")
 
 	// SASL GSSAPI
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.AuthType, "gssapi-auth-type", config.KRB5_KEYTAB_AUTH, "GSSAPI auth type: KEYTAB or USER")
@@ -177,6 +177,10 @@ func initFlags() {
 	Server.Flags().BoolVar(&c.Kafka.SASL.GSSAPI.DisablePAFXFAST, "gssapi-disable-pa-fx-fast", false, "Used to configure the client to not use PA_FX_FAST.")
 	Server.Flags().StringToStringVar(&c.Kafka.SASL.GSSAPI.SPNHostsMapping, "gssapi-spn-host-mapping", map[string]string{}, "Mapping of Kafka servers address to SPN hosts")
 
+	// SASL AWS_MSK_IAM
+	Server.Flags().StringVar(&c.Kafka.SASL.AWSConfig.Region, "sasl-aws-region", "", "Region for AWS IAM Auth")
+	Server.Flags().StringVar(&c.Kafka.SASL.AWSConfig.Profile, "sasl-aws-profile", "", "AWS profile")
+
 	// SASL by Proxy plugin
 	Server.Flags().BoolVar(&c.Kafka.SASL.Plugin.Enable, "sasl-plugin-enable", false, "Use plugin for SASL authentication")
 	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.Command, "sasl-plugin-command", "", "Path to authentication plugin binary")
@@ -184,8 +188,6 @@ func initFlags() {
 	Server.Flags().StringArrayVar(&c.Kafka.SASL.Plugin.Parameters, "sasl-plugin-param", []string{}, "Authentication plugin parameter")
 	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.LogLevel, "sasl-plugin-log-level", "trace", "Log level of the auth plugin")
 	Server.Flags().DurationVar(&c.Kafka.SASL.Plugin.Timeout, "sasl-plugin-timeout", 10*time.Second, "Authentication timeout")
-
-	Server.Flags().StringVar(&c.Kafka.SASL.AWSRegion, "sasl-iam-region", "", "Region for AWS IAM Auth")
 
 	// Web
 	Server.Flags().BoolVar(&c.Http.Disable, "http-disable", false, "Disable HTTP endpoints")

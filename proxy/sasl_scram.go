@@ -174,7 +174,7 @@ func (b *SASLSCRAMAuth) sendAndReceiveSASLHandshake(conn DeadlineReaderWriter) e
 
 func (b *SASLSCRAMAuth) sendSaslAuthenticateRequest(conn DeadlineReaderWriter, correlationID int32, msg []byte) (int, error) {
 	//	rb := &SaslAuthenticateRequest{msg}
-	rb := &protocol.SaslAuthenticateRequestV0{msg}
+	rb := &protocol.SaslAuthenticateRequestV0{SaslAuthBytes: msg}
 	//req := &request{correlationID: correlationID, clientID: b.conf.ClientID, body: rb}
 	req := &protocol.Request{CorrelationID: correlationID, ClientID: b.clientID, Body: rb}
 	//buf, err := encode(req, b.conf.MetricRegistry)

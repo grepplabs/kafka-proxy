@@ -187,9 +187,11 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --proxy-listener-write-buffer-size int                 Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
             --proxy-request-buffer-size int                        Request buffer size pro tcp connection (default 4096)
             --proxy-response-buffer-size int                       Response buffer size pro tcp connection (default 4096)
+            --sasl-aws-profile string                              AWS profile
+            --sasl-aws-region string                               Region for AWS IAM Auth
             --sasl-enable                                          Connect using SASL
             --sasl-jaas-config-file string                         Location of JAAS config file with SASL username and password
-            --sasl-method string                                   SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI (default "PLAIN")
+            --sasl-method string                                   SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, AWS_MSK_IAM (default "PLAIN")
             --sasl-password string                                 SASL user password
             --sasl-plugin-command string                           Path to authentication plugin binary
             --sasl-plugin-enable                                   Use plugin for SASL authentication
@@ -278,6 +280,17 @@ GSSAPI / Kerberos authentication
                        --gssapi-realm EXAMPLE.COM \
                        --gssapi-krb5 /etc/krb5.conf \
                        --gssapi-keytab /etc/security/keytabs/kafka.keytab
+
+AWS MSK IAM
+
+    kafka-proxy server --bootstrap-server-mapping "b-1-public.kafkaproxycluster.uls9ao.c4.kafka.eu-central-1.amazonaws.com:9198,0.0.0.0:30001" \
+                       --bootstrap-server-mapping "b-2-public.kafkaproxycluster.uls9ao.c4.kafka.eu-central-1.amazonaws.com:9198,0.0.0.0:30002" \
+                       --bootstrap-server-mapping "b-3-public.kafkaproxycluster.uls9ao.c4.kafka.eu-central-1.amazonaws.com:9198,0.0.0.0:30003" \
+                       --tls-enable --tls-insecure-skip-verify \
+                       --sasl-enable \
+                       --sasl-method "AWS_MSK_IAM" \
+                       --sasl-aws-region "eu-central-1" \
+                       --log-level debug
 
 
 ### Proxy authentication example

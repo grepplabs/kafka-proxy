@@ -124,15 +124,13 @@ func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.Ne
 				gssapiConfig: &c.Kafka.SASL.GSSAPI,
 			}
 		} else if c.Kafka.SASL.Method == SASLIAMAAUTH {
-			if awsMSKIAMAUTH, err := NewAwsMSKIamAuth(
+			if saslAuthByProxy, err = NewAwsMSKIamAuth(
 				c.Kafka.ClientID,
-				c.Kafka.SASL.AWSRegion,
 				c.Kafka.ReadTimeout,
 				c.Kafka.WriteTimeout,
+				&c.Kafka.SASL.AWSConfig,
 			); err != nil {
-				return nil, fmt.Errorf("Failed to create IAM Auth: %v", err)
-			} else {
-				saslAuthByProxy = awsMSKIAMAUTH
+				return nil, errors.Errorf("Failed to create IAM Auth: %v", err)
 			}
 		} else {
 			return nil, errors.Errorf("SASL Mechanism not valid '%s'", c.Kafka.SASL.Method)

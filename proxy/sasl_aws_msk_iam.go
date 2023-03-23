@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	proxyconfig "github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -28,15 +29,18 @@ type AwsMSKIamAuth struct {
 
 func NewAwsMSKIamAuth(
 	clientId string,
-	region string,
 	readTimeout,
 	writeTimeout time.Duration,
+	awsConfig *proxyconfig.AWSConfig,
 ) (SASLAuthByProxy, error) {
 	var optFns []func(*config.LoadOptions) error
-	if region != "" {
-		optFns = append(optFns, config.WithRegion(region))
+	if awsConfig.Region != "" {
+		optFns = append(optFns, config.WithRegion(awsConfig.Region))
 	}
-	cfg, err := config.LoadDefaultConfig(context.TODO(), optFns...)
+	if awsConfig.Profile != "" {
+		optFns = append(optFns, config.WithSharedConfigProfile(awsConfig.Profile))
+	}
+	cfg, err := config.LoadDefaultConfig(context.Background(), optFns...)
 	if err != nil {
 		return nil, fmt.Errorf("loading aws config: %v", err)
 	}
@@ -98,7 +102,7 @@ func (a *AwsMSKIamAuth) saslAuthenticate(conn DeadlineReaderWriter, brokerString
 		return fmt.Errorf("failed to parse host/port: %v", err)
 	}
 
-	authBytes, err := a.signer.SASLToken(context.TODO(), host)
+	authBytes, err := a.signer.SASLToken(context.Background(), host)
 	if err != nil {
 		return fmt.Errorf("failed to generate SASL token %v", err)
 	}

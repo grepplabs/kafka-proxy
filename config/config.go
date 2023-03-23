@@ -46,6 +46,11 @@ type GSSAPIConfig struct {
 	SPNHostsMapping    map[string]string
 }
 
+type AWSConfig struct {
+	Region  string
+	Profile string
+}
+
 type Config struct {
 	Http struct {
 		ListenAddress string
@@ -161,7 +166,7 @@ type Config struct {
 				Timeout    time.Duration
 			}
 			GSSAPI    GSSAPIConfig
-			AWSRegion string
+			AWSConfig AWSConfig
 		}
 		Producer struct {
 			Acks0Disabled bool
