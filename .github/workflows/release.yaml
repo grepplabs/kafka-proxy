@@ -63,7 +63,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: false
+          push: true
           build-args: |
             MAKE_TARGET=test build
           tags: ${{ steps.meta.outputs.tags }}
@@ -72,7 +72,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: false
+          push: true
           build-args: |
             MAKE_TARGET=all
           tags: ${{ steps.meta-all.outputs.tags }}
