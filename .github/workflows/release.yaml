@@ -27,7 +27,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            grepplabs/mqtt-proxy
+            grepplabs/kafka-proxy
           tags: |
             type=ref,event=branch
             type=ref,event=pr
