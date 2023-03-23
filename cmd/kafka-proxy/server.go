@@ -102,7 +102,7 @@ func initFlags() {
 	Server.Flags().BoolVar(&c.Proxy.TLS.Enable, "proxy-listener-tls-enable", false, "Whether or not to use TLS listener")
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerCertFile, "proxy-listener-cert-file", "", "PEM encoded file with server certificate")
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyFile, "proxy-listener-key-file", "", "PEM encoded file with private key for the server certificate")
-	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", "", "Password to decrypt rsa private key")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", os.Getenv("PROXY_LISTENER_KEY_PASSWORD"), "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file. If provided, client certificate is required and verified")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCipherSuites, "proxy-listener-cipher-suites", []string{}, "List of supported cipher suites")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCurvePreferences, "proxy-listener-curve-preferences", []string{}, "List of curve preferences")
@@ -153,7 +153,7 @@ func initFlags() {
 	Server.Flags().BoolVar(&c.Kafka.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", false, "It controls whether a client verifies the server's certificate chain and host name")
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientCertFile, "tls-client-cert-file", "", "PEM encoded file with client certificate")
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyFile, "tls-client-key-file", "", "PEM encoded file with private key for the client certificate")
-	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", "", "Password to decrypt rsa private key")
+	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", os.Getenv("TLS_CLIENT_KEY_PASSWORD"), "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Kafka.TLS.CAChainCertFile, "tls-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
 
 	//Same TLS client cert tls-same-client-cert-enable
@@ -162,7 +162,7 @@ func initFlags() {
 	// SASL by Proxy
 	Server.Flags().BoolVar(&c.Kafka.SASL.Enable, "sasl-enable", false, "Connect using SASL")
 	Server.Flags().StringVar(&c.Kafka.SASL.Username, "sasl-username", "", "SASL user name")
-	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", "", "SASL user password")
+	Server.Flags().StringVar(&c.Kafka.SASL.Password, "sasl-password", os.Getenv("SASL_PASSWORD"), "SASL user password")
 	Server.Flags().StringVar(&c.Kafka.SASL.JaasConfigFile, "sasl-jaas-config-file", "", "Location of JAAS config file with SASL username and password")
 	Server.Flags().StringVar(&c.Kafka.SASL.Method, "sasl-method", "PLAIN", "SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, AWS_MSK_IAM")
 
@@ -170,7 +170,7 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.AuthType, "gssapi-auth-type", config.KRB5_KEYTAB_AUTH, "GSSAPI auth type: KEYTAB or USER")
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.ServiceName, "gssapi-servicename", "kafka", "ServiceName")
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Username, "gssapi-username", "kafka", "Username")
-	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Password, "gssapi-password", "", "Password for auth type USER")
+	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Password, "gssapi-password", os.Getenv("GSSAPI_PASSWORD"), "Password for auth type USER")
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.Realm, "gssapi-realm", "", "Realm")
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.KerberosConfigPath, "gssapi-krb5", "/etc/krb5.conf", "krb5.conf file path, default: /etc/krb5.conf")
 	Server.Flags().StringVar(&c.Kafka.SASL.GSSAPI.KeyTabPath, "gssapi-keytab", "", "krb5.keytab file location")
