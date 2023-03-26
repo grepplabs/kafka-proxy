@@ -1,15 +1,27 @@
-FROM golang:1.20-alpine3.17 as builder
+FROM --platform=$BUILDPLATFORM golang:1.20-alpine3.17 as builder
 RUN apk add alpine-sdk ca-certificates
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG VERSION
+
+ENV CGO_ENABLED=0 \
+    GO111MODULE=on \
+    GOOS=${TARGETOS} \
+    GOARCH=${TARGETARCH} \
+    GOARM=${TARGETVARIANT} \
+    LDFLAGS="-X github.com/grepplabs/kafka-proxy/config.Version=${VERSION} -w -s"
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
 
-ARG MAKE_TARGET=build
-ARG GOOS=linux
-ARG GOARCH=amd64
-RUN make -e GOARCH=${GOARCH} -e GOOS=${GOOS} clean ${MAKE_TARGET}
+RUN mkdir -p build && \
+    export GOARM=$( echo "${GOARM}" | cut -c2-) && \
+    go build -mod=vendor -o build/kafka-proxy \
+    -ldflags "${LDFLAGS}" .
 
-FROM alpine:3.17
+FROM --platform=$BUILDPLATFORM alpine:3.17
 RUN apk add --no-cache ca-certificates
 RUN adduser \
         --disabled-password \
