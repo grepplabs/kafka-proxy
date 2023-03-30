@@ -14,14 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Get git describe
+        id: get-version
+        run: |
+          describe=$(git describe --tags --always --dirty)
+          echo "GIT_COMMIT_REF_NAME=$describe" >> $GITHUB_ENV
       - name: Setup go
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
           check-latest: true
       - run: go version
-      - name: Run build and test
-        run: make clean build test
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
@@ -64,19 +67,19 @@ jobs:
         with:
           context: .
           push: true
-          build-args: |
-            MAKE_TARGET=test build
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ env.GIT_COMMIT_REF_NAME }}
       - name: Docker build and push - all
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          build-args: |
-            MAKE_TARGET=all
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta-all.outputs.tags }}
           labels: ${{ steps.meta-all.outputs.labels }}
+          build-args: VERSION=${{ env.GIT_COMMIT_REF_NAME }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         if: startsWith(github.ref, 'refs/tags/')

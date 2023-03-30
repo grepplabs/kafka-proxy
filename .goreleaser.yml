@@ -1,11 +1,17 @@
 builds:
 - binary: kafka-proxy
+  env:
+    - CGO_ENABLED=0
   goos:
     - windows
     - darwin
     - linux
   goarch:
     - amd64
+    - arm64
+  ignore:
+    - goos: windows
+      goarch: arm64
   ldflags: -s -w -X github.com/grepplabs/kafka-proxy/config.Version={{.Version}}
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}"

@@ -10,10 +10,11 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.3.5"
-GOARCH        ?= amd64
-GOOS          ?= linux
-
+TAG           ?= "v0.3.6"
+GOOS          ?= $(if $(TARGETOS),$(TARGETOS),linux)
+GOARCH        ?= $(if $(TARGETARCH),$(TARGETARCH),amd64)
+GOARM         ?= $(TARGETVARIANT)
+BUILDPLATFORM ?= $(GOOS)/$(GOARCH)
 
 PROTOC_GO_VERSION ?= v1.30
 PROTOC_GRPC_VERSION ?= v1.2
@@ -41,15 +42,16 @@ build: build/$(BINARY)
 
 .PHONY: build/$(BINARY)
 build/$(BINARY): $(SOURCES)
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -mod=vendor -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=0 go build -mod=vendor -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" .
+
+docker.build:
+	docker buildx build --build-arg BUILDPLATFORM=$(BUILDPLATFORM) --build-arg TARGETARCH=$(GOARCH) -t local/kafka-proxy .
 
 tag:
 	git tag $(TAG)
 
 release: clean
 	git push origin $(TAG)
-	rm -rf $(ROOT_DIR)/dist
-	curl -sL https://git.io/goreleaser | bash
 
 protoc.plugin.install:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GO_VERSION)
