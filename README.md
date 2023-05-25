@@ -535,7 +535,7 @@ spec:
 ```yaml
 
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
    name: kafka-proxy
