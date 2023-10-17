@@ -7,7 +7,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
 	github.com/cenkalti/backoff v1.1.0
-	github.com/elazarl/goproxy v0.0.0-20171101143503-a96fa3a31826
+	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a
+	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-ldap/ldap/v3 v3.2.3
 	github.com/google/uuid v1.3.0
