@@ -104,9 +104,11 @@ github.com/cespare/xxhash/v2
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/elazarl/goproxy v0.0.0-20171101143503-a96fa3a31826
+# github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a
 ## explicit
 github.com/elazarl/goproxy
+# github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2
+## explicit
 github.com/elazarl/goproxy/ext/auth
 # github.com/fatih/color v1.15.0
 ## explicit; go 1.17
