@@ -451,6 +451,9 @@ metadata:
    name: myapp
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
   template:
     metadata:
       labels:

@@ -22,7 +22,7 @@ RUN mkdir -p build && \
     -ldflags "${LDFLAGS}" .
 
 FROM --platform=$BUILDPLATFORM alpine:3.17
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates libcap
 RUN adduser \
         --disabled-password \
         --gecos "" \
@@ -32,6 +32,8 @@ RUN adduser \
         kafka-proxy
 
 COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build /opt/kafka-proxy/bin
+RUN setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/kafka-proxy
+
 USER kafka-proxy
 ENTRYPOINT ["/opt/kafka-proxy/bin/kafka-proxy"]
 CMD ["--help"]
