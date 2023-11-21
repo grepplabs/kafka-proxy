@@ -2,11 +2,14 @@ package main
 
 import (
 	"flag"
+	"os"
+
 	"github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
-	"os"
 )
+
+const EnvSaslPassword = "SASL_PASSWORD"
 
 type PasswordAuthenticator struct {
 	Username string
@@ -29,6 +32,11 @@ func main() {
 	passwordAuthenticator := &PasswordAuthenticator{}
 	flags := passwordAuthenticator.flagSet()
 	flags.Parse(os.Args[1:])
+
+	if passwordAuthenticator.Password == "" {
+		passwordAuthenticator.Password = os.Getenv(EnvSaslPassword)
+	}
+
 	if passwordAuthenticator.Username == "" || passwordAuthenticator.Password == "" {
 		logrus.Errorf("parameters username and password are required")
 		os.Exit(1)
