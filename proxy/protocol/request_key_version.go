@@ -346,6 +346,20 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 		return 1
 	case 67: // AllocateProducerIds
 		return 1
+	case 68: // ConsumerGroupHeartbeat
+		return 1
+	case 69: // ConsumerGroupDescribe
+		return 1
+	case 70: // ControllerRegistration
+		return 1
+	case 71: // GetTelemetrySubscriptions
+		return 1
+	case 72: // PushTelemetry
+		return 1
+	case 73: // AssignReplicasToDirs
+		return 1
+	case 74: // ListClientMetricsResources
+		return 1
 	default:
 		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
 		return -1
