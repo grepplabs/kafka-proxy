@@ -47,11 +47,11 @@ As not every Kafka release adds new messages/versions which are relevant to the 
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.9/kafka-proxy-v0.3.9-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.10/kafka-proxy-v0.3.10-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.9/kafka-proxy-v0.3.9-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.10/kafka-proxy-v0.3.10-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 

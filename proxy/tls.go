@@ -1,17 +1,23 @@
 package proxy
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
+	"github.com/youmark/pkcs8"
 )
 
 var (
@@ -57,11 +63,11 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 	if opts.ListenerKeyFile == "" || opts.ListenerCertFile == "" {
 		return nil, errors.New("Listener key and cert files must not be empty")
 	}
-	certPEMBlock, err := ioutil.ReadFile(opts.ListenerCertFile)
+	certPEMBlock, err := os.ReadFile(opts.ListenerCertFile)
 	if err != nil {
 		return nil, err
 	}
-	keyPEMBlock, err := ioutil.ReadFile(opts.ListenerKeyFile)
+	keyPEMBlock, err := os.ReadFile(opts.ListenerKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +97,7 @@ func newTLSListenerConfig(conf *config.Config) (*tls.Config, error) {
 		CipherSuites:             cipherSuites,
 	}
 	if opts.CAChainCertFile != "" {
-		caCertPEMBlock, err := ioutil.ReadFile(opts.CAChainCertFile)
+		caCertPEMBlock, err := os.ReadFile(opts.CAChainCertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -202,8 +208,40 @@ func decryptPEM(pemData []byte, password string) ([]byte, error) {
 			Bytes: key,
 		}
 		return pem.EncodeToMemory(block), nil
+	} else if strings.Contains(string(pemData), "ENCRYPTED PRIVATE KEY") {
+		if password == "" {
+			return nil, errors.New("PEM is encrypted, but password is empty")
+		}
+		key, err := pkcs8.ParsePKCS8PrivateKey(keyBlock.Bytes, []byte(password))
+		if err != nil {
+			return nil, err
+		}
+		return marshalPrivateKeyToPEM(key)
 	}
 	return pemData, nil
+}
+
+func marshalPrivateKeyToPEM(privateKey crypto.PrivateKey) ([]byte, error) {
+	switch t := privateKey.(type) {
+	case *ecdsa.PrivateKey:
+		derBytes, err := x509.MarshalECPrivateKey(t)
+		if err != nil {
+			return nil, err
+		}
+		block := &pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: derBytes,
+		}
+		return pem.EncodeToMemory(block), nil
+	case *rsa.PrivateKey:
+		block := &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(t),
+		}
+		return pem.EncodeToMemory(block), nil
+	default:
+		return nil, fmt.Errorf("private key is not a recognized type: %T", privateKey)
+	}
 }
 
 func parseCertificate(certFile string) (*x509.Certificate, error) {
