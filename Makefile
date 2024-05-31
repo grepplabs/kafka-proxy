@@ -10,13 +10,13 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.3.9"
+TAG           ?= "v0.3.10"
 GOOS          ?= $(if $(TARGETOS),$(TARGETOS),linux)
 GOARCH        ?= $(if $(TARGETARCH),$(TARGETARCH),amd64)
 GOARM         ?= $(TARGETVARIANT)
 BUILDPLATFORM ?= $(GOOS)/$(GOARCH)
 
-PROTOC_GO_VERSION ?= v1.30
+PROTOC_GO_VERSION ?= v1.33
 PROTOC_GRPC_VERSION ?= v1.2
 PROTOC_VERSION ?= 22.2
 PROTOC_BIN_DIR := .tools
