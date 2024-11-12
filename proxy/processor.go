@@ -2,9 +2,11 @@ package proxy
 
 import (
 	"errors"
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"time"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
+	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 )
 
 const (
@@ -17,6 +19,10 @@ const (
 	minOpenRequests           = 16
 
 	apiKeyProduce        = int16(0)
+	apiKeyFetch          = int16(1)
+	apiKeyListOffsets    = int16(2)
+	apiKeyCreateTopics   = int16(19)
+	apiKeyDeleteTopics   = int16(20)
 	apiKeySaslHandshake  = int16(17)
 	apiKeyApiApiVersions = int16(18)
 
@@ -147,6 +153,8 @@ type RequestsLoopContext struct {
 
 	localSasl     *LocalSasl
 	localSaslDone bool
+
+	aclChecker apis.ACLChecker
 
 	producerAcks0Disabled bool
 }
