@@ -3,7 +3,6 @@ package protocol
 import (
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 )
 
 type RequestAcksReader struct {
@@ -18,7 +17,7 @@ func (r RequestAcksReader) readAndDiscardNullableString(reader io.Reader) (err e
 		return errInvalidStringLength
 	}
 	if length > 0 {
-		if _, err = io.CopyN(ioutil.Discard, reader, int64(length)); err != nil {
+		if _, err = io.CopyN(io.Discard, reader, int64(length)); err != nil {
 			return err
 		}
 	}

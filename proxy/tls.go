@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
@@ -155,11 +154,11 @@ func newTLSClientConfig(conf *config.Config) (*tls.Config, error) {
 	cfg := &tls.Config{InsecureSkipVerify: opts.InsecureSkipVerify}
 
 	if opts.ClientCertFile != "" && opts.ClientKeyFile != "" {
-		certPEMBlock, err := ioutil.ReadFile(opts.ClientCertFile)
+		certPEMBlock, err := os.ReadFile(opts.ClientCertFile)
 		if err != nil {
 			return nil, err
 		}
-		keyPEMBlock, err := ioutil.ReadFile(opts.ClientKeyFile)
+		keyPEMBlock, err := os.ReadFile(opts.ClientKeyFile)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +174,7 @@ func newTLSClientConfig(conf *config.Config) (*tls.Config, error) {
 	}
 
 	if opts.CAChainCertFile != "" {
-		caCertPEMBlock, err := ioutil.ReadFile(opts.CAChainCertFile)
+		caCertPEMBlock, err := os.ReadFile(opts.CAChainCertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +245,7 @@ func marshalPrivateKeyToPEM(privateKey crypto.PrivateKey) ([]byte, error) {
 
 func parseCertificate(certFile string) (*x509.Certificate, error) {
 
-	content, readErr := ioutil.ReadFile(certFile)
+	content, readErr := os.ReadFile(certFile)
 
 	if readErr != nil {
 		return nil, errors.Errorf("Failed to read file from location '%s'", certFile)

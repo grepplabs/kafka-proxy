@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -19,7 +19,7 @@ type JaasCredentials struct {
 }
 
 func NewJaasCredentialFromFile(filename string) (*JaasCredentials, error) {
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

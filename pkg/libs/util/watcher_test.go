@@ -3,7 +3,6 @@ package util
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -16,18 +15,18 @@ func TestWatchRegularFileChange(t *testing.T) {
 
 	a := assert.New(t)
 
-	dirName, err := ioutil.TempDir("", "watcher-test-")
+	dirName, err := os.MkdirTemp("", "watcher-test-")
 	a.Nil(err)
 	defer os.Remove(dirName)
 
-	targetSecret, err := ioutil.TempFile(dirName, "secret-")
+	targetSecret, err := os.CreateTemp(dirName, "secret-")
 	a.Nil(err)
 	defer os.Remove(targetSecret.Name())
 
 	_, err = targetSecret.WriteString("secret1")
 	a.Nil(err)
 
-	data, err := ioutil.ReadFile(targetSecret.Name())
+	data, err := os.ReadFile(targetSecret.Name())
 	a.Nil(err)
 	a.Equal("secret1", string(data))
 
@@ -59,7 +58,7 @@ func TestWatchRegularFileChange(t *testing.T) {
 	opsFinal := atomic.LoadInt32(&ops)
 	a.Equal(int32(1), opsFinal)
 
-	data, err = ioutil.ReadFile(targetSecret.Name())
+	data, err = os.ReadFile(targetSecret.Name())
 	a.Nil(err)
 	a.Equal("secret1addition", string(data))
 }
@@ -74,23 +73,23 @@ func TestWatchLinkedFileChange(t *testing.T) {
 	*/
 	a := assert.New(t)
 
-	dirName, err := ioutil.TempDir("", "watcher-test-")
+	dirName, err := os.MkdirTemp("", "watcher-test-")
 	a.Nil(err)
 	defer os.Remove(dirName)
 
-	dirTmp1, err := ioutil.TempDir(dirName, "tmp1-")
+	dirTmp1, err := os.MkdirTemp(dirName, "tmp1-")
 	a.Nil(err)
 	defer os.Remove(dirTmp1)
 
-	dirTmp2, err := ioutil.TempDir(dirName, "tmp2-")
+	dirTmp2, err := os.MkdirTemp(dirName, "tmp2-")
 	a.Nil(err)
 	defer os.Remove(dirTmp2)
 
-	targetSecret1, err := ioutil.TempFile(dirTmp1, "secret-")
+	targetSecret1, err := os.CreateTemp(dirTmp1, "secret-")
 	a.Nil(err)
 	defer os.Remove(targetSecret1.Name())
 
-	targetSecret2, err := ioutil.TempFile(dirTmp2, "secret-")
+	targetSecret2, err := os.CreateTemp(dirTmp2, "secret-")
 	a.Nil(err)
 	defer os.Remove(targetSecret2.Name())
 
@@ -110,7 +109,7 @@ func TestWatchLinkedFileChange(t *testing.T) {
 	a.Nil(err)
 	defer os.Remove(secretLink)
 
-	data, err := ioutil.ReadFile(secretLink)
+	data, err := os.ReadFile(secretLink)
 	a.Nil(err)
 	a.Equal("secret1", string(data))
 
@@ -145,7 +144,7 @@ func TestWatchLinkedFileChange(t *testing.T) {
 	opsFinal := atomic.LoadInt32(&ops)
 	a.Equal(int32(1), opsFinal)
 
-	data, err = ioutil.ReadFile(secretLink)
+	data, err = os.ReadFile(secretLink)
 	a.Nil(err)
 	a.Equal("secret2", string(data))
 }

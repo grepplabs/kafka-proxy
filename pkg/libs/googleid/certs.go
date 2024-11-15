@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/net/context/ctxhttp"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"time"
@@ -59,7 +59,7 @@ func GetCerts(ctx context.Context) (*Certs, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

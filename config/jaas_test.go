@@ -1,10 +1,10 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractsJaasCredentials(t *testing.T) {
@@ -30,7 +30,7 @@ func TestExtractsJaasCredentialsFromFile(t *testing.T) {
 		  password="veyaiThai5que0ieb5le";
 		};
 	`
-	tmpFile, err := ioutil.TempFile("", "kafka-proxy-jaas-test")
+	tmpFile, err := os.CreateTemp("", "kafka-proxy-jaas-test")
 	assert.Nil(t, err)
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()

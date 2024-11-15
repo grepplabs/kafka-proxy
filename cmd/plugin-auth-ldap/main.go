@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -317,7 +316,7 @@ func getTlsConfig(caCertFile string, insecureSkipVerify bool) (*tls.Config, erro
 	if caCertFile == "" {
 		return &tls.Config{InsecureSkipVerify: insecureSkipVerify}, nil
 	} else {
-		certData, err := ioutil.ReadFile(caCertFile)
+		certData, err := os.ReadFile(caCertFile)
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading certificate file %s", caCertFile)
 		}

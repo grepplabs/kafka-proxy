@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -28,7 +28,7 @@ type PasswordGrantTokenSource struct {
 }
 
 func NewPasswordGrantTokenSource(credentialsFile string, targetAudience string) (*PasswordGrantTokenSource, error) {
-	data, err := ioutil.ReadFile(credentialsFile)
+	data, err := os.ReadFile(credentialsFile)
 	source := &PasswordGrantTokenSource{}
 
 	if err != nil {

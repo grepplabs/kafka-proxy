@@ -12,9 +12,10 @@ import (
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jws"
 	"google.golang.org/api/oauth2/v2"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -32,7 +33,7 @@ type ServiceAccountTokenSource struct {
 }
 
 func NewServiceAccountTokenSource(credentialsFile string, targetAudience string) (*ServiceAccountTokenSource, error) {
-	data, err := ioutil.ReadFile(credentialsFile)
+	data, err := os.ReadFile(credentialsFile)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func doExchange(ctx context.Context, token string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
