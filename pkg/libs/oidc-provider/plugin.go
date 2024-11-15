@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"time"
@@ -210,7 +209,7 @@ func getTokenResponse(token string, status int) (apis.TokenResponse, error) {
 }
 
 func getTokenSource(credentialsFilePath string, targetAud string) (idTokenSource, error) {
-	data, err := ioutil.ReadFile(credentialsFilePath)
+	data, err := os.ReadFile(credentialsFilePath)
 
 	if err != nil {
 		return nil, err

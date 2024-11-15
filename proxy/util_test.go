@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -501,31 +500,31 @@ func generateCA(certFile *os.File, keyFile *os.File) (*tls.Certificate, error) {
 
 func NewCertsBundle() *CertsBundle {
 	bundle := &CertsBundle{}
-	dirName, err := ioutil.TempDir("", "tls-test")
+	dirName, err := os.MkdirTemp("", "tls-test")
 	if err != nil {
 		panic(err)
 	}
-	bundle.CACert, err = ioutil.TempFile(dirName, "ca-cert-")
+	bundle.CACert, err = os.CreateTemp(dirName, "ca-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.CAKey, err = ioutil.TempFile(dirName, "ca-key-")
+	bundle.CAKey, err = os.CreateTemp(dirName, "ca-key-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ServerCert, err = ioutil.TempFile(dirName, "server-cert-")
+	bundle.ServerCert, err = os.CreateTemp(dirName, "server-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ServerKey, err = ioutil.TempFile(dirName, "server-key-")
+	bundle.ServerKey, err = os.CreateTemp(dirName, "server-key-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ClientCert, err = ioutil.TempFile(dirName, "client-cert-")
+	bundle.ClientCert, err = os.CreateTemp(dirName, "client-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ClientKey, err = ioutil.TempFile("", "client-key-")
+	bundle.ClientKey, err = os.CreateTemp("", "client-key-")
 	if err != nil {
 		panic(err)
 	}
@@ -547,31 +546,31 @@ func NewCertsBundle() *CertsBundle {
 
 func NewCertsBundleWithSubject(subject pkix.Name) *CertsBundle {
 	bundle := &CertsBundle{}
-	dirName, err := ioutil.TempDir("", "tls-test")
+	dirName, err := os.MkdirTemp("", "tls-test")
 	if err != nil {
 		panic(err)
 	}
-	bundle.CACert, err = ioutil.TempFile(dirName, "ca-cert-")
+	bundle.CACert, err = os.CreateTemp(dirName, "ca-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.CAKey, err = ioutil.TempFile(dirName, "ca-key-")
+	bundle.CAKey, err = os.CreateTemp(dirName, "ca-key-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ServerCert, err = ioutil.TempFile(dirName, "server-cert-")
+	bundle.ServerCert, err = os.CreateTemp(dirName, "server-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ServerKey, err = ioutil.TempFile(dirName, "server-key-")
+	bundle.ServerKey, err = os.CreateTemp(dirName, "server-key-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ClientCert, err = ioutil.TempFile(dirName, "client-cert-")
+	bundle.ClientCert, err = os.CreateTemp(dirName, "client-cert-")
 	if err != nil {
 		panic(err)
 	}
-	bundle.ClientKey, err = ioutil.TempFile("", "client-key-")
+	bundle.ClientKey, err = os.CreateTemp("", "client-key-")
 	if err != nil {
 		panic(err)
 	}

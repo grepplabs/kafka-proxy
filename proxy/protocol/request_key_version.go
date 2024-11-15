@@ -360,6 +360,32 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 		return 1
 	case 74: // ListClientMetricsResources
 		return 1
+	case 75: // DescribeTopicPartitions
+		return 1
+	case 76: // ShareGroupHeartbeat
+		return 1
+	case 77: // ShareGroupDescribe
+		return 1
+	case 78: // ShareFetch
+		return 1
+	case 79: // ShareAcknowledge
+		return 1
+	case 80: // AddRaftVoter
+		return 1
+	case 81: // RemoveRaftVoter
+		return 1
+	case 82: // UpdateRaftVoter
+		return 1
+	case 83: // InitializeShareGroupState
+		return 1
+	case 84: // ReadShareGroupState
+		return 1
+	case 85: // WriteShareGroupState
+		return 1
+	case 86: // DeleteShareGroupState
+		return 1
+	case 87: // ReadShareGroupStateSummary
+		return 1
 	default:
 		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
 		return -1

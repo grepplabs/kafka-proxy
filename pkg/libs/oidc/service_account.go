@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2/clientcredentials"
@@ -26,7 +26,7 @@ type ServiceAccountTokenSource struct {
 }
 
 func NewServiceAccountTokenSource(credentialsFile string, targetAudience string) (*ServiceAccountTokenSource, error) {
-	data, err := ioutil.ReadFile(credentialsFile)
+	data, err := os.ReadFile(credentialsFile)
 	source := &ServiceAccountTokenSource{}
 
 	if err != nil {

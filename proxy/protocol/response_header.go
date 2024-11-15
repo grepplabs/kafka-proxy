@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io"
-	"io/ioutil"
 )
 
 type ResponseHeader struct {
@@ -78,7 +77,7 @@ func (r *ResponseHeaderTaggedFields) MaybeRead(reader io.Reader) ([]byte, error)
 			} else if size == 0 {
 				continue
 			} else {
-				if _, err := io.CopyN(ioutil.Discard, reader, int64(size)); err != nil {
+				if _, err := io.CopyN(io.Discard, reader, int64(size)); err != nil {
 					return nil, errors.Wrap(err, "error while reading tagged field data")
 				}
 			}

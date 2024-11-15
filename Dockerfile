@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.19 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.19 AS builder
 RUN apk add alpine-sdk ca-certificates
 
 ARG TARGETOS

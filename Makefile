@@ -10,7 +10,7 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.3.11"
+TAG           ?= "v0.3.12"
 GOOS          ?= $(if $(TARGETOS),$(TARGETOS),linux)
 GOARCH        ?= $(if $(TARGETARCH),$(TARGETARCH),amd64)
 GOARM         ?= $(TARGETVARIANT)

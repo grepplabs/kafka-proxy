@@ -293,7 +293,10 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 		&CompactArray{Name: coordinatorsKeyName, Ty: findCoordinatorCoordinatorsSchema4},
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
-	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3, findCoordinatorResponseV4}
+	findCoordinatorResponseV5 := findCoordinatorResponseV4
+	findCoordinatorResponseV6 := findCoordinatorResponseV5
+
+	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3, findCoordinatorResponseV4, findCoordinatorResponseV5, findCoordinatorResponseV6}
 }
 
 func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
