@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76
-	golang.org/x/net v0.23.0
+	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.7.0
 	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.56.3
