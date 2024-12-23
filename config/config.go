@@ -22,12 +22,16 @@ var (
 	Version = "unknown"
 )
 
-type NetAddressMappingFunc func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error)
+type NetAddressMappingFunc func(brokerHost string, brokerPort int32, brokerId int32) (listenerHost string, listenerPort int32, err error)
 
 type ListenerConfig struct {
 	BrokerAddress     string
 	ListenerAddress   string
 	AdvertisedAddress string
+}
+type IdListenerConfig struct {
+	BrokerAddress string
+	Listener      net.Listener
 }
 type DialAddressMapping struct {
 	SourceAddress      string
@@ -74,6 +78,7 @@ type Config struct {
 		DefaultListenerIP         string
 		BootstrapServers          []ListenerConfig
 		ExternalServers           []ListenerConfig
+		DeterministicListeners    bool
 		DialAddressMappings       []DialAddressMapping
 		DisableDynamicListeners   bool
 		DynamicAdvertisedListener string

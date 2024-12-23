@@ -14,6 +14,7 @@ const (
 	brokersKeyName = "brokers"
 	hostKeyName    = "host"
 	portKeyName    = "port"
+	nodeKeyName    = "node_id"
 
 	coordinatorKeyName  = "coordinator"
 	coordinatorsKeyName = "coordinators"
@@ -320,12 +321,16 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 		if !ok {
 			return errors.New("broker.port not found")
 		}
+		nodeId, ok := broker.Get(nodeKeyName).(int32)
+		if !ok {
+			return errors.New("broker.node_id not found")
+		}
 
 		if host == "" && port <= 0 {
 			continue
 		}
 
-		newHost, newPort, err := fn(host, port)
+		newHost, newPort, err := fn(host, port, nodeId)
 		if err != nil {
 			return err
 		}
@@ -383,12 +388,16 @@ func modifyCoordinator(decodedStruct *Struct, fn config.NetAddressMappingFunc) e
 	if !ok {
 		return errors.New("coordinator.port not found")
 	}
+	nodeId, ok := coordinator.Get(nodeKeyName).(int32)
+	if !ok {
+		return errors.New("coordinator.node_id not found")
+	}
 
 	if host == "" && port <= 0 {
 		return nil
 	}
 
-	newHost, newPort, err := fn(host, port)
+	newHost, newPort, err := fn(host, port, nodeId)
 	if err != nil {
 		return err
 	}
