@@ -3,10 +3,11 @@ package protocol
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/google/uuid"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ var (
 		// topic_metadata
 		0x00, 0x00, 0x00, 0x00}
 
-	testResponseModifier = func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+	testResponseModifier = func(brokerHost string, brokerPort int32, brokerId int32) (listenerHost string, listenerPort int32, err error) {
 		if brokerHost == "localhost" && brokerPort == 51 {
 			return "myhost1", 34001, nil
 		} else if brokerHost == "google.com" && brokerPort == 273 {
@@ -31,7 +32,7 @@ var (
 		return "", 0, errors.New("unexpected data")
 	}
 
-	testResponseModifier2 = func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+	testResponseModifier2 = func(brokerHost string, brokerPort int32, brokerId int32) (listenerHost string, listenerPort int32, err error) {
 		if brokerHost == "localhost" && brokerPort == 19092 {
 			return "myhost1", 34001, nil
 		} else if brokerHost == "localhost" && brokerPort == 29092 {
@@ -374,7 +375,7 @@ func TestMetadataResponseV0(t *testing.T) {
 	a.Nil(err)
 	a.Equal(bytes, resp)
 
-	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, func(brokerHost string, brokerPort int32, brokerId int32) (listenerHost string, listenerPort int32, err error) {
 		if brokerHost == "localhost" && brokerPort == 51 {
 			return "azure.microsoft.com", 34001, nil
 		} else if brokerHost == "google.com" && brokerPort == 273 {
