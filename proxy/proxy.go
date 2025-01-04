@@ -29,9 +29,9 @@ type Listeners struct {
 	disableDynamicListeners  bool
 	dynamicSequentialMinPort int
 
-	brokerToListenerConfig   map[string]config.ListenerConfig
-	brokerIdToListenerConfig map[int32]config.ListenerConfig
-	lock                     sync.RWMutex
+	brokerToListenerConfig     map[string]config.ListenerConfig
+	brokerIdToIdListenerConfig map[int32]config.IdListenerConfig
+	lock                       sync.RWMutex
 }
 
 func NewListeners(cfg *config.Config) (*Listeners, error) {
@@ -66,19 +66,19 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		return nil, err
 	}
 
-	brokerIdToListenerConfig := make(map[int32]config.ListenerConfig)
+	brokerIdToIdListenerConfig := make(map[int32]config.IdListenerConfig)
 
 	return &Listeners{
-		defaultListenerIP:         defaultListenerIP,
-		dynamicAdvertisedListener: dynamicAdvertisedListener,
-		connSrc:                   make(chan Conn, 1),
-		brokerToListenerConfig:    brokerToListenerConfig,
-		brokerIdToListenerConfig:  brokerIdToListenerConfig,
-		tcpConnOptions:            tcpConnOptions,
-		listenFunc:                listenFunc,
-		deterministicListeners:    cfg.Proxy.DeterministicListeners,
-		disableDynamicListeners:   cfg.Proxy.DisableDynamicListeners,
-		dynamicSequentialMinPort:  cfg.Proxy.DynamicSequentialMinPort,
+		defaultListenerIP:          defaultListenerIP,
+		dynamicAdvertisedListener:  dynamicAdvertisedListener,
+		connSrc:                    make(chan Conn, 1),
+		brokerToListenerConfig:     brokerToListenerConfig,
+		brokerIdToIdListenerConfig: brokerIdToIdListenerConfig,
+		tcpConnOptions:             tcpConnOptions,
+		listenFunc:                 listenFunc,
+		deterministicListeners:     cfg.Proxy.DeterministicListeners,
+		disableDynamicListeners:    cfg.Proxy.DisableDynamicListeners,
+		dynamicSequentialMinPort:   cfg.Proxy.DynamicSequentialMinPort,
 	}, nil
 }
 
@@ -132,7 +132,7 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32, br
 
 	p.lock.RLock()
 	listenerConfig, ok := p.brokerToListenerConfig[brokerAddress]
-	idListenerConfig, brokerIdFound := p.brokerIdToListenerConfig[brokerId]
+	idListenerConfig, brokerIdFound := p.brokerIdToIdListenerConfig[brokerId]
 	p.lock.RUnlock()
 
 	if ok {
@@ -141,13 +141,16 @@ func (p *Listeners) GetNetAddressMapping(brokerHost string, brokerPort int32, br
 	}
 	if !p.disableDynamicListeners {
 		if brokerIdFound {
+			logrus.Infof("Broker ID %d has a new advertised listener, closing existing dynamic listener", brokerId)
 			// Existing broker ID found, but with a different upstream broker
 			// Close existing listener, remove two mappings:
 			// * ID to removed upstream broker
 			// * removed upstream broker
 			idListenerConfig.Listener.Close()
-			delete(p.brokerIdToListenerConfig, brokerId)
+			p.lock.Lock()
+			delete(p.brokerIdToIdListenerConfig, brokerId)
 			delete(p.brokerToListenerConfig, idListenerConfig.BrokerAddress)
+			p.lock.Unlock()
 		}
 		logrus.Infof("Starting dynamic listener for broker %s", brokerAddress)
 		return p.ListenDynamicInstance(brokerAddress, brokerId)
@@ -188,8 +191,8 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) 
 	}
 
 	advertisedAddress := net.JoinHostPort(dynamicAdvertisedListener, fmt.Sprint(port))
-	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: advertisedAddress, Listener: l}
-	p.brokerIdToListenerConfig[brokerId] = p.brokerToListenerConfig[brokerAddress]
+	p.brokerToListenerConfig[brokerAddress] = config.ListenerConfig{BrokerAddress: brokerAddress, ListenerAddress: address, AdvertisedAddress: advertisedAddress}
+	p.brokerIdToIdListenerConfig[brokerId] = config.IdListenerConfig{BrokerAddress: brokerAddress, Listener: l}
 
 	logrus.Infof("Dynamic listener %s for broker %s advertised as %s", address, brokerAddress, advertisedAddress)
 
