@@ -159,6 +159,7 @@ func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.Requ
 				return false, nil, err
 			}
 
+		// Update proxy/protocol/responses.go apiKeyProduceMaxVersion when adding new Produce version support
 		case 3, 4, 5, 6, 7, 8, 9, 10, 11:
 			// CorrelationID + ClientID
 			if err = acksReader.ReadAndDiscardHeaderV1Part(reader); err != nil {
