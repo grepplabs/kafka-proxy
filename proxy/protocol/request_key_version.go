@@ -388,6 +388,6 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 		return 1
 	default:
 		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
-		return -1
+		return 1
 	}
 }
