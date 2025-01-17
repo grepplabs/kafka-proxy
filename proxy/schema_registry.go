@@ -21,6 +21,13 @@ type SchemaRegistryProxy struct {
 	httpServer *http.Server
 }
 
+func validateSchemaRegistryCreds(username, password string) error {
+	if username == "" || password == "" {
+		return fmt.Errorf("schema Registry proxy requires both username and password")
+	}
+	return nil
+}
+
 func NewSchemaRegistryProxy(url, username, password string, port, proxyPort int) (*SchemaRegistryProxy, error) {
 	if err := validateSchemaRegistryCreds(username, password); err != nil {
 		return nil, err
@@ -35,11 +42,18 @@ func NewSchemaRegistryProxy(url, username, password string, port, proxyPort int)
 	}, nil
 }
 
-func validateSchemaRegistryCreds(username, password string) error {
-	if username == "" || password == "" {
-		return fmt.Errorf("schema Registry proxy requires both username and password")
-	}
-	return nil
+func (s *SchemaRegistryProxy) createProxyHandler(proxy *httputil.ReverseProxy, remote *url.URL) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logrus.WithFields(logrus.Fields{
+			"method": r.Method,
+			"path":   r.URL.Path,
+		}).Debug("Schema Registry proxy request")
+
+		r.Host = remote.Host
+		r.SetBasicAuth(s.username, s.password)
+
+		proxy.ServeHTTP(w, r)
+	})
 }
 
 func (s *SchemaRegistryProxy) Start() error {
@@ -82,62 +96,3 @@ func (s *SchemaRegistryProxy) Stop(ctx context.Context) error {
 	}
 	return nil
 }
-
-func (s *SchemaRegistryProxy) createProxyHandler(proxy *httputil.ReverseProxy, remote *url.URL) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.WithFields(logrus.Fields{
-			"method": r.Method,
-			"path":   r.URL.Path,
-		}).Debug("Schema Registry proxy request")
-
-		r.Host = remote.Host
-		r.SetBasicAuth(s.username, s.password)
-
-		proxy.ServeHTTP(w, r)
-	})
-}
-func ExposeSchemaRegistry(schemaRegistryUrl, schemaRegistryUsername, schemaRegistryPassword string, schemaRegistryPort, schemaRegistryProxyPort int) {
-	proxy, err := NewSchemaRegistryProxy(
-		schemaRegistryUrl,
-		schemaRegistryUsername,
-		schemaRegistryPassword,
-		schemaRegistryPort,
-		schemaRegistryProxyPort,
-	)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	if err := proxy.Start(); err != nil {
-		logrus.Fatal(err)
-	}
-}
-
-// func ExposeSchemaRegistry(schemaRegistryUrl, schemaRegistryUsername, schemaRegistryPassword string, schemaRegistryPort, schemaRegistryProxyPort int) {
-// 	e := validateCreds(schemaRegistryUsername, schemaRegistryPassword)
-// 	if e != nil {
-// 		panic(e)
-// 	}
-//
-// 	remote, err := url.Parse(fmt.Sprintf("https://%s:%d", schemaRegistryUrl, schemaRegistryPort))
-// 	if err != nil {
-// 		panic(err)
-// 	}
-//
-// 	handler := func(p *httputil.ReverseProxy) func(w http.ResponseWriter, r *http.Request) {
-// 		return func(w http.ResponseWriter, r *http.Request) {
-// 			logrus.Infof("Schema Registry port: %s", r.URL)
-// 			r.Host = remote.Host
-// 			r.SetBasicAuth(schemaRegistryUsername, schemaRegistryPassword)
-// 			p.ServeHTTP(w, r)
-//
-// 		}
-// 	}
-//
-// 	proxy := httputil.NewSingleHostReverseProxy(remote)
-// 	http.HandleFunc("/", handler(proxy))
-// 	err = http.ListenAndServe(fmt.Sprintf(":%d", schemaRegistryProxyPort), nil)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
