@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 	"github.com/pkg/errors"
+
+	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
 )
 
 const (
@@ -172,6 +173,16 @@ type Config struct {
 			Acks0Disabled bool
 		}
 	}
+
+	SchemaRegistry struct {
+		Enable    bool
+		Url       string
+		Port      int
+		Username  string
+		Password  string
+		ProxyPort int
+	}
+
 	ForwardProxy struct {
 		Url string
 
