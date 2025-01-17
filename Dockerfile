@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.19 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.21 AS builder
 RUN apk add alpine-sdk ca-certificates
 
 ARG TARGETOS
@@ -21,7 +21,7 @@ RUN mkdir -p build && \
     go build -mod=vendor -o build/kafka-proxy \
     -ldflags "${LDFLAGS}" .
 
-FROM --platform=$BUILDPLATFORM alpine:3.19
+FROM --platform=$BUILDPLATFORM alpine:3.21
 RUN apk add --no-cache ca-certificates libcap
 RUN adduser \
         --disabled-password \

@@ -496,6 +496,17 @@ spec:
           ports:
           - name: metrics
             containerPort: 9080
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            seccompProfile:
+              type: RuntimeDefault
           livenessProbe:
             httpGet:
               path: /health
@@ -591,6 +602,17 @@ spec:
             mountPath: "/var/run/secret/kafka-client-certificate"
           - name: "tls-client-key-file"
             mountPath: "/var/run/secret/kafka-client-key"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            seccompProfile:
+              type: RuntimeDefault
           ports:
           - name: metrics
             containerPort: 9080
