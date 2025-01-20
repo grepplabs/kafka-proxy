@@ -387,7 +387,8 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 	case 87: // ReadShareGroupStateSummary
 		return 1
 	default:
-		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
+		// previously; throw new UnsupportedVersionException("Unsupported API key " + apiKey);
+		// now, assume 'unknown' api keys are all flexible
 		return 1
 	}
 }
