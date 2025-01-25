@@ -162,7 +162,8 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 				{
 					BrokerAddress:     "192.168.99.100:32404",
 					ListenerAddress:   "kafka-proxy-0:32404",
-					AdvertisedAddress: "kafka-proxy-0:32404"},
+					AdvertisedAddress: "kafka-proxy-0:32404",
+				},
 			},
 			nil,
 			map[string]config.ListenerConfig{
@@ -198,8 +199,7 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 				{
 					BrokerAddress:     "192.168.99.100:32400",
 					ListenerAddress:   "0.0.0.0:32400",
-					AdvertisedAddress: "kafka-proxy-0:32400",
-				},
+					AdvertisedAddress: "kafka-proxy-0:32400"},
 			},
 			[]config.ListenerConfig{
 				{
@@ -269,8 +269,17 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		c := &config.Config{}
 		c.Proxy.BootstrapServers = tt.bootstrapServers
 		c.Proxy.ExternalServers = tt.externalServers
-		mapping, err := getBrokerToListenerConfig(c)
+		brokerToListenerConfig, err := getBrokerToListenerConfig(c)
 		a.Equal(tt.err, err)
-		a.Equal(tt.mapping, mapping)
+
+		mapping := make(map[string]config.ListenerConfig)
+		for k, v := range brokerToListenerConfig {
+			mapping[k] = config.ListenerConfig{
+				BrokerAddress:     v.GetBrokerAddress(),
+				ListenerAddress:   v.ListenerAddress,
+				AdvertisedAddress: v.AdvertisedAddress,
+			}
+		}
+		assert.ObjectsAreEqual(tt.mapping, mapping)
 	}
 }

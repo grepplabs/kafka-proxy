@@ -27,7 +27,7 @@ var (
 
 func createMetadataResponseSchemaVersions() []Schema {
 	metadataBrokerV0 := NewSchema("metadata_broker_v0",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
@@ -52,14 +52,14 @@ func createMetadataResponseSchemaVersions() []Schema {
 	)
 
 	metadataBrokerV1 := NewSchema("metadata_broker_v1",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 		&Mfield{Name: "rack", Ty: TypeNullableStr},
 	)
 
 	metadataBrokerSchema9 := NewSchema("metadata_broker_schema9",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
@@ -249,13 +249,13 @@ func createMetadataResponseSchemaVersions() []Schema {
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
 	findCoordinatorBrokerV0 := NewSchema("find_coordinator_broker_v0",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
 
 	findCoordinatorBrokerSchema9 := NewSchema("find_coordinator_broker_schema9",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
@@ -341,7 +341,7 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 			}
 		}
 		if port != newPort {
-			err = broker.Replace(portKeyName, int32(newPort))
+			err = broker.Replace(portKeyName, newPort)
 			if err != nil {
 				return err
 			}
