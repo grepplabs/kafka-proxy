@@ -14,6 +14,7 @@ const (
 	brokersKeyName = "brokers"
 	hostKeyName    = "host"
 	portKeyName    = "port"
+	nodeKeyName    = "node_id"
 
 	coordinatorKeyName  = "coordinator"
 	coordinatorsKeyName = "coordinators"
@@ -26,7 +27,7 @@ var (
 
 func createMetadataResponseSchemaVersions() []Schema {
 	metadataBrokerV0 := NewSchema("metadata_broker_v0",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
@@ -51,14 +52,14 @@ func createMetadataResponseSchemaVersions() []Schema {
 	)
 
 	metadataBrokerV1 := NewSchema("metadata_broker_v1",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 		&Mfield{Name: "rack", Ty: TypeNullableStr},
 	)
 
 	metadataBrokerSchema9 := NewSchema("metadata_broker_schema9",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
@@ -248,13 +249,13 @@ func createMetadataResponseSchemaVersions() []Schema {
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
 	findCoordinatorBrokerV0 := NewSchema("find_coordinator_broker_v0",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
 
 	findCoordinatorBrokerSchema9 := NewSchema("find_coordinator_broker_schema9",
-		&Mfield{Name: "node_id", Ty: TypeInt32},
+		&Mfield{Name: nodeKeyName, Ty: TypeInt32},
 		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 	)
@@ -320,12 +321,16 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 		if !ok {
 			return errors.New("broker.port not found")
 		}
+		nodeId, ok := broker.Get(nodeKeyName).(int32)
+		if !ok {
+			return errors.New("broker.node_id not found")
+		}
 
 		if host == "" && port <= 0 {
 			continue
 		}
 
-		newHost, newPort, err := fn(host, port)
+		newHost, newPort, err := fn(host, port, nodeId)
 		if err != nil {
 			return err
 		}
@@ -336,7 +341,7 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 			}
 		}
 		if port != newPort {
-			err = broker.Replace(portKeyName, int32(newPort))
+			err = broker.Replace(portKeyName, newPort)
 			if err != nil {
 				return err
 			}
@@ -383,12 +388,16 @@ func modifyCoordinator(decodedStruct *Struct, fn config.NetAddressMappingFunc) e
 	if !ok {
 		return errors.New("coordinator.port not found")
 	}
+	nodeId, ok := coordinator.Get(nodeKeyName).(int32)
+	if !ok {
+		return errors.New("coordinator.node_id not found")
+	}
 
 	if host == "" && port <= 0 {
 		return nil
 	}
 
-	newHost, newPort, err := fn(host, port)
+	newHost, newPort, err := fn(host, port, nodeId)
 	if err != nil {
 		return err
 	}

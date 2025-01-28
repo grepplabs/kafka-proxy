@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestGetBrokerToListenerConfig(t *testing.T) {
@@ -24,7 +25,11 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
 			},
 			[]config.ListenerConfig{},
 			nil,
@@ -38,9 +43,21 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "kafka-proxy-0:32400"},
-				{"192.168.99.100:32401", "0.0.0.0:32401", "kafka-proxy-0:32401"},
-				{"192.168.99.100:32402", "0.0.0.0:32402", "kafka-proxy-0:32402"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32401",
+					ListenerAddress:   "0.0.0.0:32401",
+					AdvertisedAddress: "kafka-proxy-0:32401",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32402",
+					ListenerAddress:   "0.0.0.0:32402",
+					AdvertisedAddress: "kafka-proxy-0:32402",
+				},
 			},
 			[]config.ListenerConfig{},
 			nil,
@@ -64,8 +81,16 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32400"},
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
 			},
 			[]config.ListenerConfig{},
 			nil,
@@ -79,8 +104,16 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32400"},
-				{"192.168.99.100:32400", "0.0.0.0:32401", "0.0.0.0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32401",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
 			},
 			[]config.ListenerConfig{},
 			fmt.Errorf("bootstrap server mapping 192.168.99.100:32400 configured twice: {192.168.99.100:32400 0.0.0.0:32401 0.0.0.0:32400} and {192.168.99.100:32400 0.0.0.0:32400 0.0.0.0:32400}"),
@@ -88,8 +121,16 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32400"},
-				{"192.168.99.100:32400", "0.0.0.0:32400", "0.0.0.0:32401"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "0.0.0.0:32401",
+				},
 			},
 			[]config.ListenerConfig{},
 			fmt.Errorf("bootstrap server mapping 192.168.99.100:32400 configured twice: {192.168.99.100:32400 0.0.0.0:32400 0.0.0.0:32401} and {192.168.99.100:32400 0.0.0.0:32400 0.0.0.0:32400}"),
@@ -97,13 +138,32 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "kafka-proxy-0:32400"},
-				{"192.168.99.100:32401", "0.0.0.0:32401", "kafka-proxy-0:32401"},
-				{"192.168.99.100:32402", "0.0.0.0:32402", "kafka-proxy-0:32402"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32401",
+					ListenerAddress:   "0.0.0.0:32401",
+					AdvertisedAddress: "kafka-proxy-0:32401",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32402",
+					ListenerAddress:   "0.0.0.0:32402",
+					AdvertisedAddress: "kafka-proxy-0:32402",
+				},
 			},
 			[]config.ListenerConfig{
-				{"192.168.99.100:32403", "kafka-proxy-0:32403", "kafka-proxy-0:32403"},
-				{"192.168.99.100:32404", "kafka-proxy-0:32404", "kafka-proxy-0:32404"},
+				{
+					BrokerAddress:     "192.168.99.100:32403",
+					ListenerAddress:   "kafka-proxy-0:32403",
+					AdvertisedAddress: "kafka-proxy-0:32403"},
+				{
+					BrokerAddress:     "192.168.99.100:32404",
+					ListenerAddress:   "kafka-proxy-0:32404",
+					AdvertisedAddress: "kafka-proxy-0:32404",
+				},
 			},
 			nil,
 			map[string]config.ListenerConfig{
@@ -136,10 +196,17 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "kafka-proxy-0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400"},
 			},
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "kafka-proxy-0:32400", "kafka-proxy-0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "kafka-proxy-0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400",
+				},
 			},
 			nil,
 			map[string]config.ListenerConfig{
@@ -152,10 +219,18 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		},
 		{
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "0.0.0.0:32400", "kafka-proxy-0:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "0.0.0.0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400",
+				},
 			},
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "kafka-proxy-1:32400", "kafka-proxy-1:32400"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "kafka-proxy-1:32400",
+					AdvertisedAddress: "kafka-proxy-1:32400",
+				},
 			},
 			fmt.Errorf("bootstrap and external server mappings 192.168.99.100:32400 with different advertised addresses: kafka-proxy-1:32400 and kafka-proxy-0:32400"),
 			nil,
@@ -163,7 +238,11 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		{
 			[]config.ListenerConfig{},
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "kafka-proxy-0:32400", "kafka-proxy-0:32401"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "kafka-proxy-0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32401",
+				},
 			},
 			fmt.Errorf("external server mapping has different listener and advertised addresses {192.168.99.100:32400 kafka-proxy-0:32400 kafka-proxy-0:32401}"),
 			nil,
@@ -171,8 +250,16 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		{
 			[]config.ListenerConfig{},
 			[]config.ListenerConfig{
-				{"192.168.99.100:32400", "kafka-proxy-0:32400", "kafka-proxy-0:32400"},
-				{"192.168.99.100:32400", "kafka-proxy-0:32401", "kafka-proxy-0:32401"},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "kafka-proxy-0:32400",
+					AdvertisedAddress: "kafka-proxy-0:32400",
+				},
+				{
+					BrokerAddress:     "192.168.99.100:32400",
+					ListenerAddress:   "kafka-proxy-0:32401",
+					AdvertisedAddress: "kafka-proxy-0:32401",
+				},
 			},
 			fmt.Errorf("external server mapping 192.168.99.100:32400 configured twice: kafka-proxy-0:32401 and {192.168.99.100:32400 kafka-proxy-0:32400 kafka-proxy-0:32400}"),
 			nil,
@@ -182,8 +269,17 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		c := &config.Config{}
 		c.Proxy.BootstrapServers = tt.bootstrapServers
 		c.Proxy.ExternalServers = tt.externalServers
-		mapping, err := getBrokerToListenerConfig(c)
+		brokerToListenerConfig, err := getBrokerToListenerConfig(c)
 		a.Equal(tt.err, err)
-		a.Equal(tt.mapping, mapping)
+
+		mapping := make(map[string]config.ListenerConfig)
+		for k, v := range brokerToListenerConfig {
+			mapping[k] = config.ListenerConfig{
+				BrokerAddress:     v.GetBrokerAddress(),
+				ListenerAddress:   v.ListenerAddress,
+				AdvertisedAddress: v.AdvertisedAddress,
+			}
+		}
+		assert.ObjectsAreEqual(tt.mapping, mapping)
 	}
 }

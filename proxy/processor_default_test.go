@@ -3,11 +3,12 @@ package proxy
 import (
 	"bytes"
 	"encoding/hex"
+	"testing"
+	"time"
+
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestHandleRequest(t *testing.T) {
@@ -130,7 +131,7 @@ func TestHandleRequest(t *testing.T) {
 }
 
 func TestHandleResponse(t *testing.T) {
-	netAddressMappingFunc := func(brokerHost string, brokerPort int32) (listenerHost string, listenerPort int32, err error) {
+	netAddressMappingFunc := func(brokerHost string, brokerPort int32, brokerId int32) (listenerHost string, listenerPort int32, err error) {
 		if brokerHost == "localhost" {
 			switch brokerPort {
 			case 19092:
