@@ -201,6 +201,12 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --sasl-plugin-param stringArray                        Authentication plugin parameter
             --sasl-plugin-timeout duration                         Authentication timeout (default 10s)
             --sasl-username string                                 SASL user name
+            --schema-registry-enable                               Proxy Schema Registry
+            --schema-registry-password string                      The Schema Registry password
+            --schema-registry-port int                             The Schema Registry port (default 8080)
+            --schema-registry-proxy-port int                       The port to expose the proxy to (default 8080)
+            --schema-registry-url string                           The Schema Registry URL without port
+            --schema-registry-username string                      The Schema Registry username
             --tls-ca-chain-cert-file string                        PEM encoded CA's certificate file
             --tls-client-cert-file string                          PEM encoded file with client certificate
             --tls-client-key-file string                           PEM encoded file with private key for the client certificate
@@ -383,7 +389,7 @@ Connect through test SOCKS5 Proxy server
 
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
-                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy socks5://localhost:1080
 ```
 
@@ -405,7 +411,7 @@ Connect through test HTTP Proxy server using CONNECT method
 
     kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
                        --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
-                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502"
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
                        --forward-proxy http://localhost:3128
 ```
 
@@ -440,6 +446,23 @@ By setting `--proxy-listener-tls-client-cert-validate-subject true`, Kafka Proxy
       --proxy-listener-tls-required-client-subject-country DE \
       --proxy-listener-tls-required-client-subject-organization grepplabs
 ```
+
+### Expose Schema Registry endpoint
+
+Proxy Kafka cluster as usual, but another endpoint for Schema Registry
+
+```
+    kafka-proxy server --bootstrap-server-mapping "kafka-0.grepplabs.com:9092,127.0.0.1:32500" \
+                       --bootstrap-server-mapping "kafka-1.grepplabs.com:9092,127.0.0.1:32501" \
+                       --bootstrap-server-mapping "kafka-2.grepplabs.com:9092,127.0.0.1:32502" \
+                       --schema-registry-enable \
+                       --schema-registry-password "myPassword" \
+                       --schema-registry-username "myUsername" \
+                       --schema-registry-url "schemaregistry.prod.svc.cluster.local" \
+                       --schema-registry-port 8888  \
+                       --schema-registry-proxy-port 8080                       
+```
+
 
 ### Kubernetes sidecar container example
 

@@ -1,40 +1,43 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"fmt"
-
-	"github.com/grepplabs/kafka-proxy/config"
-	"github.com/grepplabs/kafka-proxy/proxy"
-	"github.com/oklog/run"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
-	"errors"
-	"strings"
+	"github.com/oklog/run"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/proxy"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	localauth "github.com/grepplabs/kafka-proxy/plugin/local-auth/shared"
 	tokeninfo "github.com/grepplabs/kafka-proxy/plugin/token-info/shared"
 	tokenprovider "github.com/grepplabs/kafka-proxy/plugin/token-provider/shared"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+
+	"github.com/spf13/viper"
 
 	"github.com/grepplabs/kafka-proxy/pkg/registry"
+
 	// built-in plugins
 	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-info"
 	_ "github.com/grepplabs/kafka-proxy/pkg/libs/googleid-provider"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -157,7 +160,7 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", os.Getenv("TLS_CLIENT_KEY_PASSWORD"), "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Kafka.TLS.CAChainCertFile, "tls-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
 
-	//Same TLS client cert tls-same-client-cert-enable
+	// Same TLS client cert tls-same-client-cert-enable
 	Server.Flags().BoolVar(&c.Kafka.TLS.SameClientCertEnable, "tls-same-client-cert-enable", false, "Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)")
 
 	// SASL by Proxy
@@ -190,6 +193,14 @@ func initFlags() {
 	Server.Flags().StringVar(&c.Kafka.SASL.Plugin.LogLevel, "sasl-plugin-log-level", "trace", "Log level of the auth plugin")
 	Server.Flags().DurationVar(&c.Kafka.SASL.Plugin.Timeout, "sasl-plugin-timeout", 10*time.Second, "Authentication timeout")
 
+	// Schema Registry
+	Server.Flags().BoolVar(&c.SchemaRegistry.Enable, "schema-registry-enable", false, "Proxy Schema Registry")
+	Server.Flags().StringVar(&c.SchemaRegistry.Url, "schema-registry-url", "", "The Schema Registry URL without port")
+	Server.Flags().IntVar(&c.SchemaRegistry.Port, "schema-registry-port", 8080, "The Schema Registry port")
+	Server.Flags().StringVar(&c.SchemaRegistry.Username, "schema-registry-username", "", "The Schema Registry username")
+	Server.Flags().StringVar(&c.SchemaRegistry.Password, "schema-registry-password", "", "The Schema Registry password")
+	Server.Flags().IntVar(&c.SchemaRegistry.ProxyPort, "schema-registry-proxy-port", 8080, "The port to expose the proxy to")
+
 	// Web
 	Server.Flags().BoolVar(&c.Http.Disable, "http-disable", false, "Disable HTTP endpoints")
 	Server.Flags().StringVar(&c.Http.ListenAddress, "http-listen-address", "0.0.0.0:9080", "Address that kafka-proxy is listening on")
@@ -219,6 +230,31 @@ func Run(_ *cobra.Command, _ []string) {
 
 	var localPasswordAuthenticator apis.PasswordAuthenticator
 	var localTokenAuthenticator apis.TokenInfo
+	var g run.Group
+
+	if c.SchemaRegistry.Enable {
+		srProxy, err := proxy.NewSchemaRegistryProxy(
+			c.SchemaRegistry.Url,
+			c.SchemaRegistry.Username,
+			c.SchemaRegistry.Password,
+			c.SchemaRegistry.Port,
+			c.SchemaRegistry.ProxyPort,
+		)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+
+		g.Add(func() error {
+			return srProxy.Start()
+		}, func(error) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := srProxy.Stop(ctx); err != nil {
+				logrus.WithError(err).Error("Failed to stop Schema Registry proxy gracefully")
+			}
+		})
+	}
+
 	if c.Auth.Local.Enable {
 		switch c.Auth.Local.Mechanism {
 		case "PLAIN":
@@ -373,7 +409,6 @@ func Run(_ *cobra.Command, _ []string) {
 		}
 	}
 
-	var g run.Group
 	{
 		// All active connections are stored in this variable.
 		connset := proxy.NewConnSet()
