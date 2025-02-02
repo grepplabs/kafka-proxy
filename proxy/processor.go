@@ -20,7 +20,7 @@ const (
 	apiKeySaslHandshake  = int16(17)
 	apiKeyApiApiVersions = int16(18)
 
-	minRequestApiKey = int16(0)   // 0 - Produce
+	minRequestApiKey = int16(0)     // 0 - Produce
 	maxRequestApiKey = int16(20000) // so far 67 is the last (reserve some for the feature)
 )
 

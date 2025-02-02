@@ -170,7 +170,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --kafka-read-timeout duration                          How long to wait for a response (default 30s)
             --kafka-write-timeout duration                         How long to wait for a transmit (default 30s)
             --log-format string                                    Log format text or json (default "text")
-            --log-level string                                     Log level debug, info, warning, error, fatal or panic (default "info")
+            --log-level string                                     Log level trace, debug, info, warning, error, fatal or panic (default "info")
             --log-level-fieldname string                           Log level fieldname for json format (default "@level")
             --log-msg-fieldname string                             Message fieldname for json format (default "@message")
             --log-time-fieldname string                            Time fieldname for json format (default "@timestamp")
