@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net"
@@ -46,20 +45,24 @@ type Client struct {
 }
 
 func NewClient(conns *ConnSet, c *config.Config, netAddressMappingFunc config.NetAddressMappingFunc, localPasswordAuthenticator apis.PasswordAuthenticator, localTokenAuthenticator apis.TokenInfo, saslTokenProvider apis.TokenProvider, gatewayTokenProvider apis.TokenProvider, gatewayTokenInfo apis.TokenInfo) (*Client, error) {
-	tlsConfig, err := newTLSClientConfig(c)
-	if err != nil {
-		return nil, err
-	}
-
-	var kafkaClientCert *x509.Certificate = nil
-	if c.Kafka.TLS.SameClientCertEnable {
-		kafkaClientCert, err = parseCertificate(c.Kafka.TLS.ClientCertFile)
+	var (
+		kafkaClientCert *x509.Certificate
+		tlsConfigFunc   TLSConfigFunc
+	)
+	if c.Kafka.TLS.Enable {
+		var err error
+		tlsConfigFunc, err = newTLSClientConfig(c)
 		if err != nil {
 			return nil, err
 		}
+		if c.Kafka.TLS.SameClientCertEnable {
+			kafkaClientCert, err = parseCertificate(c.Kafka.TLS.ClientCertFile)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-
-	dialer, err := newDialer(c, tlsConfig)
+	dialer, err := newDialer(c, tlsConfigFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +198,7 @@ func getAddressToDialAddressMapping(cfg *config.Config) (map[string]config.DialA
 	return addressToDialAddressMapping, nil
 }
 
-func newDialer(c *config.Config, tlsConfig *tls.Config) (Dialer, error) {
+func newDialer(c *config.Config, tlsConfigFunc TLSConfigFunc) (Dialer, error) {
 	directDialer := directDialer{
 		dialTimeout: c.Kafka.DialTimeout,
 		keepAlive:   c.Kafka.KeepAlive,
@@ -230,13 +233,13 @@ func newDialer(c *config.Config, tlsConfig *tls.Config) (Dialer, error) {
 		rawDialer = directDialer
 	}
 	if c.Kafka.TLS.Enable {
-		if tlsConfig == nil {
-			return nil, errors.New("tlsConfig must not be nil")
+		if tlsConfigFunc == nil || tlsConfigFunc() == nil {
+			return nil, errors.New("tlsConfigFunc must not be nil")
 		}
 		tlsDialer := tlsDialer{
-			timeout:   c.Kafka.DialTimeout,
-			rawDialer: rawDialer,
-			config:    tlsConfig,
+			timeout:    c.Kafka.DialTimeout,
+			rawDialer:  rawDialer,
+			configFunc: tlsConfigFunc,
 		}
 		return tlsDialer, nil
 	}

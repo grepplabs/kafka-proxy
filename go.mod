@@ -12,6 +12,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-ldap/ldap/v3 v3.2.3
 	github.com/google/uuid v1.6.0
+	github.com/grepplabs/cert-source v0.0.8
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-multierror v0.0.0-20171204182908-b7773ae21874
 	github.com/hashicorp/go-plugin v1.6.3
@@ -26,7 +27,6 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.10.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
-	github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.24.0
 	google.golang.org/api v0.126.0
@@ -82,6 +82,7 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect

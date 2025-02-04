@@ -165,6 +165,19 @@ github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
 github.com/googleapis/gax-go/v2/internal
+# github.com/grepplabs/cert-source v0.0.8
+## explicit; go 1.21
+github.com/grepplabs/cert-source/config
+github.com/grepplabs/cert-source/tls/client
+github.com/grepplabs/cert-source/tls/client/config
+github.com/grepplabs/cert-source/tls/client/filesource
+github.com/grepplabs/cert-source/tls/client/source
+github.com/grepplabs/cert-source/tls/keyutil
+github.com/grepplabs/cert-source/tls/server
+github.com/grepplabs/cert-source/tls/server/config
+github.com/grepplabs/cert-source/tls/server/filesource
+github.com/grepplabs/cert-source/tls/server/source
+github.com/grepplabs/cert-source/tls/watcher
 # github.com/hashicorp/errwrap v0.0.0-20141028054710-7554cd9344ce
 ## explicit
 github.com/hashicorp/errwrap
@@ -337,8 +350,8 @@ github.com/xdg/scram
 # github.com/xdg/stringprep v1.0.0
 ## explicit
 github.com/xdg/stringprep
-# github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76
-## explicit; go 1.22
+# github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
+## explicit; go 1.17
 github.com/youmark/pkcs8
 # go.opencensus.io v0.24.0
 ## explicit; go 1.13

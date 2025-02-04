@@ -88,10 +88,12 @@ type Config struct {
 
 		TLS struct {
 			Enable                   bool
+			Refresh                  time.Duration
 			ListenerCertFile         string
 			ListenerKeyFile          string
 			ListenerKeyPassword      string
-			CAChainCertFile          string
+			ListenerCAChainCertFile  string
+			ListenerCRLFile          string
 			ListenerCipherSuites     []string
 			ListenerCurvePreferences []string
 			ClientCert               struct {
@@ -145,11 +147,13 @@ type Config struct {
 
 		TLS struct {
 			Enable               bool
+			Refresh              time.Duration
 			InsecureSkipVerify   bool
 			ClientCertFile       string
 			ClientKeyFile        string
 			ClientKeyPassword    string
 			CAChainCertFile      string
+			SystemCertPool       bool
 			SameClientCertEnable bool
 		}
 

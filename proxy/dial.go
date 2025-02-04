@@ -69,14 +69,15 @@ func (d socks5Dialer) Dial(network, addr string) (net.Conn, error) {
 }
 
 type tlsDialer struct {
-	timeout   time.Duration
-	rawDialer Dialer
-	config    *tls.Config
+	timeout    time.Duration
+	rawDialer  Dialer
+	configFunc TLSConfigFunc
 }
 
 // see tls.DialWithDialer
 func (d tlsDialer) Dial(network, addr string) (net.Conn, error) {
-	if d.config == nil {
+	config := d.configFunc()
+	if config == nil {
 		return nil, errors.New("tlsConfig must not be nil")
 	}
 	if d.rawDialer == nil {
@@ -105,8 +106,6 @@ func (d tlsDialer) Dial(network, addr string) (net.Conn, error) {
 		colonPos = len(addr)
 	}
 	hostname := addr[:colonPos]
-
-	config := d.config
 
 	// If no ServerName is set, infer the ServerName
 	// from the hostname we're connecting to.

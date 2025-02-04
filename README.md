@@ -140,6 +140,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --debug-enable                                         Enable Debug endpoint
             --debug-listen-address string                          Debug listen address (default "0.0.0.0:6060")
             --default-listener-ip string                           Default listener IP (default "0.0.0.0")
+            --deterministic-listeners                              Enable deterministic listeners (listener port = min port + broker id).
             --dial-address-mapping stringArray                     Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
             --dynamic-advertised-listener string                   Advertised address for dynamic listeners. If empty, default-listener-ip is used
             --dynamic-listeners-disable                            Disable dynamic listeners.
@@ -178,12 +179,14 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --proxy-listener-ca-chain-cert-file string             PEM encoded CA's certificate file. If provided, client certificate is required and verified
             --proxy-listener-cert-file string                      PEM encoded file with server certificate
             --proxy-listener-cipher-suites strings                 List of supported cipher suites
+            --proxy-listener-crl-file string                       PEM encoded X509 CRLs file
             --proxy-listener-curve-preferences strings             List of curve preferences
             --proxy-listener-keep-alive duration                   Keep alive period for an active network connection. If zero, keep-alives are disabled (default 1m0s)
             --proxy-listener-key-file string                       PEM encoded file with private key for the server certificate
             --proxy-listener-key-password string                   Password to decrypt rsa private key
             --proxy-listener-read-buffer-size int                  Size of the operating system's receive buffer associated with the connection. If zero, system default is used
             --proxy-listener-tls-enable                            Whether or not to use TLS listener
+            --proxy-listener-tls-refresh duration                  Interval for refreshing server TLS certificates. If set to zero, the refresh watch is disabled
             --proxy-listener-tls-required-client-subject strings   Required client certificate subject common name; example; s:/CN=[value]/C=[state]/C=[DE,PL] or r:/CN=[^val.{2}$]/C=[state]/C=[DE,PL]; check manual for more details
             --proxy-listener-write-buffer-size int                 Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
             --proxy-request-buffer-size int                        Request buffer size pro tcp connection (default 4096)
@@ -207,7 +210,9 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --tls-client-key-password string                       Password to decrypt rsa private key
             --tls-enable                                           Whether or not to use TLS when connecting to the broker
             --tls-insecure-skip-verify                             It controls whether a client verifies the server's certificate chain and host name
+            --tls-refresh duration                                 Interval for refreshing client TLS certificates. If set to zero, the refresh watch is disabled
             --tls-same-client-cert-enable                          Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)
+            --tls-system-cert-pool                                 Use system pool for root CAs
 
 ### Usage example
 	

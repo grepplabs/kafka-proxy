@@ -109,7 +109,7 @@ func makeTLSPipe(conf *config.Config, expectedClientCert *x509.Certificate) (net
 			dialTimeout: 3 * time.Second,
 			keepAlive:   60 * time.Second,
 		},
-		config: clientConfig,
+		configFunc: clientConfig,
 	}
 	c1, c2, err := localPipe(tlsListener, tlsDialer, 4*time.Second, clientCertToCheck)
 	stop = func() {
@@ -169,9 +169,9 @@ func makeTLSSocks5ProxyPipe(conf *config.Config, authenticator socks5.Authentica
 	}
 
 	tlsDialer := tlsDialer{
-		timeout:   3 * time.Second,
-		rawDialer: socksDialer,
-		config:    clientConfig,
+		timeout:    3 * time.Second,
+		rawDialer:  socksDialer,
+		configFunc: clientConfig,
 	}
 
 	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)
@@ -238,9 +238,9 @@ func makeTLSHttpProxyPipe(conf *config.Config, proxyusername, proxypassword stri
 	}
 
 	tlsDialer := tlsDialer{
-		timeout:   3 * time.Second,
-		rawDialer: httpProxy,
-		config:    clientConfig,
+		timeout:    3 * time.Second,
+		rawDialer:  httpProxy,
+		configFunc: clientConfig,
 	}
 
 	tlsListener, err := tls.Listen("tcp", "127.0.0.1:0", serverConfig)

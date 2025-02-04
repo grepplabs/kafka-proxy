@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"crypto/x509"
 	"io"
 	"net"
 	"os"
@@ -312,7 +311,7 @@ func TestTLSVerifyClientCertDifferentCAs(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle2.CACert.Name() // client CA
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle2.CACert.Name() // client CA
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
@@ -335,7 +334,7 @@ func TestTLSVerifyClientCertSameCAs(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle1.CACert.Name() // client CA
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle1.CACert.Name() // client CA
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle1.ClientCert.Name()
@@ -358,7 +357,7 @@ func TestTLSMissingClientCert(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle1.CACert.Name() // client CA
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle1.CACert.Name() // client CA
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 
@@ -379,7 +378,7 @@ func TestTLSBadClientCert(t *testing.T) {
 	c := new(config.Config)
 	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle1.CACert.Name() // client CA
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle1.CACert.Name() // client CA
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
@@ -431,7 +430,7 @@ func configWithCertToCompare(bundle1 *CertsBundle, bundle2 *CertsBundle, sameCer
 
 	c.Proxy.TLS.ListenerCertFile = bundle1.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle1.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle2.CACert.Name() // client CA
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle2.CACert.Name() // client CA
 
 	c.Kafka.TLS.CAChainCertFile = bundle1.ServerCert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle2.ClientCert.Name()
@@ -521,198 +520,4 @@ type CertsBundle struct {
 	ServerKey  *os.File
 	ClientCert *os.File
 	ClientKey  *os.File
-}
-
-func TestDecryptPEMKey(t *testing.T) {
-	a := assert.New(t)
-
-	var testData = []struct {
-		kind             x509.PEMCipher
-		password         string
-		pemDataEncrypted string
-		pemData          string
-	}{
-		{
-			kind:     x509.PEMCipherAES256,
-			password: "VqTNL69WeJtbFERnGD8BrRBwctsWzpTPNcMZMXtufAZruxLRkcBjDbcgBDFyzKyu",
-			pemDataEncrypted: `-----BEGIN RSA PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: AES-256-CBC,E4DD4077F88E0609CBE3A160FBFA3AB4
-
-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
------END RSA PRIVATE KEY-----`,
-			pemData: `-----BEGIN RSA PRIVATE KEY-----
-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
------END RSA PRIVATE KEY-----
-`,
-		},
-		{
-			pemDataEncrypted: `-----BEGIN ENCRYPTED PRIVATE KEY-----
-MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQIHKUKgk8qoZ0CAggA
-MAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBCsmSYCNmD0DpnxgWZTnEJ0BIIE
-0B/0jhJfODA3Unc1YQl4ZrCvsfRdaeBjgJp85eW49gn8oqr/KBhRf8KZjugEpkB3
-2uEKiyc04WlRK3ZXAoFNe1r5Y+u/bfBsMqB5r66MvkeMi9kGuA75zc05awWdRcZ8
-j2Lztj4QyWBO8eK4bGBV2OKBXw8sUmzF6A9SMMQ0gn+ZIMf0/1gePGoqO7sZ0mS3
-hyQOymC0OWUTg0L1jYbDnJonmn8rkRXyeim3prNEAQboqpBQzcFraSvoVAUTYMKY
-3Oy9k8JgQveJSVenzZSsFYUh8iRqviHPpa95h2s5AqMVMFGaZt9hFEoxD3dztzDF
-H12O4++RaRrjMwX8ojNR+7BnsgkCxCU3AQcvNbmf8S2bLUf2bcFTD2UYiRyQGeal
-nLuR9nbi/KLYMcLtb+y5wKaxWhayICtgtboRdZs7WA0MjQFDf6kDpiDtEqyfUGq6
-HvVu5Il/iQtN9VgJV0BNy3jHBCCG15dKWwW50AHj1KpEyH605a+nKFs6a6Al2L2u
-KoKqvD9C3l9L1O85eKFPzcZ8rXheXTGQXEXgxPNaebwR0gssCZvRZQygkXu459LF
-g+EF3X11Sh3Af+neTYEeMUX4jlq2dDy2ZHIabqfqNz4xVh/I46tBhv7z/qB6uSDx
-78trqKfzktO7x9MfGdxsAj0z5A00qTCYSWRSjFN3Li32GSpB2cMkFKo9W4DLp9j5
-QSaGEl45CkR98iwAlddHNFYA36DthlIyLmr2YBvmzz59jke3HieyrLxWOG7Bt5mS
-L3T3aApUb9a4jr6Y9B3QmBM3SPczKJwCTpS0zaApmruc9fPn8fO1+F8MAbm7iAac
-ebNTimEaL4StoeZuySFhm9VmNyc9MfHJncbz2c0EpI6wVPehTX6oYKkYnrLis2l+
-hpeMs+QxdfFMOxZC+Gu4lcVsAkx+CS0ci8X3m504193ZFpjBSmT9dIcIJpX6vJ7A
-OBO1NY72ZJOmBEXTZvRt32zA/lDJ1lrMq7fc87QFvzipuO0KueS/Hv30rEC6TFm+
-ch3IGbXkj9zpq6zHat6Gki4unFWoeLN8cxUlH2O5SpQLSOtK2CPAP/KaLYHsxDoF
-MiK+l3p8G7iy8gcOFfmAgysUJvOGmInjX00m+Zk0toGDLyOa87OsCeCrkdfyhr4j
-aD3ZolEJaoywHYr4jBZewemOGJSPD3Dlucni+00m+odXa08Abe5FEryXZxQ9S6Xk
-G+3w9kviJ2loADgrPnjUuhSZzAhDvE80hSzcb8mjbVY22sgrt7uGeKQ4qmG7+Pwr
-c8pJkJfOCITVmOxh1I3kNFEh3gt+47euevuvkm4rw0gkfiA/MN8aDHo/+WB5n7Uq
-JVsTGiCBLyWS+K/UmR+l1cp420+oiU6pXaY/y8YeWUX0RjuHEzpMhNn80hLyutDT
-Bp+HaEVhzZLg8PzpjS7jcYDOIlceMnMSBEDz3ARod1iMgfU0UOs5/1SuirBgUXkw
-7cHPIoBsI6l2O4CCZzkCBNqpBSwcKOJ6id0QX+vNG0UWNX21tUlxzM7Ppmy9/4Cy
-K9waUe1rSZXkHd/bANGCqw68DVIalf8BG9k8yfJxjzQIN1zMk+ZrmBIVkwaYqVN1
-2yj2uuJUMmzb9kKmRK9sqAOGgnz2DIIVD1Ol4jB7eVep
------END ENCRYPTED PRIVATE KEY-----
-`,
-			pemData: `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAuWcW9lVvQxYhnWfkgnjSWMF9Y7fbr0trJNZMNAbsmtOsllB1
-DKdKERCXtaqjsNfK5hUv2TE37BCi13wTqx7ZVAfqzmhq07xSGc1oqaJzJh+U6JW4
-nUmKBKwU6qg/7ulsyIkd68N2UtaKnVrFtBy7pRUKgCJiNIYhFpWGlkOglQIC3Hex
-P19BF6AI9UMdbzDMEPLZ/O87AxSwwI3PrOi5/Ep39BBvG0W4W+LQotyXmhnps3DQ
-rV+Z3lOwnKGoXiy0k6W27GGHgBuOKTyLELaatU7OppoDOgJXEdO8VnHE9ANXWrbJ
-qhFjacgwmskBHd7DOFdEu62FdsCC2CCsnvXr1QIDAQABAoIBACBv4tqSM/cexh7N
-8HLLRLH2mEN8BVlz7njxbT+k/nxQEF/0D6Z5FkJKDuDfy+fCuWLrzgVH0Srh9juR
-H7fOm+NRx0j5h8cnqY2OHIOhQlgnKlxO5Y/PL/CFUtuDODxKZpfnNW7sMaVol7PU
-D8blSAcn2UB1w4zA8sUKwBNGHbAz7130YwlOkgnt7lvx5TIxD4wQoC0CogDGLiVB
-HMoGvLveUQexF7la5/GM5knN/1I9+HgJQHespxl85C3Qg4UTg7xf6mJlJMwFMWZA
-M40EvVFtUzwsABH/0kdmjp27MmsRtcGH5SCOz8ksUnlM7TXvbwHNti1jFAt5H5q2
-UmxAx3kCgYEAyBUifPsWpOktulrzw6FaQKJzyHDt/qIuyvq85Pneo17/b5rZj3Km
-GIPiqy6EtJqHDeDE/j3iQgcrDlvZe6tFlUNTM1sF2prHq6QRNiJdBUPCceaxF4jZ
-mTVCUdWHvfkQXtVftEYXeNIM8nn63XwKv6rRleZpQ4XWFq3mam08d2cCgYEA7Tev
-6yF2ZRFJzLUvk5WGIQqOsSXGOcHWVmbxg1hbssy8kSrcaw7G+uHwhWZQzmhY4dnd
-3h02XvtfhU05kLt/dnr5dRfSNFltfAHw1vrvkXc0eAtY3LunuxDWw1A+6SVHK1qR
-1U1h/yI+thOZ4gQ7DcA7mk/95VyMwnCPE0uB6WMCgYBczRiy+U7WbGTOQ7M+cI9I
-3VBwjpiEezrS4JtOZOqzwbMeU6dHFnkdc8ZleW0Jy4aKlE8qUQ+pamO5BDcKWjUq
-9xAXCMfdTd8AqFdnUWbtszDz3XkUHmA25HH/PNf58BR8t+Ds33mxi1N//72wjwD5
-R0Rwj28RZ3kWCdCOWl4qTwKBgQDeYXwbk20oZkKnE5wcYOozA3CthVoFP0AuE6eJ
-mEWuotyLwoCMJHhJLZKLnFVYit34LIQf+4bDGCh+EN1MX1mourQtHz3CMau/uxoK
-j4gS+ItJlmmh1JHzfl+3Df1MF9RWQjvAmSCrS3E6w7lY9tpdk77MdPzyDgcvKNIY
-JosNPQKBgQCbw+8HyyhWIvobrinQofW9Eg2Z08lbltcGfSiygLgY0+MYBEurp0zc
-+rdN8/I6lsJxiyk8eumzdlJdQjNDICPKYBn6dXonW4xT7wChqJh+53DXDUaCJMR4
-jOlh0aHv8csftxxnjI8lwu/BjMRdTWY8YeiXHVYzdfNDRvAPYuuZMQ==
------END RSA PRIVATE KEY-----
-`,
-			password: "test123",
-		},
-	}
-
-	for _, data := range testData {
-		decryptedKey, err := decryptPEM([]byte(data.pemDataEncrypted), data.password)
-		a.Nil(err)
-		a.EqualValues(decryptedKey, data.pemData)
-
-		sameKey, err := decryptPEM([]byte(data.pemData), data.password)
-		a.Nil(err)
-		a.EqualValues(sameKey, data.pemData)
-	}
 }
