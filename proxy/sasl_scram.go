@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/sirupsen/logrus"
-	"github.com/xdg/scram"
+	"github.com/xdg-go/scram"
 	"hash"
 	"io"
 	"time"

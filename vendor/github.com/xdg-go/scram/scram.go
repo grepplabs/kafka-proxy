@@ -9,10 +9,11 @@ package scram
 import (
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
 	"hash"
 
-	"github.com/xdg/stringprep"
+	"github.com/xdg-go/stringprep"
 )
 
 // HashGeneratorFcn abstracts a factory function that returns a hash.Hash
@@ -28,6 +29,10 @@ var SHA1 HashGeneratorFcn = func() hash.Hash { return sha1.New() }
 // SHA256 is a function that returns a crypto/sha256 hasher and should be used
 // to create Client objects configured for SHA-256 hashing.
 var SHA256 HashGeneratorFcn = func() hash.Hash { return sha256.New() }
+
+// SHA512 is a function that returns a crypto/sha512 hasher and should be used
+// to create Client objects configured for SHA-512 hashing.
+var SHA512 HashGeneratorFcn = func() hash.Hash { return sha512.New() }
 
 // NewClient constructs a SCRAM client component based on a given hash.Hash
 // factory receiver.  This constructor will normalize the username, password
