@@ -430,6 +430,9 @@ func generateCertWithSubject(catls *tls.Certificate, certFile *os.File, keyFile 
 	}
 	// Private key
 	err = pem.Encode(keyFile, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	if err != nil {
+		return err
+	}
 	err = keyFile.Sync()
 	if err != nil {
 		return err
@@ -491,7 +494,7 @@ func generateCA(certFile *os.File, keyFile *os.File) (*tls.Certificate, error) {
 		return nil, err
 	}
 
-	ca, err = x509.ParseCertificate(catls.Certificate[0])
+	_, err = x509.ParseCertificate(catls.Certificate[0])
 	if err != nil {
 		return nil, err
 	}

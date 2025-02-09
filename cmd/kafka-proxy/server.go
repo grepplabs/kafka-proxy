@@ -450,7 +450,7 @@ func Run(_ *cobra.Command, _ []string) {
 func NewHTTPHandler() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(
+		_, _ = w.Write([]byte(
 			`<html>
 				<head>
 					<title>kafka-proxy service</title>
@@ -462,7 +462,7 @@ func NewHTTPHandler() http.Handler {
 	        </html>`))
 	})
 	m.HandleFunc(c.Http.HealthPath, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`OK`))
+		_, _ = w.Write([]byte(`OK`))
 	})
 	m.Handle(c.Http.MetricsPath, promhttp.Handler())
 

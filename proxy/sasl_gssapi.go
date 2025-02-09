@@ -79,7 +79,7 @@ func (g *SASLGSSAPIAuth) sendAndReceiveSASLAuth(conn DeadlineReaderWriter, broke
 		logrus.Errorf("Failed to send GSSAPI AP_REQ1")
 		return err
 	}
-	var receivedBytes []byte = nil
+	var receivedBytes []byte
 	bytesLen := 0
 	receivedBytes, bytesLen, err = g.readPackage(conn)
 	requestLatency := time.Since(requestTime)

@@ -215,60 +215,56 @@ func (c *Config) InitSASLCredentials() (err error) {
 	return nil
 }
 func getDialAddressMappings(dialMapping []string) ([]DialAddressMapping, error) {
-	dialMappings := make([]DialAddressMapping, 0)
-	if dialMapping != nil {
-		for _, v := range dialMapping {
-			pair := strings.Split(v, ",")
-			if len(pair) != 2 {
-				return nil, errors.New("dial-mapping must be in form 'srchost:srcport,dsthost:dstport'")
-			}
-			srcHost, srcPort, err := util.SplitHostPort(pair[0])
-			if err != nil {
-				return nil, err
-			}
-			dstHost, dstPort, err := util.SplitHostPort(pair[1])
-			if err != nil {
-				return nil, err
-			}
-			dialMapping := DialAddressMapping{
-				SourceAddress:      net.JoinHostPort(srcHost, fmt.Sprint(srcPort)),
-				DestinationAddress: net.JoinHostPort(dstHost, fmt.Sprint(dstPort))}
-			dialMappings = append(dialMappings, dialMapping)
+	dialMappings := make([]DialAddressMapping, 0, len(dialMapping))
+	for _, v := range dialMapping {
+		pair := strings.Split(v, ",")
+		if len(pair) != 2 {
+			return nil, errors.New("dial-mapping must be in form 'srchost:srcport,dsthost:dstport'")
 		}
+		srcHost, srcPort, err := util.SplitHostPort(pair[0])
+		if err != nil {
+			return nil, err
+		}
+		dstHost, dstPort, err := util.SplitHostPort(pair[1])
+		if err != nil {
+			return nil, err
+		}
+		dialAddressMapping := DialAddressMapping{
+			SourceAddress:      net.JoinHostPort(srcHost, fmt.Sprint(srcPort)),
+			DestinationAddress: net.JoinHostPort(dstHost, fmt.Sprint(dstPort))}
+		dialMappings = append(dialMappings, dialAddressMapping)
 	}
 	return dialMappings, nil
 }
 
 func getListenerConfigs(serversMapping []string) ([]ListenerConfig, error) {
-	listenerConfigs := make([]ListenerConfig, 0)
-	if serversMapping != nil {
-		for _, v := range serversMapping {
-			pair := strings.Split(v, ",")
-			if len(pair) != 2 && len(pair) != 3 {
-				return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport(,advhost:advport)'")
-			}
-			remoteHost, remotePort, err := util.SplitHostPort(pair[0])
-			if err != nil {
-				return nil, err
-			}
-			localHost, localPort, err := util.SplitHostPort(pair[1])
-			if err != nil {
-				return nil, err
-			}
-			advertisedHost, advertisedPort := localHost, localPort
-			if len(pair) == 3 {
-				advertisedHost, advertisedPort, err = util.SplitHostPort(pair[2])
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			listenerConfig := ListenerConfig{
-				BrokerAddress:     net.JoinHostPort(remoteHost, fmt.Sprint(remotePort)),
-				ListenerAddress:   net.JoinHostPort(localHost, fmt.Sprint(localPort)),
-				AdvertisedAddress: net.JoinHostPort(advertisedHost, fmt.Sprint(advertisedPort))}
-			listenerConfigs = append(listenerConfigs, listenerConfig)
+	listenerConfigs := make([]ListenerConfig, 0, len(serversMapping))
+	for _, v := range serversMapping {
+		pair := strings.Split(v, ",")
+		if len(pair) != 2 && len(pair) != 3 {
+			return nil, errors.New("server-mapping must be in form 'remotehost:remoteport,localhost:localport(,advhost:advport)'")
 		}
+		remoteHost, remotePort, err := util.SplitHostPort(pair[0])
+		if err != nil {
+			return nil, err
+		}
+		localHost, localPort, err := util.SplitHostPort(pair[1])
+		if err != nil {
+			return nil, err
+		}
+		advertisedHost, advertisedPort := localHost, localPort
+		if len(pair) == 3 {
+			advertisedHost, advertisedPort, err = util.SplitHostPort(pair[2])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		listenerConfig := ListenerConfig{
+			BrokerAddress:     net.JoinHostPort(remoteHost, fmt.Sprint(remotePort)),
+			ListenerAddress:   net.JoinHostPort(localHost, fmt.Sprint(localPort)),
+			AdvertisedAddress: net.JoinHostPort(advertisedHost, fmt.Sprint(advertisedPort))}
+		listenerConfigs = append(listenerConfigs, listenerConfig)
 	}
 	return listenerConfigs, nil
 }
@@ -361,7 +357,7 @@ func (c *Config) Validate() error {
 		return errors.New("MaxOpenRequests must be greater than 0")
 	}
 	// proxy
-	if c.Proxy.BootstrapServers == nil || len(c.Proxy.BootstrapServers) == 0 {
+	if len(c.Proxy.BootstrapServers) == 0 {
 		return errors.New("list of bootstrap-server-mapping must not be empty")
 	}
 	if c.Proxy.DefaultListenerIP == "" {

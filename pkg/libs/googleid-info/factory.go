@@ -36,7 +36,10 @@ func (t *Factory) New(params []string) (apis.TokenInfo, error) {
 	fs.Var(&pluginMeta.audience, "audience", "The audience of a token")
 	fs.Var(&pluginMeta.emailsRegex, "email-regex", "Regex of the email claim")
 
-	fs.Parse(params)
+	err := fs.Parse(params)
+	if err != nil {
+		return nil, err
+	}
 
 	opts := TokenInfoOptions{
 		Timeout:              pluginMeta.timeout,

@@ -20,7 +20,7 @@ const (
 
 var (
 	saslOauthKVPairs                      = fmt.Sprintf("(%s=%s%s)*", saslOauthKey, saslOauthValue, saslOauthSeparator)
-	saslOauthAuthPattern                  = regexp.MustCompile("(?P<scheme>[\\w]+)[ ]+(?P<token>[-_.a-zA-Z0-9]+)")
+	saslOauthAuthPattern                  = regexp.MustCompile(`(?P<scheme>\w+)[ ]+(?P<token>[-_.a-zA-Z0-9]+)`)
 	saslOauthClientInitialResponsePattern = regexp.MustCompile(fmt.Sprintf("n,(a=(?P<authzid>%s))?,%s(?P<kvpairs>%s)%s", saslOauthSaslName, saslOauthSeparator, saslOauthKVPairs, saslOauthSeparator))
 )
 

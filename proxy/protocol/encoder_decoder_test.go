@@ -53,7 +53,7 @@ func TestEncodeDecodeCompactBytes(t *testing.T) {
 			t.Fatalf("Values array lengths differ: expected %v, actual %v", request.values, response.values)
 		}
 		for i := range request.values {
-			if bytes.Compare(request.values[i], response.values[i]) != 0 {
+			if !bytes.Equal(request.values[i], response.values[i]) {
 				t.Fatalf("Values differ: index %d, expected %v, actual %v", i, request.values[i], response.values[i])
 			}
 		}

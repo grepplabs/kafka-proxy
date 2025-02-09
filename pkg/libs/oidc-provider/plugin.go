@@ -162,12 +162,7 @@ func renewLatest(token *oidc.Token) bool {
 	}
 	// renew before expiry
 	advExp := token.ClaimSet.Exp - int64(clockSkew.Seconds())
-
-	if nowFn().Unix() > advExp {
-		return true
-	}
-
-	return false
+	return nowFn().Unix() > advExp
 }
 
 // GetToken implements apis.TokenProvider.GetToken method
@@ -225,7 +220,7 @@ func getTokenSource(credentialsFilePath string, targetAud string) (idTokenSource
 
 	switch grantType.Name {
 	case "password":
-		passwordGrantSource, err := NewPasswordGrantSource(
+		passwordGrantSource, err := newPasswordGrantSource(
 			credentialsFilePath,
 			targetAud)
 
@@ -235,7 +230,7 @@ func getTokenSource(credentialsFilePath string, targetAud string) (idTokenSource
 
 		return passwordGrantSource, nil
 	default:
-		serviceAccountSource, err := NewServiceAccountSource(
+		serviceAccountSource, err := newServiceAccountSource(
 			credentialsFilePath,
 			targetAud)
 
@@ -263,14 +258,7 @@ func (p *serviceAccountSource) getServiceAccountTokenSource() *oidc.ServiceAccou
 	return p.source
 }
 
-func (p *serviceAccountSource) setServiceAccountTokenSource(source *oidc.ServiceAccountTokenSource) {
-	p.l.Lock()
-	defer p.l.Unlock()
-
-	p.source = source
-}
-
-func NewServiceAccountSource(credentialsFile string, targetAudience string) (*serviceAccountSource, error) {
+func newServiceAccountSource(credentialsFile string, targetAudience string) (*serviceAccountSource, error) {
 	source, err := oidc.NewServiceAccountTokenSource(credentialsFile, targetAudience)
 
 	if err != nil {
@@ -298,14 +286,7 @@ func (p *passwordGrantSource) getPasswordGrantTokenSource() *oidc.PasswordGrantT
 	return p.source
 }
 
-func (p *passwordGrantSource) setPasswordGrantTokenSource(source *oidc.PasswordGrantTokenSource) {
-	p.l.Lock()
-	defer p.l.Unlock()
-
-	p.source = source
-}
-
-func NewPasswordGrantSource(credentialsFile string, targetAudience string) (*passwordGrantSource, error) {
+func newPasswordGrantSource(credentialsFile string, targetAudience string) (*passwordGrantSource, error) {
 	source, err := oidc.NewPasswordGrantTokenSource(credentialsFile, targetAudience)
 
 	if err != nil {

@@ -117,8 +117,10 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 			return true, err
 		}
 	}
-	src.SetDeadline(time.Time{})
-
+	err = src.SetDeadline(time.Time{})
+	if err != nil {
+		return false, err
+	}
 	ctx := &RequestsLoopContext{
 		openRequestsChannel:        p.openRequestsChannel,
 		nextRequestHandlerChannel:  p.nextRequestHandlerChannel,

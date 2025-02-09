@@ -22,6 +22,8 @@ PROTOC_VERSION ?= 22.2
 PROTOC_BIN_DIR := .tools
 PROTOC := $(PROTOC_BIN_DIR)/protoc
 
+GOLANGCI_LINT = go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
+
 default: build
 
 test.race:
@@ -33,9 +35,16 @@ test:
 fmt:
 	go fmt $(GOPKGS)
 
-check:
-	golint $(GOPKGS)
+check: lint-code
 	go vet $(GOPKGS)
+
+.PHONY: lint-code
+lint-code:
+	$(GOLANGCI_LINT) run --timeout 5m
+
+.PHONY: lint-fix
+lint-fix:
+	$(GOLANGCI_LINT) run --fix
 
 .PHONY: build
 build: build/$(BINARY)

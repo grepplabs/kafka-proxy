@@ -112,6 +112,7 @@ func TestGetToken(t *testing.T) {
 
 	actual, err := prov.GetToken(context.Background(), apis.TokenRequest{})
 	a.NotNil(token)
+	a.Nil(err)
 
 	exp := apis.TokenResponse{Success: true, Status: int32(StatusOK), Token: testToken}
 	a.Equal(exp, actual)
@@ -120,6 +121,7 @@ func TestGetToken(t *testing.T) {
 
 	actual, err = prov.GetToken(context.Background(), apis.TokenRequest{})
 	a.NotNil(token)
+	a.Nil(err)
 
 	exp = apis.TokenResponse{Success: true, Status: int32(StatusOK), Token: testToken}
 	a.Equal(exp, actual)

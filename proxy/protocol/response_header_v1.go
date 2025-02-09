@@ -19,7 +19,9 @@ func (r *ResponseHeaderV1) decode(pd packetDecoder) (err error) {
 		return PacketDecodingError{fmt.Sprintf("message of length %d too small", r.Length)}
 	}
 	r.CorrelationID, err = pd.getInt32()
-
+	if err != nil {
+		return err
+	}
 	tf := &SchemaTaggedFields{}
 	taggedFields, err := tf.decode(pd)
 	if err != nil {

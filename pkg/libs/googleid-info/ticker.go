@@ -43,7 +43,7 @@ func (p *certsRefresher) refreshLoop() {
 	}
 }
 
-func (p *certsRefresher) refreshTick() error {
+func (p *certsRefresher) refreshTick() {
 	op := func() error {
 		return p.tokenInfo.refreshCerts()
 	}
@@ -52,10 +52,10 @@ func (p *certsRefresher) refreshTick() error {
 	backOff.MaxInterval = 2 * time.Minute
 	err := backoff.Retry(op, backOff)
 	if err != nil {
-		return err
+		logrus.Errorf("Certs refresh failed : %v", err)
+		return
 	}
 	kids := p.tokenInfo.getPublicKeyIDs()
 	sort.Strings(kids)
 	logrus.Infof("Refreshed certs Key IDs: %v", kids)
-	return nil
 }

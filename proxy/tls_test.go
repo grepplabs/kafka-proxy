@@ -476,9 +476,10 @@ func pingPong(t *testing.T, c1, c2 net.Conn) {
 	clientResult := make(chan error, 1)
 	go func() {
 		// send "ping"
-		c1.SetDeadline(time.Now().Add(2 * time.Second))
+		err := c1.SetDeadline(time.Now().Add(2 * time.Second))
+		a.Nil(err)
 		request := bytes.NewBuffer(ping)
-		_, err := io.Copy(c1, request)
+		_, err = io.Copy(c1, request)
 		if err != nil {
 			clientResult <- err
 			return
@@ -496,9 +497,10 @@ func pingPong(t *testing.T, c1, c2 net.Conn) {
 		clientResult <- nil
 	}()
 
-	c2.SetDeadline(time.Now().Add(2 * time.Second))
+	err := c2.SetDeadline(time.Now().Add(2 * time.Second))
+	a.Nil(err)
 	request := make([]byte, len(ping))
-	_, err := io.ReadFull(c2, request)
+	_, err = io.ReadFull(c2, request)
 	a.Nil(err)
 
 	a.Equal("ping", string(request))
