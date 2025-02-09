@@ -48,11 +48,11 @@ As not every Kafka release adds new messages/versions which are relevant to the 
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.12/kafka-proxy-v0.3.12-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.12/kafka-proxy-v0.3.12-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -70,7 +70,7 @@ Docker images are available on [Docker Hub](https://hub.docker.com/r/grepplabs/k
 
 You can launch a kafka-proxy container for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.3.12 \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0 \
               server \
             --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
             --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
@@ -89,7 +89,7 @@ Docker images with precompiled plugins located in `/opt/kafka-proxy/bin/` are ta
 
 You can launch a kafka-proxy container with auth-ldap plugin for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.3.12-all \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0-all \
                   server \
                 --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
                 --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
