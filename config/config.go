@@ -48,8 +48,10 @@ type GSSAPIConfig struct {
 }
 
 type AWSConfig struct {
-	Region  string
-	Profile string
+	Region         string
+	Profile        string
+	RoleArn        string
+	IdentityLookup bool
 }
 
 type Config struct {

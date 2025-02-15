@@ -191,8 +191,10 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --proxy-listener-write-buffer-size int                 Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
             --proxy-request-buffer-size int                        Request buffer size pro tcp connection (default 4096)
             --proxy-response-buffer-size int                       Response buffer size pro tcp connection (default 4096)
+            --sasl-aws-identity-lookup                             Verify AWS authentication identity
             --sasl-aws-profile string                              AWS profile
             --sasl-aws-region string                               Region for AWS IAM Auth
+            --sasl-aws-role-arn string                             AWS Role ARN to assume
             --sasl-enable                                          Connect using SASL
             --sasl-jaas-config-file string                         Location of JAAS config file with SASL username and password
             --sasl-method string                                   SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, AWS_MSK_IAM (default "PLAIN")
