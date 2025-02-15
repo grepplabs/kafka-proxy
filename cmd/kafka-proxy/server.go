@@ -2,12 +2,14 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	sloglogrus "github.com/samber/slog-logrus/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -101,10 +103,12 @@ func initFlags() {
 	Server.Flags().DurationVar(&c.Proxy.ListenerKeepAlive, "proxy-listener-keep-alive", 60*time.Second, "Keep alive period for an active network connection. If zero, keep-alives are disabled")
 
 	Server.Flags().BoolVar(&c.Proxy.TLS.Enable, "proxy-listener-tls-enable", false, "Whether or not to use TLS listener")
+	Server.Flags().DurationVar(&c.Proxy.TLS.Refresh, "proxy-listener-tls-refresh", 0*time.Second, "Interval for refreshing server TLS certificates. If set to zero, the refresh watch is disabled")
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerCertFile, "proxy-listener-cert-file", "", "PEM encoded file with server certificate")
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyFile, "proxy-listener-key-file", "", "PEM encoded file with private key for the server certificate")
 	Server.Flags().StringVar(&c.Proxy.TLS.ListenerKeyPassword, "proxy-listener-key-password", os.Getenv("PROXY_LISTENER_KEY_PASSWORD"), "Password to decrypt rsa private key")
-	Server.Flags().StringVar(&c.Proxy.TLS.CAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file. If provided, client certificate is required and verified")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerCAChainCertFile, "proxy-listener-ca-chain-cert-file", "", "PEM encoded CA's certificate file. If provided, client certificate is required and verified")
+	Server.Flags().StringVar(&c.Proxy.TLS.ListenerCRLFile, "proxy-listener-crl-file", "", "PEM encoded X509 CRLs file")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCipherSuites, "proxy-listener-cipher-suites", []string{}, "List of supported cipher suites")
 	Server.Flags().StringSliceVar(&c.Proxy.TLS.ListenerCurvePreferences, "proxy-listener-curve-preferences", []string{}, "List of curve preferences")
 
@@ -151,11 +155,13 @@ func initFlags() {
 
 	// TLS
 	Server.Flags().BoolVar(&c.Kafka.TLS.Enable, "tls-enable", false, "Whether or not to use TLS when connecting to the broker")
+	Server.Flags().DurationVar(&c.Kafka.TLS.Refresh, "tls-refresh", 0*time.Second, "Interval for refreshing client TLS certificates. If set to zero, the refresh watch is disabled")
 	Server.Flags().BoolVar(&c.Kafka.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", false, "It controls whether a client verifies the server's certificate chain and host name")
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientCertFile, "tls-client-cert-file", "", "PEM encoded file with client certificate")
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyFile, "tls-client-key-file", "", "PEM encoded file with private key for the client certificate")
 	Server.Flags().StringVar(&c.Kafka.TLS.ClientKeyPassword, "tls-client-key-password", os.Getenv("TLS_CLIENT_KEY_PASSWORD"), "Password to decrypt rsa private key")
 	Server.Flags().StringVar(&c.Kafka.TLS.CAChainCertFile, "tls-ca-chain-cert-file", "", "PEM encoded CA's certificate file")
+	Server.Flags().BoolVar(&c.Kafka.TLS.SystemCertPool, "tls-system-cert-pool", false, "Use system pool for root CAs")
 
 	//Same TLS client cert tls-same-client-cert-enable
 	Server.Flags().BoolVar(&c.Kafka.TLS.SameClientCertEnable, "tls-same-client-cert-enable", false, "Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)")
@@ -181,6 +187,8 @@ func initFlags() {
 	// SASL AWS_MSK_IAM
 	Server.Flags().StringVar(&c.Kafka.SASL.AWSConfig.Region, "sasl-aws-region", "", "Region for AWS IAM Auth")
 	Server.Flags().StringVar(&c.Kafka.SASL.AWSConfig.Profile, "sasl-aws-profile", "", "AWS profile")
+	Server.Flags().StringVar(&c.Kafka.SASL.AWSConfig.RoleArn, "sasl-aws-role-arn", "", "AWS Role ARN to assume")
+	Server.Flags().BoolVar(&c.Kafka.SASL.AWSConfig.IdentityLookup, "sasl-aws-identity-lookup", false, "Verify AWS authentication identity")
 
 	// SASL by Proxy plugin
 	Server.Flags().BoolVar(&c.Kafka.SASL.Plugin.Enable, "sasl-plugin-enable", false, "Use plugin for SASL authentication")
@@ -202,7 +210,7 @@ func initFlags() {
 
 	// Logging
 	Server.Flags().StringVar(&c.Log.Format, "log-format", "text", "Log format text or json")
-	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level debug, info, warning, error, fatal or panic")
+	Server.Flags().StringVar(&c.Log.Level, "log-level", "info", "Log level trace, debug, info, warning, error, fatal or panic")
 	Server.Flags().StringVar(&c.Log.LevelFieldName, "log-level-fieldname", "@level", "Log level fieldname for json format")
 	Server.Flags().StringVar(&c.Log.TimeFiledName, "log-time-fieldname", "@timestamp", "Time fieldname for json format")
 	Server.Flags().StringVar(&c.Log.MsgFiledName, "log-msg-fieldname", "@message", "Message fieldname for json format")
@@ -444,7 +452,7 @@ func Run(_ *cobra.Command, _ []string) {
 func NewHTTPHandler() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(
+		_, _ = w.Write([]byte(
 			`<html>
 				<head>
 					<title>kafka-proxy service</title>
@@ -456,7 +464,7 @@ func NewHTTPHandler() http.Handler {
 	        </html>`))
 	})
 	m.HandleFunc(c.Http.HealthPath, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`OK`))
+		_, _ = w.Write([]byte(`OK`))
 	})
 	m.Handle(c.Http.MetricsPath, promhttp.Handler())
 
@@ -483,6 +491,25 @@ func SetLogger() {
 		level = logrus.InfoLevel
 	}
 	logrus.SetLevel(level)
+
+	slog.SetDefault(slog.New(sloglogrus.Option{Level: toSlogLevel(level), Logger: logrus.StandardLogger()}.NewLogrusHandler()))
+}
+
+func toSlogLevel(level logrus.Level) slog.Level {
+	switch level {
+	case logrus.TraceLevel:
+		return slog.LevelDebug
+	case logrus.DebugLevel:
+		return slog.LevelDebug
+	case logrus.InfoLevel:
+		return slog.LevelInfo
+	case logrus.WarnLevel:
+		return slog.LevelWarn
+	case logrus.ErrorLevel, logrus.PanicLevel:
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func NewPluginClient(handshakeConfig plugin.HandshakeConfig, plugins map[string]plugin.Plugin, logLevel string, command string, params []string) *plugin.Client {

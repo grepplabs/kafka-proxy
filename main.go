@@ -13,7 +13,7 @@ var RootCmd = &cobra.Command{
 	Short: "Server that proxies requests to Kafka brokers",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		_ = cmd.Help()
 		os.Exit(1)
 	},
 }

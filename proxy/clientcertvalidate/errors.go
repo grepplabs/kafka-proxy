@@ -7,7 +7,6 @@ import (
 )
 
 var errUnexpectedPattern = errors.New("errUnexpectedPattern")
-var errNestedPattern = errors.New("errNestedPattern")
 
 // ClientCertificateRejectedError contains the details of the certificate rejection reason.
 type ClientCertificateRejectedError struct {

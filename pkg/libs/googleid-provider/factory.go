@@ -38,7 +38,10 @@ func (t *Factory) New(params []string) (apis.TokenProvider, error) {
 	fs.BoolVar(&pluginMeta.credentialsWatch, "credentials-watch", true, "Watch credential for reload")
 	fs.StringVar(&pluginMeta.targetAudience, "target-audience", "", "URI of audience claim")
 
-	fs.Parse(params)
+	err := fs.Parse(params)
+	if err != nil {
+		return nil, err
+	}
 
 	options := TokenProviderOptions{
 		Timeout:          pluginMeta.timeout,

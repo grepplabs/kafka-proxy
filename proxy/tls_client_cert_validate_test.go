@@ -36,7 +36,7 @@ func TestValidEnabledClientCertSubjectValidate(t *testing.T) {
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -71,7 +71,7 @@ func TestInvalidEnabledClientCertSubjectValidate(t *testing.T) {
 	}
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -106,7 +106,7 @@ func TestValidEnabledClientCertSubjectMayContainNotRequiredValues(t *testing.T) 
 	}
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -135,7 +135,7 @@ func TestValidEnabledClientCertSubjectMayContainValuesInDifferentOrder(t *testin
 	}
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -179,7 +179,7 @@ func TestClientCertMultipleSubjects(t *testing.T) {
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -223,7 +223,7 @@ func TestClientCertMultipleSubjectsPatterns(t *testing.T) {
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -260,7 +260,7 @@ func TestClientCertMultiplePatternMatchingFields(t *testing.T) {
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -297,7 +297,7 @@ func TestClientCertMultiplePatternNotMatchingFields(t *testing.T) {
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()
@@ -334,7 +334,7 @@ func TestClientCertMultiplePatternMatchingFieldsOrderDoesNotMatter(t *testing.T)
 
 	c.Proxy.TLS.ListenerCertFile = bundle.ServerCert.Name()
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
-	c.Proxy.TLS.CAChainCertFile = bundle.CACert.Name()
+	c.Proxy.TLS.ListenerCAChainCertFile = bundle.CACert.Name()
 
 	c.Kafka.TLS.CAChainCertFile = bundle.CACert.Name()
 	c.Kafka.TLS.ClientCertFile = bundle.ClientCert.Name()

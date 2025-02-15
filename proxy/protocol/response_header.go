@@ -72,9 +72,7 @@ func (r *ResponseHeaderTaggedFields) MaybeRead(reader io.Reader) ([]byte, error)
 			if err != nil {
 				return nil, errors.Wrap(err, "error while reading tagged field size")
 			}
-			if size < 0 {
-				return nil, errors.New("negative size of tagged field data")
-			} else if size == 0 {
+			if size == 0 {
 				continue
 			} else {
 				if _, err := io.CopyN(io.Discard, reader, int64(size)); err != nil {

@@ -20,7 +20,7 @@ const (
 	apiKeySaslHandshake  = int16(17)
 	apiKeyApiApiVersions = int16(18)
 
-	minRequestApiKey = int16(0)   // 0 - Produce
+	minRequestApiKey = int16(0)     // 0 - Produce
 	maxRequestApiKey = int16(20000) // so far 67 is the last (reserve some for the feature)
 )
 
@@ -117,8 +117,10 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 			return true, err
 		}
 	}
-	src.SetDeadline(time.Time{})
-
+	err = src.SetDeadline(time.Time{})
+	if err != nil {
+		return false, err
+	}
 	ctx := &RequestsLoopContext{
 		openRequestsChannel:        p.openRequestsChannel,
 		nextRequestHandlerChannel:  p.nextRequestHandlerChannel,

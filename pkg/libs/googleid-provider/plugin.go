@@ -146,10 +146,7 @@ func renewLatest(token *googleid.Token) bool {
 	}
 	// renew before expiry
 	advExp := token.ClaimSet.Exp - int64(clockSkew.Seconds())
-	if nowFn().Unix() > advExp {
-		return true
-	}
-	return false
+	return nowFn().Unix() > advExp
 }
 
 // GetToken implements apis.TokenProvider.GetToken method

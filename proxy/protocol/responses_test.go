@@ -263,7 +263,7 @@ func TestEmptyMetadataResponseV0(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func TestMetadataResponseV0(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -388,7 +388,7 @@ func TestMetadataResponseV0(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -499,7 +499,7 @@ func TestMetadataResponseV1(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -556,7 +556,7 @@ func TestMetadataResponseV1(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -684,7 +684,7 @@ func TestMetadataResponseV2(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -743,7 +743,7 @@ func TestMetadataResponseV2(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -875,7 +875,7 @@ func TestMetadataResponseV3(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -935,7 +935,7 @@ func TestMetadataResponseV3(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1068,7 +1068,7 @@ func TestMetadataResponseV4(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1128,7 +1128,7 @@ func TestMetadataResponseV4(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1261,7 +1261,7 @@ func TestMetadataResponseV5(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1325,7 +1325,7 @@ func TestMetadataResponseV5(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1463,7 +1463,7 @@ func TestMetadataResponseV6(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1527,7 +1527,7 @@ func TestMetadataResponseV6(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1667,7 +1667,7 @@ func TestMetadataResponseV7(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1732,7 +1732,7 @@ func TestMetadataResponseV7(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1879,7 +1879,7 @@ func TestMetadataResponseV8(t *testing.T) {
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -1947,7 +1947,7 @@ func TestMetadataResponseV8(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2448,7 +2448,7 @@ func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expect
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
 
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2472,7 +2472,7 @@ func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expect
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2504,7 +2504,7 @@ func TestFindCoordinatorResponseV0(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2528,7 +2528,7 @@ func TestFindCoordinatorResponseV0(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2572,7 +2572,7 @@ func TestFindCoordinatorResponseV1(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2598,7 +2598,7 @@ func TestFindCoordinatorResponseV1(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2644,7 +2644,7 @@ func TestFindCoordinatorResponseV2(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2670,7 +2670,7 @@ func TestFindCoordinatorResponseV2(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2701,7 +2701,7 @@ func TestFindCoordinatorResponseV3(t *testing.T) {
 
 	s, err := DecodeSchema(bytes, schema)
 	a.Nil(err)
-	dc := NewDecodeCheck()
+	dc := newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2728,7 +2728,7 @@ func TestFindCoordinatorResponseV3(t *testing.T) {
 	a.Nil(err)
 	s, err = DecodeSchema(resp, schema)
 	a.Nil(err)
-	dc = NewDecodeCheck()
+	dc = newDecodeCheck()
 	err = dc.Traverse(s)
 	if err != nil {
 		t.Fatal(err)
@@ -2870,7 +2870,7 @@ func TestMetadataResponses(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dc := NewDecodeCheck()
+		dc := newDecodeCheck()
 		err = dc.Traverse(s)
 		if err != nil {
 			t.Fatal(err)
@@ -2897,7 +2897,7 @@ func TestMetadataResponses(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dc = NewDecodeCheck()
+		dc = newDecodeCheck()
 		err = dc.Traverse(s)
 		if err != nil {
 			t.Fatal(err)
@@ -2982,7 +2982,7 @@ func TestFindCoordinatorResponse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dc := NewDecodeCheck()
+		dc := newDecodeCheck()
 		err = dc.Traverse(s)
 		if err != nil {
 			t.Fatal(err)
@@ -3009,7 +3009,7 @@ func TestFindCoordinatorResponse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dc = NewDecodeCheck()
+		dc = newDecodeCheck()
 		err = dc.Traverse(s)
 		if err != nil {
 			t.Fatal(err)
@@ -3022,12 +3022,12 @@ type decodeCheck struct {
 	attrValues []string
 }
 
-func NewDecodeCheck() *decodeCheck {
+func newDecodeCheck() *decodeCheck {
 	return &decodeCheck{attrValues: make([]string, 0)}
 }
 
 func (t *decodeCheck) Traverse(s *Struct) error {
-	for i, _ := range s.GetSchema().GetFields() {
+	for i := range s.GetSchema().GetFields() {
 		arg := s.Values[i]
 		if err := t.value(s, arg, i); err != nil {
 			return err

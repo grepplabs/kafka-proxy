@@ -257,7 +257,10 @@ func main() {
 
 	pluginMeta := &pluginMeta{}
 	flags := pluginMeta.flagSet()
-	flags.Parse(os.Args[1:])
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		logrus.Errorf("error parsing flags: %v", err)
+		os.Exit(1)
+	}
 
 	urls, err := pluginMeta.getUrls()
 	if err != nil {

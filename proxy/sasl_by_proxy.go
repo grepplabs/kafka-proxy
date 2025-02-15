@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -100,7 +100,7 @@ func (b *SASLPlainAuth) sendSaslAuthenticateRequest(conn DeadlineReaderWriter) e
 	}
 	_, err = conn.Write(authBytes)
 	if err != nil {
-		return errors.Wrap(err, "Failed to write SASL auth header")
+		return fmt.Errorf("failed to write SASL auth header: %w", err)
 	}
 
 	err = conn.SetReadDeadline(time.Now().Add(b.readTimeout))
@@ -116,7 +116,7 @@ func (b *SASLPlainAuth) sendSaslAuthenticateRequest(conn DeadlineReaderWriter) e
 		if err == io.EOF {
 			return fmt.Errorf("SASL/PLAIN auth for user %s failed", b.username)
 		}
-		return errors.Wrap(err, "Failed to read response while authenticating with SASL")
+		return fmt.Errorf("failed to read response while authenticating with SASL: %w", err)
 	}
 	return nil
 }
@@ -141,7 +141,7 @@ func (b *SASLHandshake) sendAndReceiveHandshake(conn DeadlineReaderWriter) error
 
 	_, err = conn.Write(bytes.Join([][]byte{sizeBuf, reqBuf}, nil))
 	if err != nil {
-		return errors.Wrap(err, "Failed to send SASL handshake")
+		return fmt.Errorf("failed to send SASL handshake: %w", err)
 	}
 
 	err = conn.SetReadDeadline(time.Now().Add(b.readTimeout))
@@ -153,23 +153,22 @@ func (b *SASLHandshake) sendAndReceiveHandshake(conn DeadlineReaderWriter) error
 	header := make([]byte, 8) // response header
 	_, err = io.ReadFull(conn, header)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read SASL handshake header")
+		return fmt.Errorf("failed to read SASL handshake header: %w", err)
 	}
 	length := binary.BigEndian.Uint32(header[:4])
 	payload := make([]byte, length-4)
 	_, err = io.ReadFull(conn, payload)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read SASL handshake payload")
+		return fmt.Errorf("failed to read SASL handshake payload: %w", err)
 	}
 	res := &protocol.SaslHandshakeResponseV0orV1{}
 	err = protocol.Decode(payload, res)
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse SASL handshake")
+		return fmt.Errorf("failed to parse SASL handshake: %w", err)
 	}
-	if res.Err != protocol.ErrNoError {
-		return errors.Wrap(res.Err, "Invalid SASL Mechanism")
+	if !errors.Is(res.Err, protocol.ErrNoError) {
+		return fmt.Errorf("invalid SASL Mechanism: %w", res.Err)
 	}
-
 	logrus.Debugf("Successful SASL handshake. Available mechanisms: %v", res.EnabledMechanisms)
 	return nil
 }
@@ -231,7 +230,7 @@ func (b *SASLOAuthBearerAuth) sendSaslAuthenticateRequest(token string, conn Dea
 
 	_, err = conn.Write(bytes.Join([][]byte{sizeBuf, reqBuf}, nil))
 	if err != nil {
-		return errors.Wrap(err, "Failed to send SASL auth request")
+		return fmt.Errorf("failed to send SASL auth request: %w", err)
 	}
 
 	err = conn.SetReadDeadline(time.Now().Add(b.readTimeout))
@@ -243,22 +242,22 @@ func (b *SASLOAuthBearerAuth) sendSaslAuthenticateRequest(token string, conn Dea
 	header := make([]byte, 8) // response header
 	_, err = io.ReadFull(conn, header)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read SASL auth header")
+		return fmt.Errorf("failed to read SASL auth header: %w", err)
 	}
 	length := binary.BigEndian.Uint32(header[:4])
 	payload := make([]byte, length-4)
 	_, err = io.ReadFull(conn, payload)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read SASL auth payload")
+		return fmt.Errorf("failed to read SASL auth payload: %w", err)
 	}
 
 	res := &protocol.SaslAuthenticateResponseV0{}
 	err = protocol.Decode(payload, res)
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse SASL auth response")
+		return fmt.Errorf("failed to parse SASL auth response: %w", err)
 	}
-	if res.Err != protocol.ErrNoError {
-		return errors.Wrapf(res.Err, "SASL authentication failed, error message is '%v'", res.ErrMsg)
+	if !errors.Is(res.Err, protocol.ErrNoError) {
+		return fmt.Errorf("SASL authentication failed, error message is '%v'", res.ErrMsg)
 	}
 	return nil
 }

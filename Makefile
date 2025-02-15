@@ -10,7 +10,7 @@ VERSION       ?= $(shell git describe --tags --always --dirty)
 GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
-TAG           ?= "v0.3.12"
+TAG           ?= "v0.4.0"
 GOOS          ?= $(if $(TARGETOS),$(TARGETOS),linux)
 GOARCH        ?= $(if $(TARGETARCH),$(TARGETARCH),amd64)
 GOARM         ?= $(TARGETVARIANT)
@@ -21,6 +21,8 @@ PROTOC_GRPC_VERSION ?= v1.2
 PROTOC_VERSION ?= 22.2
 PROTOC_BIN_DIR := .tools
 PROTOC := $(PROTOC_BIN_DIR)/protoc
+
+GOLANGCI_LINT = go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
 
 default: build
 
@@ -33,9 +35,16 @@ test:
 fmt:
 	go fmt $(GOPKGS)
 
-check:
-	golint $(GOPKGS)
+check: lint-code
 	go vet $(GOPKGS)
+
+.PHONY: lint-code
+lint-code:
+	$(GOLANGCI_LINT) run --timeout 5m
+
+.PHONY: lint-fix
+lint-fix:
+	$(GOLANGCI_LINT) run --fix
 
 .PHONY: build
 build: build/$(BINARY)

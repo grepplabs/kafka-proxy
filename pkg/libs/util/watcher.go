@@ -70,13 +70,16 @@ func watchFileForUpdates(filename string, done <-chan bool, action func()) error
 	done:
 		for {
 			select {
-			case _ = <-done:
+			case <-done:
 				logrus.Printf("Shutting down watcher for: %s", filename)
 				break done
 			case event := <-watcher.Events:
 				if event.Op&(fsnotify.Remove|fsnotify.Rename|fsnotify.Chmod) != 0 {
 					logrus.Debugf("watching interrupted on event: %s", event)
-					watcher.Remove(filename)
+					err := watcher.Remove(filename)
+					if err != nil {
+						logrus.Debugf("failed to remove %s: %s", filename, err)
+					}
 					waitForReplacement(filename, event.Op, watcher)
 				}
 				logrus.Infof("execute action after event %s on %s ", event.Op, event.Name)
@@ -114,13 +117,16 @@ func watchLinkForUpdates(filename string, done <-chan bool, action func()) error
 	done:
 		for {
 			select {
-			case _ = <-done:
+			case <-done:
 				logrus.Printf("Shutting down watcher for: %s", dirname)
 				break done
 			case event := <-watcher.Events:
 				if event.Op&(fsnotify.Remove|fsnotify.Rename|fsnotify.Chmod) != 0 {
 					logrus.Debugf("watching interrupted on event: %s", event)
-					watcher.Remove(dirname)
+					err := watcher.Remove(dirname)
+					if err != nil {
+						logrus.Debugf("failed to remove %s: %s", dirname, err)
+					}
 					waitForReplacement(dirname, event.Op, watcher)
 				}
 				if event.Op&(fsnotify.Remove) != 0 {

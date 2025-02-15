@@ -48,11 +48,11 @@ As not every Kafka release adds new messages/versions which are relevant to the 
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.12/kafka-proxy-v0.3.12-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.3.12/kafka-proxy-v0.3.12-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -70,7 +70,7 @@ Docker images are available on [Docker Hub](https://hub.docker.com/r/grepplabs/k
 
 You can launch a kafka-proxy container for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.3.12 \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0 \
               server \
             --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
             --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
@@ -89,7 +89,7 @@ Docker images with precompiled plugins located in `/opt/kafka-proxy/bin/` are ta
 
 You can launch a kafka-proxy container with auth-ldap plugin for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.3.12-all \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0-all \
                   server \
                 --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
                 --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
@@ -140,6 +140,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --debug-enable                                         Enable Debug endpoint
             --debug-listen-address string                          Debug listen address (default "0.0.0.0:6060")
             --default-listener-ip string                           Default listener IP (default "0.0.0.0")
+            --deterministic-listeners                              Enable deterministic listeners (listener port = min port + broker id).
             --dial-address-mapping stringArray                     Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
             --dynamic-advertised-listener string                   Advertised address for dynamic listeners. If empty, default-listener-ip is used
             --dynamic-listeners-disable                            Disable dynamic listeners.
@@ -170,7 +171,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --kafka-read-timeout duration                          How long to wait for a response (default 30s)
             --kafka-write-timeout duration                         How long to wait for a transmit (default 30s)
             --log-format string                                    Log format text or json (default "text")
-            --log-level string                                     Log level debug, info, warning, error, fatal or panic (default "info")
+            --log-level string                                     Log level trace, debug, info, warning, error, fatal or panic (default "info")
             --log-level-fieldname string                           Log level fieldname for json format (default "@level")
             --log-msg-fieldname string                             Message fieldname for json format (default "@message")
             --log-time-fieldname string                            Time fieldname for json format (default "@timestamp")
@@ -178,18 +179,22 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --proxy-listener-ca-chain-cert-file string             PEM encoded CA's certificate file. If provided, client certificate is required and verified
             --proxy-listener-cert-file string                      PEM encoded file with server certificate
             --proxy-listener-cipher-suites strings                 List of supported cipher suites
+            --proxy-listener-crl-file string                       PEM encoded X509 CRLs file
             --proxy-listener-curve-preferences strings             List of curve preferences
             --proxy-listener-keep-alive duration                   Keep alive period for an active network connection. If zero, keep-alives are disabled (default 1m0s)
             --proxy-listener-key-file string                       PEM encoded file with private key for the server certificate
             --proxy-listener-key-password string                   Password to decrypt rsa private key
             --proxy-listener-read-buffer-size int                  Size of the operating system's receive buffer associated with the connection. If zero, system default is used
             --proxy-listener-tls-enable                            Whether or not to use TLS listener
+            --proxy-listener-tls-refresh duration                  Interval for refreshing server TLS certificates. If set to zero, the refresh watch is disabled
             --proxy-listener-tls-required-client-subject strings   Required client certificate subject common name; example; s:/CN=[value]/C=[state]/C=[DE,PL] or r:/CN=[^val.{2}$]/C=[state]/C=[DE,PL]; check manual for more details
             --proxy-listener-write-buffer-size int                 Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used
             --proxy-request-buffer-size int                        Request buffer size pro tcp connection (default 4096)
             --proxy-response-buffer-size int                       Response buffer size pro tcp connection (default 4096)
+            --sasl-aws-identity-lookup                             Verify AWS authentication identity
             --sasl-aws-profile string                              AWS profile
             --sasl-aws-region string                               Region for AWS IAM Auth
+            --sasl-aws-role-arn string                             AWS Role ARN to assume
             --sasl-enable                                          Connect using SASL
             --sasl-jaas-config-file string                         Location of JAAS config file with SASL username and password
             --sasl-method string                                   SASL method to use (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, AWS_MSK_IAM (default "PLAIN")
@@ -207,7 +212,9 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --tls-client-key-password string                       Password to decrypt rsa private key
             --tls-enable                                           Whether or not to use TLS when connecting to the broker
             --tls-insecure-skip-verify                             It controls whether a client verifies the server's certificate chain and host name
+            --tls-refresh duration                                 Interval for refreshing client TLS certificates. If set to zero, the refresh watch is disabled
             --tls-same-client-cert-enable                          Use only when mutual TLS is enabled on proxy and broker. It controls whether a proxy validates if proxy client certificate exactly matches brokers client cert (tls-client-cert-file)
+            --tls-system-cert-pool                                 Use system pool for root CAs
 
 ### Usage example
 	

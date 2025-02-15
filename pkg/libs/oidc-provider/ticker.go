@@ -109,9 +109,5 @@ func renewEarliest(claimSet *oidc.ClaimSet) bool {
 	refreshAfter := int64(validity / 2)
 	refreshTime := claimSet.Exp - int64(clockSkew.Seconds()) - refreshAfter
 	// logrus.Debugf("New refresh time %d (%v)", refreshTime, time.Unix(refreshTime, 0))
-	if nowFn().Unix() > refreshTime {
-		return true
-	}
-
-	return false
+	return nowFn().Unix() > refreshTime
 }
