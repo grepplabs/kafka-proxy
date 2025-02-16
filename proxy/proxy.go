@@ -1,11 +1,13 @@
 package proxy
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"strconv"
 	"sync"
+	"text/template"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/pkg/libs/util"
@@ -190,17 +192,57 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) 
 	port := l.Addr().(*net.TCPAddr).Port
 	address := net.JoinHostPort(p.defaultListenerIP, fmt.Sprint(port))
 
-	dynamicAdvertisedListener := p.dynamicAdvertisedListener
-	if dynamicAdvertisedListener == "" {
-		dynamicAdvertisedListener = p.defaultListenerIP
+	dynamicAdvertisedHost, dynamicAdvertisedPort, err := p.getDynamicAdvertisedAddress(cfg.BrokerID, port)
+	if err != nil {
+		return "", 0, err
 	}
-	cfg.AdvertisedAddress = net.JoinHostPort(dynamicAdvertisedListener, fmt.Sprint(port))
+	cfg.AdvertisedAddress = net.JoinHostPort(dynamicAdvertisedHost, fmt.Sprint(dynamicAdvertisedPort))
 	cfg.ListenerAddress = address
 
 	p.brokerToListenerConfig[brokerAddress] = cfg
 	logrus.Infof("Dynamic listener %s for broker %s brokerId %d advertised as %s", cfg.ListenerAddress, cfg.GetBrokerAddress(), cfg.BrokerID, cfg.AdvertisedAddress)
 
-	return dynamicAdvertisedListener, int32(port), nil
+	return dynamicAdvertisedHost, int32(dynamicAdvertisedPort), nil
+}
+
+func (p *Listeners) getDynamicAdvertisedAddress(brokerID int32, port int) (string, int, error) {
+	dynamicAdvertisedListener := p.dynamicAdvertisedListener
+	if dynamicAdvertisedListener == "" {
+		return p.defaultListenerIP, port, nil
+	}
+	dynamicAdvertisedListener, err := p.templateDynamicAdvertisedAddress(brokerID)
+	if err != nil {
+		return "", 0, err
+	}
+	var (
+		dynamicAdvertisedHost = dynamicAdvertisedListener
+		dynamicAdvertisedPort = port
+	)
+	advHost, advPortStr, err := net.SplitHostPort(dynamicAdvertisedListener)
+	if err == nil {
+		if advPort, err := strconv.Atoi(advPortStr); err == nil {
+			dynamicAdvertisedHost = advHost
+			dynamicAdvertisedPort = advPort
+		}
+	}
+	return dynamicAdvertisedHost, dynamicAdvertisedPort, nil
+}
+
+func (p *Listeners) templateDynamicAdvertisedAddress(brokerID int32) (string, error) {
+	tmpl, err := template.New("dynamicAdvertisedHost").Option("missingkey=error").Parse(p.dynamicAdvertisedListener)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse host template '%s': %w", p.dynamicAdvertisedListener, err)
+	}
+	var buf bytes.Buffer
+	data := map[string]any{
+		"brokerId": brokerID,
+		"brokerID": brokerID,
+	}
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute host template '%s': %w", p.dynamicAdvertisedListener, err)
+	}
+	return buf.String(), nil
 }
 
 func (p *Listeners) ListenInstances(cfgs []config.ListenerConfig) (<-chan Conn, error) {

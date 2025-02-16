@@ -283,3 +283,135 @@ func TestGetBrokerToListenerConfig(t *testing.T) {
 		assert.ObjectsAreEqual(tt.mapping, mapping)
 	}
 }
+
+func TestGetDynamicAdvertisedAddress(t *testing.T) {
+	tests := []struct {
+		name                      string
+		dynamicAdvertisedListener string
+		defaultListenerIP         string
+		brokerID                  int32
+		port                      int
+		expectedHost              string
+		expectedPort              int
+		expectError               bool
+	}{
+		{
+			name:                      "Default listener IP is 127.0.0.1",
+			dynamicAdvertisedListener: "",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  1,
+			port:                      9092,
+			expectedHost:              "127.0.0.1",
+			expectedPort:              9092,
+			expectError:               false,
+		},
+		{
+			name:                      "Default listener IP is 0.0.0.0",
+			dynamicAdvertisedListener: "",
+			defaultListenerIP:         "0.0.0.0",
+			brokerID:                  1,
+			port:                      9092,
+			expectedHost:              "0.0.0.0",
+			expectedPort:              9092,
+			expectError:               false,
+		},
+		{
+			name:                      "Default listener IP is localhost",
+			dynamicAdvertisedListener: "",
+			defaultListenerIP:         "localhost",
+			brokerID:                  1,
+			port:                      9092,
+			expectedHost:              "localhost",
+			expectedPort:              9092,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener no template, host is IP",
+			dynamicAdvertisedListener: "0.0.0.0",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "0.0.0.0",
+			expectedPort:              9093,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener no template, host is IP and port is provided",
+			dynamicAdvertisedListener: "0.0.0.0:30000",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "0.0.0.0",
+			expectedPort:              30000,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener no template, host is dns name",
+			dynamicAdvertisedListener: "kafka-proxy.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "kafka-proxy.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com",
+			expectedPort:              9093,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener no template, host is dns name and port is provided",
+			dynamicAdvertisedListener: "kafka-proxy.grepplabs.com:30000",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "kafka-proxy.grepplabs.com",
+			expectedPort:              30000,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener with template",
+			dynamicAdvertisedListener: "b-{{.brokerId}}.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "b-2.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com",
+			expectedPort:              9093,
+			expectError:               false,
+		},
+		{
+			name:                      "Dynamic listener with template and port is provided",
+			dynamicAdvertisedListener: "b-{{.brokerId}}.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com:30000",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  2,
+			port:                      9093,
+			expectedHost:              "b-2.provisionedmskclust.zgjvgc.c2.kafka.eu-central-1.amazonaws.com",
+			expectedPort:              30000,
+			expectError:               false,
+		},
+		{
+			name:                      "Invalid dynamic listener template",
+			dynamicAdvertisedListener: "broker-{{.invalid}}",
+			defaultListenerIP:         "127.0.0.1",
+			brokerID:                  3,
+			port:                      9094,
+			expectedHost:              "",
+			expectedPort:              0,
+			expectError:               true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listeners := &Listeners{
+				dynamicAdvertisedListener: tt.dynamicAdvertisedListener,
+				defaultListenerIP:         tt.defaultListenerIP,
+			}
+
+			host, port, err := listeners.getDynamicAdvertisedAddress(tt.brokerID, tt.port)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedHost, host)
+				assert.Equal(t, tt.expectedPort, port)
+			}
+		})
+	}
+}
