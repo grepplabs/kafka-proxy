@@ -48,11 +48,11 @@ As not every Kafka release adds new messages/versions which are relevant to the 
 
    Linux
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-linux-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.1/kafka-proxy-v0.4.1-linux-amd64.tar.gz | tar xz
 
    macOS
 
-        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.0/kafka-proxy-v0.4.0-darwin-amd64.tar.gz | tar xz
+        curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/v0.4.1/kafka-proxy-v0.4.1-darwin-amd64.tar.gz | tar xz
 
 2. Move the binary in to your PATH.
 
@@ -70,7 +70,7 @@ Docker images are available on [Docker Hub](https://hub.docker.com/r/grepplabs/k
 
 You can launch a kafka-proxy container for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0 \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.1 \
               server \
             --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
             --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
@@ -89,7 +89,7 @@ Docker images with precompiled plugins located in `/opt/kafka-proxy/bin/` are ta
 
 You can launch a kafka-proxy container with auth-ldap plugin for trying it out with
 
-    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.0-all \
+    docker run --rm -p 30001-30003:30001-30003 grepplabs/kafka-proxy:0.4.1-all \
                   server \
                 --bootstrap-server-mapping "localhost:19092,0.0.0.0:30001" \
                 --bootstrap-server-mapping "localhost:29092,0.0.0.0:30002" \
@@ -142,7 +142,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --default-listener-ip string                           Default listener IP (default "0.0.0.0")
             --deterministic-listeners                              Enable deterministic listeners (listener port = min port + broker id).
             --dial-address-mapping stringArray                     Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment
-            --dynamic-advertised-listener string                   Advertised address for dynamic listeners. If empty, default-listener-ip is used
+            --dynamic-advertised-listener string                   Advertised address for dynamic listeners. If left empty, default-listener-ip is used. Supports templating with {{.brokerId}} for dynamic hostnames and a fixed port if provided.
             --dynamic-listeners-disable                            Disable dynamic listeners.
             --dynamic-sequential-min-port int                      If set to non-zero, makes the dynamic listener use a sequential port starting with this value rather than a random port every time.
             --external-server-mapping stringArray                  Mapping of Kafka server address to external address (host:port,host:port). A listener for the external address is not started
