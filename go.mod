@@ -1,7 +1,6 @@
 module github.com/grepplabs/kafka-proxy
 
 go 1.23
-
 require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/aws/aws-sdk-go-v2 v1.36.1
@@ -29,7 +28,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.10.0
 	github.com/xdg-go/scram v1.1.2
-	golang.org/x/net v0.34.0
+	golang.org/x/net v0.36.0
 	golang.org/x/oauth2 v0.24.0
 	google.golang.org/api v0.126.0
 	google.golang.org/grpc v1.70.0
@@ -86,7 +85,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
