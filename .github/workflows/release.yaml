@@ -20,9 +20,9 @@ jobs:
           describe=$(git describe --tags --always --dirty)
           echo "GIT_COMMIT_REF_NAME=$describe" >> $GITHUB_ENV
       - name: Setup go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: go.mod
           check-latest: true
       - run: go version
       - name: Run build and test
