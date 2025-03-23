@@ -228,6 +228,78 @@ func TestSameClientCertEnabledWithMissingFlags(t *testing.T) {
 	})
 }
 
+func TestDynamicPortIntervals(t *testing.T) {
+
+	setupBootstrapServersMappingTest()
+	noMinPort := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		"--deterministic-listeners", "",
+	}
+
+	noMinPort2 := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		"--dynamic-sequential-max-ports", "2000",
+	}
+
+	t.Run("MinPortMandatoryForDeterministicListeners", func(t *testing.T) {
+		serverPreRunFailure(t, noMinPort, "Proxy.DynamicSequentialMinPort must be set to a positive value between 1 and 65535 when Proxy.DeterministicListeners is enabled")
+	})
+	t.Run("MinPortMandatoryIfMaxPortsIsSet", func(t *testing.T) {
+		serverPreRunFailure(t, noMinPort2, "Proxy.DynamicSequentialMinPort must be set to a positive value between 1 and 65535 when Proxy.DynamicSequentialMaxPorts is set")
+	})
+
+	args1 := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		"--dynamic-sequential-min-port", "2000",
+		"--dynamic-sequential-max-ports", "2000",
+	}
+	_ = Server.ParseFlags(args1)
+	err := Server.PreRunE(nil, args1)
+	a := assert.New(t)
+	a.Nil(err)
+
+	args2 := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		"--dynamic-sequential-min-port", "2000",
+		"--dynamic-sequential-max-ports", "2000",
+		"--deterministic-listeners", "",
+	}
+	_ = Server.ParseFlags(args2)
+	err = Server.PreRunE(nil, args2)
+	a = assert.New(t)
+	a.Nil(err)
+
+	args3 := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+		"--dynamic-sequential-min-port", "2000",
+		"--deterministic-listeners", "",
+	}
+	_ = Server.ParseFlags(args3)
+	err = Server.PreRunE(nil, args3)
+	a = assert.New(t)
+	a.Nil(err)
+
+	args4 := []string{"cobra.test",
+		"--bootstrap-server-mapping", "192.168.99.100:32401,0.0.0.0:32401",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32402",
+		"--bootstrap-server-mapping", "192.168.99.100:32402,0.0.0.0:32403",
+	}
+	_ = Server.ParseFlags(args4)
+	err = Server.PreRunE(nil, args4)
+	a = assert.New(t)
+	a.Nil(err)
+}
+
 func serverPreRunFailure(t *testing.T, cmdLineFlags []string, expectedErrorMsg string) {
 	setupBootstrapServersMappingTest()
 
