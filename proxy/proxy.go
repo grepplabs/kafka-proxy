@@ -156,6 +156,9 @@ func (p *Listeners) findListenerConfig(brokerId int32) *ListenerConfig {
 // Make sure all dynamically allocated ports are within the half open interval
 // [dynamicSequentialMinPort, dynamicSequentialMinPort + dynamicSequentialMaxPorts).
 func (p *Listeners) nextDynamicPort(portOffset uint64, brokerAddress string, brokerId int32) (uint16, error) {
+	if p.dynamicSequentialMaxPorts == 0 {
+		return 0, fmt.Errorf("dynamic sequential max ports is 0")
+	}
 	port := p.dynamicSequentialMinPort + uint16(portOffset%uint64(p.dynamicSequentialMaxPorts))
 	if port < p.dynamicSequentialMinPort {
 		return 0, fmt.Errorf("port assignment overflow %s %d: %d", brokerAddress, brokerId, port)
@@ -198,7 +201,7 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) 
 			listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(0))
 		} else {
 			// Use sequentially allocated port.
-			port, err := p.nextDynamicPort(uint64(p.currentDynamicPortCounter), brokerAddress, brokerId)
+			port, err := p.nextDynamicPort(p.currentDynamicPortCounter, brokerAddress, brokerId)
 			if err != nil {
 				return "", 0, err
 			}

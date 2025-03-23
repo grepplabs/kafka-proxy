@@ -415,3 +415,70 @@ func TestGetDynamicAdvertisedAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestNextDynamicPort(t *testing.T) {
+	tests := []struct {
+		name             string
+		portOffset       uint64
+		minPort          uint16
+		maxPorts         uint16
+		expectedNextPort uint16
+		expectError      bool
+	}{
+		{
+			name:        "should not happen (checked in config) - max ports is 0",
+			expectError: true,
+		},
+		{
+			name:             "broker 0",
+			portOffset:       0,
+			minPort:          30000,
+			maxPorts:         1,
+			expectedNextPort: 30000,
+		},
+		{
+			name:             "broker 999",
+			portOffset:       999,
+			minPort:          30000,
+			maxPorts:         1000,
+			expectedNextPort: 30999,
+		},
+		{
+			name:             "wrap-around : maxPorts 1, portOffsets 0 and 1 produce the same port 30000, listen will fail with bind: address already in use",
+			portOffset:       1,
+			minPort:          30000,
+			maxPorts:         1,
+			expectedNextPort: 30000,
+		},
+		{
+			name:             "wrap-around : broker 1000",
+			portOffset:       1000,
+			minPort:          30000,
+			maxPorts:         1000,
+			expectedNextPort: 30000,
+		},
+		{
+			name:        "port assignment overflow",
+			portOffset:  15,
+			minPort:     65530,
+			maxPorts:    100,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listeners := &Listeners{
+				dynamicSequentialMinPort:  tt.minPort,
+				dynamicSequentialMaxPorts: tt.maxPorts,
+			}
+			nextPort, err := listeners.nextDynamicPort(tt.portOffset, "", int32(tt.portOffset))
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedNextPort, nextPort)
+			}
+		})
+	}
+}
