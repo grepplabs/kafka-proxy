@@ -24,7 +24,8 @@ func (r *RequestKeyVersion) decode(pd packetDecoder) (err error) {
 	return err
 }
 
-// Determine response header version. Function returns -1 for unknown api key.
+// Determine response header version.
+// For unknown API keys, return 1 (assume new / proprietary API keys suppoprt flexible versions)
 // See also public short responseHeaderVersion(short _version) in kafka/clients/src/generated/java/org/apache/kafka/common/message/ApiMessageType.java
 func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 	switch r.ApiKey {
@@ -387,7 +388,7 @@ func (r *RequestKeyVersion) ResponseHeaderVersion() int16 {
 	case 87: // ReadShareGroupStateSummary
 		return 1
 	default:
-		// throw new UnsupportedVersionException("Unsupported API key " + apiKey);
-		return -1
+		// Assume new API keys are always "flexible"
+		return 1
 	}
 }
