@@ -158,8 +158,8 @@ func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.Requ
 			if err != nil {
 				return false, nil, err
 			}
-
-		case 3, 4, 5, 6, 7, 8, 9, 10, 11:
+		default:
+			// case 3, 4, 5, 6, 7, 8, 9, 10, 11, 12:
 			// CorrelationID + ClientID
 			if err = acksReader.ReadAndDiscardHeaderV1Part(reader); err != nil {
 				return false, nil, err
@@ -169,8 +169,6 @@ func (handler *DefaultRequestHandler) mustReply(requestKeyVersion *protocol.Requ
 			if err != nil {
 				return false, nil, err
 			}
-		default:
-			return false, nil, fmt.Errorf("produce version %d is not supported", requestKeyVersion.ApiVersion)
 		}
 		return acks != 0, bufferRead.Bytes(), nil
 	}
