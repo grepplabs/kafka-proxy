@@ -12,7 +12,7 @@ builds:
   ignore:
     - goos: windows
       goarch: arm64
-  ldflags: -s -w -X github.com/grepplabs/kafka-proxy/config.Version={{.Version}}
+  ldflags: -s -w -X github.com/limoges/kafka-proxy/config.Version={{.Version}}
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}"
     files:
