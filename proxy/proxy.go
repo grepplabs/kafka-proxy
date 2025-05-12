@@ -352,7 +352,8 @@ func (p *Listeners) listenInstance(dst chan<- Conn, cfg BrokerConfigMap, opts TC
 
 				logrus.Infof("%s: Client(%s) Accepted tls connection with server name: %q", l.Addr().String(), c.RemoteAddr().String(), tlsState.ServerName)
 				if tlsState.ServerName == "" {
-					logrus.Warnf("%s: Client(%s) tls server name could not be read", l.Addr().String(), c.RemoteAddr().String())
+					logrus.Warnf("%s: Client(%s) tls server name could not be read, defaulting to advertised %s", l.Addr().String(), c.RemoteAddr().String(), cfg.GetAdvertisedAddress())
+					clientServerName = cfg.GetAdvertisedAddress()
 				} else {
 					clientServerName = tlsState.ServerName
 					logrus.Infof("%s: Client(%s) Discovered server name from tls client hello: %s", l.Addr().String(), c.RemoteAddr().String(), clientServerName)
