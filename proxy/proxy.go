@@ -345,17 +345,17 @@ func (p *Listeners) listenInstance(dst chan<- Conn, cfg BrokerConfigMap, opts TC
 				if !tlsState.HandshakeComplete {
 					err := conn.Handshake()
 					if err != nil {
-						logrus.Errorf("downstream server tls handshake error: %s", err)
+						logrus.Warnf("downstream client tls handshake error: %s", err)
 					}
 				}
 				tlsState = conn.ConnectionState()
-				logrus.Infof("%s: Client(%s) Accepted tls connection with server name: %q", l.Addr().String(), c.RemoteAddr().String(), tlsState.ServerName)
 
-				if clientServerName == "" {
-					logrus.Debugf("Discoverd server name from tls client hello: %s", clientServerName)
-					clientServerName = tlsState.ServerName
+				logrus.Infof("%s: Client(%s) Accepted tls connection with server name: %q", l.Addr().String(), c.RemoteAddr().String(), tlsState.ServerName)
+				if tlsState.ServerName == "" {
+					logrus.Warnf("%s: Client(%s) tls server name could not be read", l.Addr().String(), c.RemoteAddr().String())
 				} else {
-					logrus.Debugf("Using proxy protocol authority %q instead of tls sni %q", clientServerName, tlsState.ServerName)
+					clientServerName = tlsState.ServerName
+					logrus.Infof("%s: Client(%s) Discovered server name from tls client hello: %s", l.Addr().String(), c.RemoteAddr().String(), clientServerName)
 				}
 				underlyingConn = conn.NetConn()
 			}
