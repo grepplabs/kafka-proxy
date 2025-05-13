@@ -320,36 +320,34 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 	)
 
 	describeClusterV0 := NewSchema("describe_cluster_response_v0",
-		&Mfield{Name: "throttle_time-ms", Ty: TypeInt32},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
 		&Mfield{Name: "error_code", Ty: TypeInt16},
 		&Mfield{Name: "error_message", Ty: TypeNullableStr},
 		&Mfield{Name: "cluster_id", Ty: TypeStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 	)
 
 	describeClusterV1 := NewSchema("describe_cluster_response_v1",
-		&Mfield{Name: "throttle_time-ms", Ty: TypeInt32},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
 		&Mfield{Name: "error_code", Ty: TypeInt16},
 		&Mfield{Name: "error_message", Ty: TypeNullableStr},
 		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
-		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
 		&Mfield{Name: "cluster_id", Ty: TypeStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 	)
 
 	describeClusterV2 := NewSchema("describe_cluster_response_v2",
-		&Mfield{Name: "throttle_time-ms", Ty: TypeInt32},
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
 		&Mfield{Name: "error_code", Ty: TypeInt16},
 		&Mfield{Name: "error_message", Ty: TypeNullableStr},
 		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
-		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
 		&Mfield{Name: "cluster_id", Ty: TypeStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV2},
+		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV2},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 	)
 	return []Schema{describeClusterV0, describeClusterV1, describeClusterV2}
