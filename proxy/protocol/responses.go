@@ -352,6 +352,7 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
 		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
 	describeClusterV1 := NewSchema("describe_cluster_response_v1",
@@ -363,6 +364,7 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
 		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
 	describeClusterV2 := NewSchema("describe_cluster_response_v2",
@@ -374,6 +376,7 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
 		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV2},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 	return []Schema{describeClusterV0, describeClusterV1, describeClusterV2}
 }
