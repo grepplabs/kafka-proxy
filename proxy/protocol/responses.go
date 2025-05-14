@@ -309,6 +309,10 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
 		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
+		// by the spec it should not be here. However, in kafka itself they don't check API version
+		// and put this field starting from v0
+		// See https://github.com/tinaselenge/kafka/blob/814212f103c980f080593544079c4507f2557b08/core/src/main/scala/kafka/server/KafkaApis.scala#L3607
+		&Mfield{Name: "is_fenced", Ty: TypeBool},
 	)
 
 	describeClusterBrokerV2 := NewSchema("describe_cluster_broker_v2",
@@ -333,9 +337,9 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 	describeClusterV1 := NewSchema("describe_cluster_response_v1",
 		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
 		&Mfield{Name: "error_code", Ty: TypeInt16},
-		&Mfield{Name: "error_message", Ty: TypeNullableStr},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
 		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
-		&Mfield{Name: "cluster_id", Ty: TypeStr},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
 		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
