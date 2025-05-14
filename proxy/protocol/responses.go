@@ -331,9 +331,9 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 func createDescribeClusterResponseSchemaVersions() []Schema {
 	describeClusterBrokerV0 := NewSchema("describe_cluster_broker_v0",
 		&Mfield{Name: brokerKeyName, Ty: TypeInt32},
-		&Mfield{Name: hostKeyName, Ty: TypeStr},
+		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
 		&Mfield{Name: portKeyName, Ty: TypeInt32},
-		&Mfield{Name: "rack", Ty: TypeNullableStr},
+		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
 	)
 
 	describeClusterBrokerV2 := NewSchema("describe_cluster_broker_v2",
@@ -347,10 +347,10 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 	describeClusterV0 := NewSchema("describe_cluster_response_v0",
 		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
 		&Mfield{Name: "error_code", Ty: TypeInt16},
-		&Mfield{Name: "error_message", Ty: TypeNullableStr},
-		&Mfield{Name: "cluster_id", Ty: TypeStr},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
@@ -362,7 +362,7 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
 		&Mfield{Name: "cluster_id", Ty: TypeStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
@@ -374,7 +374,7 @@ func createDescribeClusterResponseSchemaVersions() []Schema {
 		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
 		&Mfield{Name: "cluster_id", Ty: TypeStr},
 		&Mfield{Name: "controller_id", Ty: TypeInt32},
-		&Array{Name: brokersKeyName, Ty: describeClusterBrokerV2},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV2},
 		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)

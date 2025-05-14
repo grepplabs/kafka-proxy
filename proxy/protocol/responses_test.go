@@ -2573,11 +2573,77 @@ func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expect
 	if err != nil {
 		t.Fatal(err)
 	}
-	/*
-		for _, av := range dc.AttrValues() {
-			fmt.Printf("\"%s\",\n", av)
-		}
-	*/
+	a.Equal(expectedInput, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = newDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Equal(expectedModified, dc.AttrValues())
+}
+
+func TestDescribeClusterV0(t *testing.T) {
+	apiVersion := int16(0)
+	payload := "0000000004000000010a6c6f63616c686f737400004a940000000000020a6c6f63616c686f7374000071a40000000000030a6c6f63616c686f7374000098b4000000ffffffff040000135f5f636f6e73756d65725f6f6666736574730000000000000000000000000000000001020000000000010000000100000005040000000100000002000000030400000001000000020000000301008000000000000507746f706963323293e5edee894e2cb924edb932be3d6e00018000000000000007746f70696333000000000000000000000000000000000002000500000000ffffffffffffffff04000000010000000200000003040000000100000002000000030100800000000000"
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 0",
+		"host string localhost",
+		"port int32 9092",
+		"rack *string <nil>",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 0",
+		"host string localhost",
+		"port int32 9092",
+		"rack *string <nil>",
+	}
+	testDescribeClusterResponse(t, apiVersion, payload, expectedInput, expectedModified)
+}
+
+func testDescribeClusterResponse(t *testing.T, apiVersion int16, payload string, expectedInput, expectedModified []string) {
+	bytes, err := hex.DecodeString(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := assert.New(t)
+
+	schema := describeClusterResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := newDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.Equal(expectedInput, dc.AttrValues())
 	resp, err := EncodeSchema(s, schema)
 	a.Nil(err)

@@ -2,8 +2,9 @@ package protocol
 
 import (
 	"encoding/binary"
-	"github.com/google/uuid"
 	"math"
+
+	"github.com/google/uuid"
 )
 
 var errInvalidArrayLength = PacketDecodingError{"invalid array length"}
