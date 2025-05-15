@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 
 	_ "net/http/pprof"
 )
@@ -29,6 +30,9 @@ func init() {
 }
 
 func main() {
+	runtime.SetBlockProfileRate(1)     // blocking sync primitives
+	runtime.SetMutexProfileFraction(1) // contended mutexes
+
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
