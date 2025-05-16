@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"runtime"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
@@ -224,7 +225,7 @@ func initFlags() {
 }
 
 func Run(_ *cobra.Command, _ []string) {
-	logrus.Infof("Starting kafka-proxy version %s", config.Version)
+	logrus.Infof("Starting kafka-proxy version %s on platform %s/%s", config.Version, runtime.GOOS, runtime.GOARCH)
 
 	var localPasswordAuthenticator apis.PasswordAuthenticator
 	var localTokenAuthenticator apis.TokenInfo
