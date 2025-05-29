@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 	"github.com/grepplabs/kafka-proxy/proxy/protocol"
 	"github.com/sirupsen/logrus"
 )
@@ -89,10 +90,13 @@ var apiKeyResources = map[int16]struct {
 	Operation    string
 }{
 	// Cluster operations
+	3:  {"Cluster", "Create"},          // Metadata
 	4:  {"Cluster", "ClusterAction"},   // LeaderAndIsr
 	5:  {"Cluster", "ClusterAction"},   // StopReplica
 	6:  {"Cluster", "ClusterAction"},   // UpdateMetadata
 	7:  {"Cluster", "ClusterAction"},   // ControlledShutdown
+	19: {"Cluster", "Create"},          // CreateTopics
+	23: {"Cluster", "ClusterAction"},   // OffsetForLeaderEpoch
 	27: {"Cluster", "ClusterAction"},   // WriteTxnMarkers
 	29: {"Cluster", "Describe"},        // DescribeAcls
 	30: {"Cluster", "Alter"},           // CreateAcls
@@ -101,29 +105,33 @@ var apiKeyResources = map[int16]struct {
 	33: {"Cluster", "AlterConfigs"},    // AlterConfigs
 	34: {"Cluster", "Alter"},           // AlterReplicaLogDirs
 	35: {"Cluster", "Describe"},        // DescribeLogDirs
+	16: {"Cluster", "Describe"},        // ListGroups
 
 	// Topic operations
 	0:  {"Topic", "Write"},    // Produce
 	1:  {"Topic", "Read"},     // Fetch
 	2:  {"Topic", "Describe"}, // ListOffsets
-	19: {"Topic", "Create"},   // CreateTopics
 	20: {"Topic", "Delete"},   // DeleteTopics
 	21: {"Topic", "Delete"},   // DeleteRecords
 	24: {"Topic", "Write"},    // AddPartitionsToTxn
 	37: {"Topic", "Alter"},    // CreatePartitions
+	9:  {"Topic", "Describe"}, // OffsetFetch
+	8:  {"Topic", "Read"},     // OffsetCommit
+	28: {"Topic", "Read"},     // TxnOffsetCommit
 
 	// Group operations
+	10: {"Group", "Describe"}, // FindCoordinator
 	11: {"Group", "Read"},     // JoinGroup
 	12: {"Group", "Read"},     // Heartbeat
 	13: {"Group", "Read"},     // LeaveGroup
 	14: {"Group", "Read"},     // SyncGroup
 	15: {"Group", "Describe"}, // DescribeGroups
-	16: {"Group", "Describe"}, // ListGroups
+	25: {"Group", "Read"},     // AddOffsetsToTxn
 	42: {"Group", "Delete"},   // DeleteGroups
 
 	// TransactionalId operations
-	22: {"TransactionalId", "Write"}, // InitProducerId
 	26: {"TransactionalId", "Write"}, // EndTxn
+	22: {"TransactionalId", "Write"}, // InitProducerId
 
 	// DelegationToken operations
 	41: {"DelegationToken", "Describe"}, // DescribeTokens
@@ -222,20 +230,22 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 		}
 	}
 
-	mustReply, readBytes, topicName, err := handler.mustReply(requestKeyVersion, src, ctx)
+	mustReply, readBytes, topicNames, err := handler.mustReply(requestKeyVersion, src, ctx)
 	if err != nil {
 		return true, err
 	}
 
-	if topicName != "" {
-		logrus.Debugf("Topic name: %s", topicName)
-	}
+	ctx.acl = &apis.ACLCollection{}
 
-	var topic *string
+	for _, topicName := range topicNames {
+		if topicName != "" {
+			logrus.Debugf("Topic name: %s", topicName)
+		}
+	}
 
 	if ctx.aclChecker != nil { // Check if ACLChecker is configured
 		var allowed bool
-		allowed, err = ctx.aclChecker.CheckACL(context.Background(), requestKeyVersion, topicName) // Pass both requestKeyVersion and topic
+		allowed, _, err = ctx.aclChecker.CheckACL(context.Background(), 0, topicNames) // Pass both requestKeyVersion and topic
 		if err != nil {
 			return true, err
 		}
@@ -243,7 +253,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 			return true, fmt.Errorf("access denied for operation %s (api key %d) on topic %q",
 				getOperationName(requestKeyVersion.ApiKey),
 				requestKeyVersion.ApiKey,
-				*topic)
+				topicNames)
 		}
 	}
 
@@ -274,6 +284,7 @@ func (handler *DefaultRequestHandler) handleRequest(dst DeadlineWriter, src Dead
 			return false, err
 		}
 	}
+
 	// 4 bytes were written as keyVersionBuf (ApiKey, ApiVersion)
 	if readErr, err = myCopyN(dst, src, int64(requestKeyVersion.Length-int32(4+len(readBytes))), ctx.buf); err != nil {
 		return readErr, err
@@ -294,11 +305,11 @@ func (handler *DefaultRequestHandler) mustReply(
 	requestKeyVersion *protocol.RequestKeyVersion,
 	src io.Reader,
 	ctx *RequestsLoopContext,
-) (bool, []byte, string, error) {
+) (bool, []byte, []string, error) {
 	var (
 		needReply  bool = true
 		bufferRead bytes.Buffer
-		topicName  string
+		topicNames []string
 		err        error
 	)
 
@@ -311,129 +322,135 @@ func (handler *DefaultRequestHandler) mustReply(
 	case apiKeyProduce, apiKeyFetch, apiKeyListOffsets, apiKeyCreateTopics, apiKeyDeleteTopics:
 		// Read CorrelationID (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, nil, "", err
+			return false, nil, nil, err
 		}
 
 		// Read ClientID (NULLABLE_STRING)
 		if _, err = readNullableString(reader); err != nil {
-			return false, nil, "", err
+			return false, nil, nil, err
 		}
 
 		if requestKeyVersion.ResponseHeaderVersion() == 1 {
 			if err = readTaggedFields(reader); err != nil {
-				return false, nil, "", err
+				return false, nil, nil, err
 			}
 		}
 	default:
-		return true, nil, "", nil
+		return true, nil, nil, nil
 	}
 
 	switch requestKeyVersion.ApiKey {
 	case apiKeyProduce:
-		needReply, topicName, err = handler.handleProduce(reader, requestKeyVersion, ctx)
+		needReply, topicNames, err = handler.handleProduce(reader, requestKeyVersion, ctx)
 	case apiKeyFetch:
-		needReply, topicName, err = handler.handleFetch(reader, requestKeyVersion)
+		needReply, topicNames, err = handler.handleFetch(reader, requestKeyVersion)
 	case apiKeyListOffsets:
-		needReply, topicName, err = handler.handleListOffsets(reader, requestKeyVersion)
+		needReply, topicNames, err = handler.handleListOffsets(reader, requestKeyVersion)
 	case apiKeyCreateTopics:
-		needReply, topicName, err = handler.handleCreateTopics(reader, requestKeyVersion)
+		needReply, topicNames, err = handler.handleCreateTopics(reader, requestKeyVersion)
 	case apiKeyDeleteTopics:
-		needReply, topicName, err = handler.handleDeleteTopics(reader, requestKeyVersion)
+		needReply, topicNames, err = handler.handleDeleteTopics(reader, requestKeyVersion)
+	case apiKeyDeleteRecords:
+		needReply, topicNames, err = handler.handleDeleteRecords(reader, requestKeyVersion)
+	case apiKeyCreatePartitions:
+		needReply, topicNames, err = handler.handleCreatePartitions(reader, requestKeyVersion)
 	default:
-		return true, nil, "", nil
+		return true, nil, nil, nil
 	}
 
 	if err != nil {
 		logrus.Errorf("Error processing request: %v", err)
-		return false, nil, "", err
+		return false, nil, nil, err
 	}
 
-	return needReply, bufferRead.Bytes(), topicName, nil
+	return needReply, bufferRead.Bytes(), topicNames, nil
 }
 
 func (handler *DefaultRequestHandler) handleProduce(
 	reader io.Reader,
 	requestKeyVersion *protocol.RequestKeyVersion,
 	ctx *RequestsLoopContext,
-) (bool, string, error) {
+) (bool, []string, error) {
 	var (
-		acks      int16
-		topicName string
-		err       error
+		acks       int16
+		topicNames []string
+		err        error
 	)
 
 	// Read transactional_id
 	if requestKeyVersion.ApiVersion >= 3 {
 		if requestKeyVersion.ApiVersion >= 9 {
 			if _, err = readCompactNullableString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 		} else {
 			if _, err = readNullableString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 		}
 	}
 
 	// Read acks and timeout_ms
 	if err = binary.Read(reader, binary.BigEndian, &acks); err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 	if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 
 	// Read topics array
 	var topicsCount int32
 	if requestKeyVersion.ApiVersion >= 9 {
 		if tc, err := readCompactArrayLength(reader); err != nil {
-			return false, "", err
+			return false, nil, err
 		} else {
 			topicsCount = tc
 		}
 	} else {
 		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 	logrus.Debugf("Topics count: %d", topicsCount)
+
+	topicNames = make([]string, 0, topicsCount)
 
 	for i := int32(0); i < topicsCount; i++ {
 		var currentTopicName string
 		if requestKeyVersion.ApiVersion >= 9 {
 			if currentTopicName, err = readCompactString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 			logrus.Debugf("Current topic name: %s", currentTopicName)
 			// Read partition data
 			partitionCount, err := readCompactArrayLength(reader)
 			if err != nil {
 				logrus.Errorf("Failed to read partition count for topic %s: %v", currentTopicName, err)
-				return false, "", err
+				return false, nil, err
 			}
 
 			for j := int32(0); j < partitionCount; j++ {
 				// Read partition index
 				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
 					logrus.Errorf("Failed to read partition index: %v", err)
-					return false, "", err
+					return false, nil, err
 				}
 
 				// Read records (COMPACT_RECORDS)
 				recordsLength, err := readUVarint(reader)
 				if err != nil {
 					logrus.Debugf("Records length: %d", recordsLength)
-					return false, "", err
+					return false, nil, err
 				}
 				if _, err := io.CopyN(io.Discard, reader, int64(recordsLength)); err != nil {
 					logrus.Errorf("Failed to read records: %v", err)
-					return false, "", err
+					return false, nil, err
 				}
 
 				// Read tagged fields for partition
 				if err = readTaggedFields(reader); err != nil {
 					logrus.Errorf("Failed to read tagged fields for partition: %v", err)
-					return false, "", err
+					return false, nil, err
 				}
 			}
 
@@ -443,103 +460,336 @@ func (handler *DefaultRequestHandler) handleProduce(
 			// Read tagged fields for topic
 			if err = readTaggedFields(reader); err != nil {
 				logrus.Errorf("Failed to read tagged fields for topic: %v", err)
-				return false, "", err
+				return false, nil, err
 			}
 
 		} else {
 			if currentTopicName, err = readString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 			// Similar handling for older versions...
 		}
 
-		// Capture the first topic name
-		if i == 0 {
-			topicName = currentTopicName
+		topicNames = append(topicNames, currentTopicName)
+	}
+
+	return !ctx.producerAcks0Disabled && acks != 0, topicNames, nil
+}
+
+func (handler *DefaultRequestHandler) handleFetch(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
+	var (
+		topicNames []string
+		err        error
+	)
+
+	// Read initial fields based on version
+	// Read replica_id (INT32) for versions <=14 and version 17
+	if requestKeyVersion.ApiVersion <= 14 || requestKeyVersion.ApiVersion == 17 {
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return false, nil, err
 		}
 	}
 
-	return !ctx.producerAcks0Disabled && acks != 0, topicName, nil
-}
-
-func (handler *DefaultRequestHandler) handleFetch(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) (bool, string, error) {
-	var (
-		topicName string
-		err       error
-	)
-
-	// Read ReplicaID (INT32)
+	// Read max_wait_ms (INT32)
 	if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 
-	// Read MaxWaitMs (INT32)
+	// Read min_bytes (INT32)
 	if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 
-	// Read MinBytes (INT32)
-	if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-		return false, "", err
-	}
-
+	// Read max_bytes (INT32) if version >= 3
 	if requestKeyVersion.ApiVersion >= 3 {
-		// Read MaxBytes (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 
+	// Read isolation_level (INT8) if version >= 4
 	if requestKeyVersion.ApiVersion >= 4 {
-		// Read IsolationLevel (INT8)
 		if err = binary.Read(reader, binary.BigEndian, new(int8)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 
+	// Read session_id (INT32) and session_epoch (INT32) if version >= 7
 	if requestKeyVersion.ApiVersion >= 7 {
-		// Read SessionID (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
-		// Read SessionEpoch (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 
-	// Read TopicsCount (INT32)
-	var topicsCount int32
-	if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
-		return false, "", err
+	// Read topics and collect topic names
+	topicNames, err = readFetchTopics(reader, requestKeyVersion)
+	if err != nil {
+		return false, nil, err
 	}
-	logrus.Debugf("Topics count: %d", topicsCount)
 
-	if topicsCount > 0 {
-		// Read TopicName (STRING)
-		if topicName, err = readString(reader); err != nil {
-			return false, "", err
+	// Skip forgotten_topics_data if version >= 7
+	if requestKeyVersion.ApiVersion >= 7 {
+		if err = skipForgottenTopicsData(reader, requestKeyVersion); err != nil {
+			return false, nil, err
 		}
 	}
 
-	return true, topicName, nil
+	// Read rack_id if version >= 11
+	if requestKeyVersion.ApiVersion >= 11 {
+		if requestKeyVersion.ApiVersion >= 12 {
+			// Read rack_id (COMPACT_STRING)
+			if _, err = readCompactString(reader); err != nil {
+				return false, nil, err
+			}
+			// Read tagged fields
+			if err = readTaggedFields(reader); err != nil {
+				return false, nil, err
+			}
+		} else {
+			// Read rack_id (STRING)
+			if _, err = readString(reader); err != nil {
+				return false, nil, err
+			}
+		}
+	}
+
+	// Read tagged fields for request if version >= 12
+	if requestKeyVersion.ApiVersion >= 12 {
+		if err = readTaggedFields(reader); err != nil {
+			return false, nil, err
+		}
+	}
+
+	return true, topicNames, nil
 }
 
-func (handler *DefaultRequestHandler) handleListOffsets(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) (bool, string, error) {
+func readFetchTopics(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) ([]string, error) {
 	var (
-		topicName string
-		err       error
+		topicNames []string
+		err        error
+	)
+
+	if requestKeyVersion.ApiVersion >= 12 {
+		// Topics are COMPACT_ARRAY
+		topicsCount, err := readCompactArrayLength(reader)
+		if err != nil {
+			return nil, err
+		}
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			if requestKeyVersion.ApiVersion >= 13 {
+				// Skip topic_id (UUID)
+				if _, err := io.CopyN(io.Discard, reader, 16); err != nil {
+					return nil, err
+				}
+			} else {
+				// Read topic name (COMPACT_STRING)
+				var topicName string
+				if topicName, err = readCompactString(reader); err != nil {
+					return nil, err
+				}
+				topicNames = append(topicNames, topicName)
+			}
+
+			// Read partitions
+			if err = skipPartitions(reader, requestKeyVersion); err != nil {
+				return nil, err
+			}
+
+			// Read tagged fields for topic
+			if err = readTaggedFields(reader); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		// Topics are ARRAY of STRING
+		var topicsCount int32
+		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
+			return nil, err
+		}
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name (STRING)
+			var topicName string
+			if topicName, err = readString(reader); err != nil {
+				return nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Read partitions
+			if err = skipPartitions(reader, requestKeyVersion); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return topicNames, nil
+}
+
+func skipPartitions(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) error {
+	var partitionsCount int32
+	var err error
+
+	if requestKeyVersion.ApiVersion >= 12 {
+		// Read partitions (COMPACT_ARRAY)
+		if partitionsCount, err = readCompactArrayLength(reader); err != nil {
+			return err
+		}
+	} else {
+		// Read partitions (ARRAY)
+		if err = binary.Read(reader, binary.BigEndian, &partitionsCount); err != nil {
+			return err
+		}
+	}
+
+	for j := int32(0); j < partitionsCount; j++ {
+		// Skip partition index (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return err
+		}
+
+		// Read current_leader_epoch (INT32) if version >= 9
+		if requestKeyVersion.ApiVersion >= 9 {
+			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+				return err
+			}
+		}
+
+		// Skip fetch_offset (INT64)
+		if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+			return err
+		}
+
+		// Read last_fetched_epoch (INT32) if version >= 12
+		if requestKeyVersion.ApiVersion >= 12 {
+			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+				return err
+			}
+		}
+
+		// Read log_start_offset (INT64) if version >= 5
+		if requestKeyVersion.ApiVersion >= 5 {
+			if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+				return err
+			}
+		}
+
+		// Skip partition_max_bytes (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return err
+		}
+
+		// Read tagged fields if version >= 12
+		if requestKeyVersion.ApiVersion >= 12 {
+			if err = readTaggedFields(reader); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func skipForgottenTopicsData(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) error {
+	var err error
+	var forgottenTopicsCount int32
+
+	if requestKeyVersion.ApiVersion >= 12 {
+		// Read forgotten_topics_data (COMPACT_ARRAY)
+		if forgottenTopicsCount, err = readCompactArrayLength(reader); err != nil {
+			return err
+		}
+	} else {
+		// Read forgotten_topics_data (ARRAY)
+		if err = binary.Read(reader, binary.BigEndian, &forgottenTopicsCount); err != nil {
+			return err
+		}
+	}
+
+	for i := int32(0); i < forgottenTopicsCount; i++ {
+		if requestKeyVersion.ApiVersion >= 13 {
+			// Skip topic_id (UUID)
+			if _, err := io.CopyN(io.Discard, reader, 16); err != nil {
+				return err
+			}
+		} else if requestKeyVersion.ApiVersion >= 12 {
+			// Skip topic name (COMPACT_STRING)
+			if _, err = readCompactString(reader); err != nil {
+				return err
+			}
+		} else {
+			// Skip topic name (STRING)
+			if _, err = readString(reader); err != nil {
+				return err
+			}
+		}
+
+		// Skip partitions
+		if err = skipForgottenPartitions(reader, requestKeyVersion); err != nil {
+			return err
+		}
+
+		// Read tagged fields if version >= 12
+		if requestKeyVersion.ApiVersion >= 12 {
+			if err = readTaggedFields(reader); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func skipForgottenPartitions(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) error {
+	var partitionsCount int32
+	var err error
+
+	if requestKeyVersion.ApiVersion >= 12 {
+		// Read partitions (COMPACT_ARRAY)
+		if partitionsCount, err = readCompactArrayLength(reader); err != nil {
+			return err
+		}
+	} else {
+		// Read partitions (ARRAY)
+		if err = binary.Read(reader, binary.BigEndian, &partitionsCount); err != nil {
+			return err
+		}
+	}
+
+	// Skip partitions data
+	if _, err = io.CopyN(io.Discard, reader, int64(partitionsCount*4)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (handler *DefaultRequestHandler) handleListOffsets(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
+	var (
+		topicNames []string
+		err        error
 	)
 
 	// Read ReplicaID (INT32)
 	if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 
 	if requestKeyVersion.ApiVersion >= 2 {
 		// Read IsolationLevel (INT8)
 		if err = binary.Read(reader, binary.BigEndian, new(int8)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 
@@ -547,226 +797,801 @@ func (handler *DefaultRequestHandler) handleListOffsets(reader io.Reader, reques
 		// Read Topics (COMPACT_ARRAY)
 		topicsCount, err := readCompactArrayLength(reader)
 		if err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
-		if topicsCount > 0 {
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
 			// Read TopicName (COMPACT_STRING)
-			if topicName, err = readCompactString(reader); err != nil {
-				return false, "", err
+			topicName, err := readCompactString(reader)
+			if err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Read Partitions (COMPACT_ARRAY)
+			partitionCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
 			}
 
-			// Read Tagged Fields for Topic (TAG_BUFFER)
+			// Skip partitions
+			for j := int32(0); j < partitionCount; j++ {
+				// Read PartitionIndex (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+
+				// Read CurrentLeaderEpoch (INT32) if version >= 4
+				if requestKeyVersion.ApiVersion >= 4 {
+					if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+						return false, nil, err
+					}
+				}
+
+				// Read Timestamp (INT64)
+				if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+					return false, nil, err
+				}
+
+				// Read TaggedFields (TAG_BUFFER)
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Read TaggedFields for Topic (TAG_BUFFER)
 			if err = readTaggedFields(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 		}
 
-		// Read Tagged Fields for Request (TAG_BUFFER)
+		// Read TaggedFields for Request (TAG_BUFFER)
 		if err = readTaggedFields(reader); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
+
 	} else {
 		// Read TopicsCount (INT32)
 		var topicsCount int32
 		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
-		if topicsCount > 0 {
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
 			// Read TopicName (STRING)
-			if topicName, err = readString(reader); err != nil {
-				return false, "", err
+			topicName, err := readString(reader)
+			if err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Read Partitions (ARRAY)
+			var partitionCount int32
+			if err = binary.Read(reader, binary.BigEndian, &partitionCount); err != nil {
+				return false, nil, err
+			}
+
+			// Skip partitions
+			for j := int32(0); j < partitionCount; j++ {
+				// Read PartitionIndex (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+
+				// Read Timestamp (INT64)
+				if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+					return false, nil, err
+				}
+
+				if requestKeyVersion.ApiVersion == 0 {
+					// Read MaxNumOffsets (INT32)
+					if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+						return false, nil, err
+					}
+				}
 			}
 		}
 	}
 
-	return true, topicName, nil
+	return true, topicNames, nil
 }
 
-func (handler *DefaultRequestHandler) handleCreateTopics(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) (bool, string, error) {
+func (handler *DefaultRequestHandler) handleCreateTopics(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
 	var (
-		topicName string
-		err       error
+		topicNames []string
+		err        error
 	)
 
 	if requestKeyVersion.ApiVersion >= 5 {
 		// Read topics as COMPACT_ARRAY
 		topicsCount, err := readCompactArrayLength(reader)
 		if err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
-		if topicsCount > 0 {
-			// Read first topic
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
 			// Read TopicName (COMPACT_STRING)
+			var topicName string
 			if topicName, err = readCompactString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
+
+			topicNames = append(topicNames, topicName)
 
 			// Skip num_partitions (INT32)
 			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 
 			// Skip replication_factor (INT16)
 			if err = binary.Read(reader, binary.BigEndian, new(int16)); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 
-			// Skip assignments and configs (for simplicity)
-			// Read tagged fields for topic (TAG_BUFFER)
+			// Skip assignments
+			assignmentsCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
+			}
+			for j := int32(0); j < assignmentsCount; j++ {
+				// Skip partition_index (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+				// Skip broker_ids (COMPACT_ARRAY of INT32)
+				brokerIdsCount, err := readCompactArrayLength(reader)
+				if err != nil {
+					return false, nil, err
+				}
+				if _, err = io.CopyN(io.Discard, reader, int64(brokerIdsCount*4)); err != nil {
+					return false, nil, err
+				}
+				// Read tagged fields for assignment
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Skip configs
+			configsCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
+			}
+			for j := int32(0); j < configsCount; j++ {
+				// Skip name (COMPACT_STRING)
+				if _, err = readCompactString(reader); err != nil {
+					return false, nil, err
+				}
+				// Skip value (COMPACT_NULLABLE_STRING)
+				if _, err = readCompactNullableString(reader); err != nil {
+					return false, nil, err
+				}
+				// Read tagged fields for config
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Read tagged fields for topic
 			if err = readTaggedFields(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 		}
 
 		// Read timeout_ms (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		// Read validate_only (BOOLEAN)
-		if requestKeyVersion.ApiVersion >= 1 {
-			if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
-				return false, "", err
-			}
+		if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
+			return false, nil, err
 		}
 
-		// Read tagged fields for request (TAG_BUFFER)
+		// Read tagged fields for request
 		if err = readTaggedFields(reader); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	} else {
 		// For versions <5, read topics as ARRAY
 		var topicsCount int32
 		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
-		if topicsCount > 0 {
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
 			// Read TopicName (STRING)
+			var topicName string
 			if topicName, err = readString(reader); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
+
+			topicNames = append(topicNames, topicName)
 
 			// Skip num_partitions (INT32)
 			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 
 			// Skip replication_factor (INT16)
 			if err = binary.Read(reader, binary.BigEndian, new(int16)); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 
-			// Skip assignments and configs (for simplicity)
+			// Skip assignments
+			var assignmentsCount int32
+			if err = binary.Read(reader, binary.BigEndian, &assignmentsCount); err != nil {
+				return false, nil, err
+			}
+			for j := int32(0); j < assignmentsCount; j++ {
+				// Skip partition_index (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+				// Skip broker_ids (ARRAY of INT32)
+				var brokerIdsCount int32
+				if err = binary.Read(reader, binary.BigEndian, &brokerIdsCount); err != nil {
+					return false, nil, err
+				}
+				if _, err = io.CopyN(io.Discard, reader, int64(brokerIdsCount*4)); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Skip configs
+			var configsCount int32
+			if err = binary.Read(reader, binary.BigEndian, &configsCount); err != nil {
+				return false, nil, err
+			}
+			for j := int32(0); j < configsCount; j++ {
+				// Skip name (STRING)
+				if _, err = readString(reader); err != nil {
+					return false, nil, err
+				}
+				// Skip value (NULLABLE_STRING)
+				if _, err = readNullableString(reader); err != nil {
+					return false, nil, err
+				}
+			}
 		}
 
 		// Read timeout_ms (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
-		// Read validate_only (BOOLEAN)
+		// Read validate_only (BOOLEAN) for versions >= 1
 		if requestKeyVersion.ApiVersion >= 1 {
 			if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
-				return false, "", err
+				return false, nil, err
 			}
 		}
 	}
 
-	return true, topicName, nil
+	return true, topicNames, nil
 }
 
-func (handler *DefaultRequestHandler) handleDeleteTopics(reader io.Reader, requestKeyVersion *protocol.RequestKeyVersion) (bool, string, error) {
+func (handler *DefaultRequestHandler) handleDeleteTopics(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
 	var (
-		topicName string
-		err       error
+		topicNames []string
+		err        error
 	)
 
 	if requestKeyVersion.ApiVersion >= 6 {
 		// Read topics as COMPACT_ARRAY
 		topicsCount, err := readCompactArrayLength(reader)
 		if err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		if topicsCount > 0 {
-			// Read topic name (COMPACT_NULLABLE_STRING)
-			if topicName, err = readCompactNullableString(reader); err != nil {
-				return false, "", err
-			}
+			for i := int32(0); i < topicsCount; i++ {
+				// Read topic name (COMPACT_NULLABLE_STRING)
+				topicName, err := readCompactNullableString(reader)
+				if err != nil {
+					return false, nil, err
+				}
+				topicNames = append(topicNames, topicName)
 
-			// Skip topic_id UUID (16 bytes)
-			uuidBytes := make([]byte, 16)
-			if _, err := io.ReadFull(reader, uuidBytes); err != nil {
-				return false, "", err
-			}
+				// Skip topic_id UUID (16 bytes)
+				uuidBytes := make([]byte, 16)
+				if _, err := io.ReadFull(reader, uuidBytes); err != nil {
+					return false, nil, err
+				}
 
-			// Read tagged fields for topic
-			if err = readTaggedFields(reader); err != nil {
-				return false, "", err
+				// Read tagged fields for topic
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
 			}
 		}
 
 		// Read timeout_ms (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		// Read tagged fields for request
 		if err = readTaggedFields(reader); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 	} else if requestKeyVersion.ApiVersion >= 4 {
 		// Read topics as COMPACT_ARRAY
 		topicsCount, err := readCompactArrayLength(reader)
 		if err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		logrus.Debugf("Topics count: %d", topicsCount)
 
 		if topicsCount > 0 {
-			// Read TopicName (COMPACT_STRING)
-			if topicName, err = readCompactNullableString(reader); err != nil {
-				return false, "", err
+			for i := int32(0); i < topicsCount; i++ {
+				// Read TopicName (COMPACT_STRING)
+				topicName, err := readCompactNullableString(reader)
+				if err != nil {
+					return false, nil, err
+				}
+				topicNames = append(topicNames, topicName)
 			}
 		}
 
 		// Read timeout_ms (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		// Read tagged fields
 		if err = readTaggedFields(reader); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 	} else {
 		// Versions 0-3 use array of STRINGs
 		var topicsCount int32
 		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 
 		if topicsCount > 0 {
-			// Read TopicName (STRING)
-			if topicName, err = readString(reader); err != nil {
-				return false, "", err
+			for i := int32(0); i < topicsCount; i++ {
+				// Read TopicName (STRING)
+				topicName, err := readString(reader)
+				if err != nil {
+					return false, nil, err
+				}
+				topicNames = append(topicNames, topicName)
 			}
 		}
 
 		// Read timeout_ms (INT32)
 		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
-			return false, "", err
+			return false, nil, err
 		}
 	}
 
-	return true, topicName, nil
+	return true, topicNames, nil
+}
+
+func (handler *DefaultRequestHandler) handleDeleteRecords(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
+	var (
+		topicNames []string
+		err        error
+	)
+
+	if requestKeyVersion.ApiVersion >= 2 {
+		// Read topics as COMPACT_ARRAY
+		topicsCount, err := readCompactArrayLength(reader)
+		if err != nil {
+			return false, nil, err
+		}
+
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name (COMPACT_STRING)
+			var topicName string
+			if topicName, err = readCompactString(reader); err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Read partitions array
+			partitionsCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
+			}
+
+			// Skip partition data
+			for j := int32(0); j < partitionsCount; j++ {
+				// Skip partition_index (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+
+				// Skip offset (INT64)
+				if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+					return false, nil, err
+				}
+
+				// Read tagged fields for partition
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Read tagged fields for topic
+			if err = readTaggedFields(reader); err != nil {
+				return false, nil, err
+			}
+		}
+
+		// Read timeout_ms (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return false, nil, err
+		}
+
+		// Read tagged fields for request
+		if err = readTaggedFields(reader); err != nil {
+			return false, nil, err
+		}
+
+	} else {
+		// Read topics array (normal array for versions 0-1)
+		var topicsCount int32
+		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
+			return false, nil, err
+		}
+
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name (STRING)
+			var topicName string
+			if topicName, err = readString(reader); err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Read partitions array
+			var partitionsCount int32
+			if err = binary.Read(reader, binary.BigEndian, &partitionsCount); err != nil {
+				return false, nil, err
+			}
+
+			// Skip partition data
+			for j := int32(0); j < partitionsCount; j++ {
+				// Skip partition_index (INT32)
+				if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+					return false, nil, err
+				}
+
+				// Skip offset (INT64)
+				if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+					return false, nil, err
+				}
+			}
+		}
+
+		// Read timeout_ms (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return false, nil, err
+		}
+	}
+
+	return true, topicNames, nil
+}
+
+func (handler *DefaultRequestHandler) handleAddPartitionsToTxn(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
+	var (
+		topicNames []string
+		err        error
+	)
+
+	if requestKeyVersion.ApiVersion >= 4 {
+		// Read transactions array as COMPACT_ARRAY
+		transactionsCount, err := readCompactArrayLength(reader)
+		if err != nil {
+			return false, nil, err
+		}
+
+		topicNames = make([]string, 0)
+
+		for i := int32(0); i < transactionsCount; i++ {
+			// Read transactional_id (COMPACT_STRING)
+			if _, err = readCompactString(reader); err != nil {
+				return false, nil, err
+			}
+
+			// Skip producer_id (INT64)
+			if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+				return false, nil, err
+			}
+
+			// Skip producer_epoch (INT16)
+			if err = binary.Read(reader, binary.BigEndian, new(int16)); err != nil {
+				return false, nil, err
+			}
+
+			// Skip verify_only (BOOLEAN)
+			if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
+				return false, nil, err
+			}
+
+			// Read topics array
+			topicsCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
+			}
+
+			for j := int32(0); j < topicsCount; j++ {
+				// Read topic name
+				topicName, err := readCompactString(reader)
+				if err != nil {
+					return false, nil, err
+				}
+				topicNames = append(topicNames, topicName)
+
+				// Skip partitions array
+				partitionsCount, err := readCompactArrayLength(reader)
+				if err != nil {
+					return false, nil, err
+				}
+
+				// Skip partition indexes
+				if _, err = io.CopyN(io.Discard, reader, int64(partitionsCount*4)); err != nil {
+					return false, nil, err
+				}
+
+				// Read tagged fields for partitions
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Read tagged fields for topics
+			if err = readTaggedFields(reader); err != nil {
+				return false, nil, err
+			}
+		}
+
+		// Read tagged fields for request
+		if err = readTaggedFields(reader); err != nil {
+			return false, nil, err
+		}
+
+	} else {
+		// Read transactional_id
+		if requestKeyVersion.ApiVersion >= 3 {
+			if _, err = readCompactString(reader); err != nil {
+				return false, nil, err
+			}
+		} else {
+			if _, err = readString(reader); err != nil {
+				return false, nil, err
+			}
+		}
+
+		// Skip producer_id (INT64)
+		if err = binary.Read(reader, binary.BigEndian, new(int64)); err != nil {
+			return false, nil, err
+		}
+
+		// Skip producer_epoch (INT16)
+		if err = binary.Read(reader, binary.BigEndian, new(int16)); err != nil {
+			return false, nil, err
+		}
+
+		// Read topics array
+		var topicsCount int32
+		if requestKeyVersion.ApiVersion >= 3 {
+			if topicsCount, err = readCompactArrayLength(reader); err != nil {
+				return false, nil, err
+			}
+		} else {
+			if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
+				return false, nil, err
+			}
+		}
+
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name
+			var topicName string
+			if requestKeyVersion.ApiVersion >= 3 {
+				if topicName, err = readCompactString(reader); err != nil {
+					return false, nil, err
+				}
+			} else {
+				if topicName, err = readString(reader); err != nil {
+					return false, nil, err
+				}
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Skip partitions array
+			var partitionsCount int32
+			if err = binary.Read(reader, binary.BigEndian, &partitionsCount); err != nil {
+				return false, nil, err
+			}
+
+			// Skip partition indexes
+			if _, err = io.CopyN(io.Discard, reader, int64(partitionsCount*4)); err != nil {
+				return false, nil, err
+			}
+
+			if requestKeyVersion.ApiVersion >= 3 {
+				// Read tagged fields for topic
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+		}
+
+		if requestKeyVersion.ApiVersion >= 3 {
+			// Read tagged fields for request
+			if err = readTaggedFields(reader); err != nil {
+				return false, nil, err
+			}
+		}
+	}
+
+	return true, topicNames, nil
+}
+
+func (handler *DefaultRequestHandler) handleCreatePartitions(
+	reader io.Reader,
+	requestKeyVersion *protocol.RequestKeyVersion,
+) (bool, []string, error) {
+	var (
+		topicNames []string
+		err        error
+	)
+
+	if requestKeyVersion.ApiVersion >= 2 {
+		// Read topics array (COMPACT_ARRAY)
+		topicsCount, err := readCompactArrayLength(reader)
+		if err != nil {
+			return false, nil, err
+		}
+
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name (COMPACT_STRING)
+			var topicName string
+			if topicName, err = readCompactString(reader); err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Skip count (INT32)
+			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+				return false, nil, err
+			}
+
+			// Read assignments array
+			assignmentsCount, err := readCompactArrayLength(reader)
+			if err != nil {
+				return false, nil, err
+			}
+
+			// Skip assignments data
+			for j := int32(0); j < assignmentsCount; j++ {
+				// Read broker_ids array
+				brokerIdsCount, err := readCompactArrayLength(reader)
+				if err != nil {
+					return false, nil, err
+				}
+
+				// Skip broker IDs
+				if _, err = io.CopyN(io.Discard, reader, int64(brokerIdsCount*4)); err != nil {
+					return false, nil, err
+				}
+
+				// Read tagged fields for broker_ids array
+				if err = readTaggedFields(reader); err != nil {
+					return false, nil, err
+				}
+			}
+
+			// Read tagged fields for topic
+			if err = readTaggedFields(reader); err != nil {
+				return false, nil, err
+			}
+		}
+
+		// Skip timeout_ms (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return false, nil, err
+		}
+
+		// Skip validate_only (BOOLEAN)
+		if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
+			return false, nil, err
+		}
+
+		// Read tagged fields for request
+		if err = readTaggedFields(reader); err != nil {
+			return false, nil, err
+		}
+
+	} else {
+		// Read topics array
+		var topicsCount int32
+		if err = binary.Read(reader, binary.BigEndian, &topicsCount); err != nil {
+			return false, nil, err
+		}
+
+		topicNames = make([]string, 0, topicsCount)
+
+		for i := int32(0); i < topicsCount; i++ {
+			// Read topic name (STRING)
+			var topicName string
+			if topicName, err = readString(reader); err != nil {
+				return false, nil, err
+			}
+			topicNames = append(topicNames, topicName)
+
+			// Skip count (INT32)
+			if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+				return false, nil, err
+			}
+
+			// Read assignments array
+			var assignmentsCount int32
+			if err = binary.Read(reader, binary.BigEndian, &assignmentsCount); err != nil {
+				return false, nil, err
+			}
+
+			// Skip assignments data
+			for j := int32(0); j < assignmentsCount; j++ {
+				// Read broker_ids array
+				var brokerIdsCount int32
+				if err = binary.Read(reader, binary.BigEndian, &brokerIdsCount); err != nil {
+					return false, nil, err
+				}
+
+				// Skip broker IDs
+				if _, err = io.CopyN(io.Discard, reader, int64(brokerIdsCount*4)); err != nil {
+					return false, nil, err
+				}
+			}
+		}
+
+		// Skip timeout_ms (INT32)
+		if err = binary.Read(reader, binary.BigEndian, new(int32)); err != nil {
+			return false, nil, err
+		}
+
+		// Skip validate_only (BOOLEAN)
+		if err = binary.Read(reader, binary.BigEndian, new(bool)); err != nil {
+			return false, nil, err
+		}
+	}
+
+	return true, topicNames, nil
 }
 
 func readString(reader io.Reader) (string, error) {
@@ -957,7 +1782,7 @@ func (handler *DefaultResponseHandler) handleResponse(dst DeadlineWriter, src De
 	}
 	readResponsesHeaderLength := int32(4 + len(unknownTaggedFields)) // 4 = Length + CorrelationID
 
-	responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, ctx.netAddressMappingFunc)
+	responseModifier, err := protocol.GetResponseModifier(requestKeyVersion.ApiKey, requestKeyVersion.ApiVersion, ctx.netAddressMappingFunc, ctx.acl)
 	if err != nil {
 		return true, err
 	}

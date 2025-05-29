@@ -18,13 +18,16 @@ const (
 	defaultReadTimeout        = 30 * time.Second
 	minOpenRequests           = 16
 
-	apiKeyProduce        = int16(0)
-	apiKeyFetch          = int16(1)
-	apiKeyListOffsets    = int16(2)
-	apiKeyCreateTopics   = int16(19)
-	apiKeyDeleteTopics   = int16(20)
-	apiKeySaslHandshake  = int16(17)
-	apiKeyApiApiVersions = int16(18)
+	apiKeyProduce            = int16(0)
+	apiKeyFetch              = int16(1)
+	apiKeyListOffsets        = int16(2)
+	apiKeyCreateTopics       = int16(19)
+	apiKeyDeleteTopics       = int16(20)
+	apiKeyDeleteRecords      = int16(21)
+	apiKeySaslHandshake      = int16(17)
+	apiKeyApiApiVersions     = int16(18)
+	apiKeyAddPartitionsToTxn = int16(24)
+	apiKeyCreatePartitions   = int16(37)
 
 	minRequestApiKey = int16(0)   // 0 - Produce
 	maxRequestApiKey = int16(120) // so far 67 is the last (reserve some for the feature)
@@ -69,6 +72,8 @@ type processor struct {
 	brokerAddress string
 	// producer will never send request with acks=0
 	producerAcks0Disabled bool
+
+	acl *apis.ACLCollection
 }
 
 func newProcessor(cfg ProcessorConfig, brokerAddress string) *processor {
@@ -136,6 +141,7 @@ func (p *processor) RequestsLoop(dst DeadlineWriter, src DeadlineReaderWriter) (
 		localSasl:                  p.localSasl,
 		localSaslDone:              false, // sequential processing - mutex is required
 		producerAcks0Disabled:      p.producerAcks0Disabled,
+		acl:                        p.acl,
 	}
 
 	return ctx.requestsLoop(dst, src)
@@ -155,6 +161,7 @@ type RequestsLoopContext struct {
 	localSaslDone bool
 
 	aclChecker apis.ACLChecker
+	acl        *apis.ACLCollection
 
 	producerAcks0Disabled bool
 }
@@ -226,6 +233,7 @@ func (p *processor) ResponsesLoop(dst DeadlineWriter, src DeadlineReader) (readE
 		timeout:                    p.readTimeout,
 		brokerAddress:              p.brokerAddress,
 		buf:                        make([]byte, p.responseBufferSize),
+		acl:                        p.acl,
 	}
 	return ctx.responsesLoop(dst, src)
 }
@@ -237,6 +245,7 @@ type ResponsesLoopContext struct {
 	timeout                    time.Duration
 	brokerAddress              string
 	buf                        []byte // bufSize
+	acl                        *apis.ACLCollection
 }
 
 type ResponseHandler interface {

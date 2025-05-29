@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/grepplabs/kafka-proxy/config"
+	"github.com/grepplabs/kafka-proxy/pkg/apis"
 )
 
 const (
@@ -296,7 +297,7 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3, findCoordinatorResponseV4}
 }
 
-func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
+func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc, acl *apis.ACLCollection) error {
 	if decodedStruct == nil {
 		return errors.New("decoded struct must not be nil")
 	}
@@ -339,10 +340,35 @@ func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFu
 			}
 		}
 	}
+
+	topicMetadataArray, ok := decodedStruct.Get("topic_metadata").([]interface{})
+	if !ok {
+		return errors.New("topic metadata list not found")
+	}
+
+	for _, topicElement := range topicMetadataArray {
+		topic := topicElement.(*Struct)
+
+		// Get topic name - try both "topic" and "name" fields based on version
+		topicName, ok := topic.Get("topic").(string)
+		if !ok {
+			topicName, ok = topic.Get("name").(string)
+			if !ok {
+				continue
+			}
+		}
+
+		fmt.Printf("METADATA TOPICS!: %s\n", topicName)
+	}
+
+	// TODO:!
+	topicMetadataArray = topicMetadataArray[:1]
+	decodedStruct.Replace("topic_metadata", topicMetadataArray)
+
 	return nil
 }
 
-func modifyFindCoordinatorResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
+func modifyFindCoordinatorResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc, acl *apis.ACLCollection) error {
 	if decodedStruct == nil {
 		return errors.New("decoded struct must not be nil")
 	}
@@ -408,12 +434,13 @@ type ResponseModifier interface {
 	Apply(resp []byte) ([]byte, error)
 }
 
-type modifyResponseFunc func(decodedStruct *Struct, fn config.NetAddressMappingFunc) error
+type modifyResponseFunc func(decodedStruct *Struct, fn config.NetAddressMappingFunc, acl *apis.ACLCollection) error
 
 type responseModifier struct {
 	schema                Schema
 	modifyResponseFunc    modifyResponseFunc
 	netAddressMappingFunc config.NetAddressMappingFunc
+	acl                   *apis.ACLCollection
 }
 
 func (f *responseModifier) Apply(resp []byte) ([]byte, error) {
@@ -421,25 +448,25 @@ func (f *responseModifier) Apply(resp []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = f.modifyResponseFunc(decodedStruct, f.netAddressMappingFunc)
+	err = f.modifyResponseFunc(decodedStruct, f.netAddressMappingFunc, f.acl)
 	if err != nil {
 		return nil, err
 	}
 	return EncodeSchema(decodedStruct, f.schema)
 }
 
-func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc config.NetAddressMappingFunc) (ResponseModifier, error) {
+func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc config.NetAddressMappingFunc, acl *apis.ACLCollection) (ResponseModifier, error) {
 	switch apiKey {
 	case apiKeyMetadata:
-		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, metadataResponseSchemaVersions, modifyMetadataResponse)
+		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, metadataResponseSchemaVersions, modifyMetadataResponse, acl)
 	case apiKeyFindCoordinator:
-		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, findCoordinatorResponseSchemaVersions, modifyFindCoordinatorResponse)
+		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, findCoordinatorResponseSchemaVersions, modifyFindCoordinatorResponse, acl)
 	default:
 		return nil, nil
 	}
 }
 
-func newResponseModifier(apiKey int16, apiVersion int16, netAddressMappingFunc config.NetAddressMappingFunc, schemas []Schema, modifyResponseFunc modifyResponseFunc) (ResponseModifier, error) {
+func newResponseModifier(apiKey int16, apiVersion int16, netAddressMappingFunc config.NetAddressMappingFunc, schemas []Schema, modifyResponseFunc modifyResponseFunc, acl *apis.ACLCollection) (ResponseModifier, error) {
 	schema, err := getResponseSchema(apiKey, apiVersion, schemas)
 	if err != nil {
 		return nil, err
@@ -448,6 +475,7 @@ func newResponseModifier(apiKey int16, apiVersion int16, netAddressMappingFunc c
 		schema:                schema,
 		modifyResponseFunc:    modifyResponseFunc,
 		netAddressMappingFunc: netAddressMappingFunc,
+		acl:                   acl,
 	}, nil
 }
 

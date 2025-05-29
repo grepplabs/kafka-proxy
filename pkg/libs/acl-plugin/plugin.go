@@ -28,15 +28,24 @@ func NewACLChecker(rules []apis.ACLRule) (apis.ACLChecker, error) {
 	return &ACLCheckerImpl{rules: compiledRules}, nil
 }
 
-func (a *ACLCheckerImpl) CheckACL(ctx context.Context, req *protocol.RequestKeyVersion, topic string) (bool, error) {
+func (a *ACLCheckerImpl) CheckACL(ctx context.Context, req *protocol.RequestKeyVersion, topics []string) (bool, []string, error) {
 	op := getOperationFromKey(req.ApiKey)
-	for _, rule := range a.rules {
-		if (rule.Operation == apis.OperationAll || rule.Operation == op) &&
-			(rule.Topic == "" || (topic != "" && rule.Re.MatchString(topic))) {
-			return rule.Allow, nil
+	for _, topic := range topics {
+		anyMatched := false
+		for _, rule := range a.rules {
+			if (rule.Operation == apis.OperationAll || rule.Operation == op) &&
+				(rule.Topic == "" || (topic != "" && rule.Re.MatchString(topic))) {
+				anyMatched = true
+				if !rule.Allow {
+					return false, nil, nil
+				}
+			}
+		}
+		if !anyMatched {
+			return false, nil, nil
 		}
 	}
-	return false, nil
+	return true, nil, nil
 }
 
 func getOperationFromKey(apiKey int16) apis.Operation {
