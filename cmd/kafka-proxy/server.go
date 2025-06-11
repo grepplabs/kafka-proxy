@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"runtime"
+	"sync"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
@@ -103,6 +105,7 @@ func initFlags() {
 	Server.Flags().IntVar(&c.Proxy.ListenerReadBufferSize, "proxy-listener-read-buffer-size", 0, "Size of the operating system's receive buffer associated with the connection. If zero, system default is used")
 	Server.Flags().IntVar(&c.Proxy.ListenerWriteBufferSize, "proxy-listener-write-buffer-size", 0, "Sets the size of the operating system's transmit buffer associated with the connection. If zero, system default is used")
 	Server.Flags().DurationVar(&c.Proxy.ListenerKeepAlive, "proxy-listener-keep-alive", 60*time.Second, "Keep alive period for an active network connection. If zero, keep-alives are disabled")
+	Server.Flags().DurationVar(&c.Proxy.ShutdownTimeout, "shutdown-timeout", 30*time.Second, "Maximum time to wait for graceful shutdown of connections and servers")
 
 	Server.Flags().BoolVar(&c.Proxy.TLS.Enable, "proxy-listener-tls-enable", false, "Whether or not to use TLS listener")
 	Server.Flags().DurationVar(&c.Proxy.TLS.Refresh, "proxy-listener-tls-refresh", 0*time.Second, "Interval for refreshing server TLS certificates. If set to zero, the refresh watch is disabled")
@@ -383,10 +386,20 @@ func Run(_ *cobra.Command, _ []string) {
 		}
 	}
 
+	// Graceful shutdown configuration
+	shutdownTimeout := 30 * time.Second
+	if c.Proxy.ShutdownTimeout > 0 {
+		shutdownTimeout = c.Proxy.ShutdownTimeout
+	}
+
 	var g run.Group
+	var connset *proxy.ConnSet
+	var proxyClient *proxy.Client
+	var shutdownWg sync.WaitGroup
+
 	{
 		// All active connections are stored in this variable.
-		connset := proxy.NewConnSet()
+		connset = proxy.NewConnSet()
 		prometheus.MustRegister(proxy.NewCollector(connset))
 		listeners, err := proxy.NewListeners(c)
 		if err != nil {
@@ -396,7 +409,7 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		proxyClient, err := proxy.NewClient(connset, c, listeners.GetNetAddressMapping, localPasswordAuthenticator, localTokenAuthenticator, saslTokenProvider, gatewayTokenProvider, gatewayTokenInfo)
+		proxyClient, err = proxy.NewClient(connset, c, listeners.GetNetAddressMapping, localPasswordAuthenticator, localTokenAuthenticator, saslTokenProvider, gatewayTokenProvider, gatewayTokenInfo)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -404,6 +417,7 @@ func Run(_ *cobra.Command, _ []string) {
 			logrus.Print("Ready for new connections")
 			return proxyClient.Run(connSrc)
 		}, func(error) {
+			logrus.Info("Initiating graceful shutdown of proxy client...")
 			proxyClient.Close()
 		})
 	}
@@ -414,6 +428,7 @@ func Run(_ *cobra.Command, _ []string) {
 			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 			select {
 			case sig := <-c:
+				logrus.Infof("Received signal %s, initiating graceful shutdown", sig)
 				return fmt.Errorf("received signal %s", sig)
 			case <-cancelInterrupt:
 				return nil
@@ -427,10 +442,21 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
+		httpServer := &http.Server{Handler: NewHTTPHandler()}
 		g.Add(func() error {
-			return http.Serve(httpListener, NewHTTPHandler())
+			return httpServer.Serve(httpListener)
 		}, func(error) {
-			httpListener.Close()
+			logrus.Info("Shutting down HTTP server...")
+			shutdownWg.Add(1)
+			go func() {
+				defer shutdownWg.Done()
+				ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+				defer cancel()
+				if err := httpServer.Shutdown(ctx); err != nil {
+					logrus.Warnf("HTTP server shutdown error: %v", err)
+					httpListener.Close()
+				}
+			}()
 		})
 	}
 	if c.Debug.Enabled {
@@ -440,15 +466,83 @@ func Run(_ *cobra.Command, _ []string) {
 		if err != nil {
 			logrus.Fatal(err)
 		}
+		debugServer := &http.Server{Handler: http.DefaultServeMux}
 		g.Add(func() error {
-			return http.Serve(debugListener, http.DefaultServeMux)
+			return debugServer.Serve(debugListener)
 		}, func(error) {
-			debugListener.Close()
+			logrus.Info("Shutting down debug server...")
+			shutdownWg.Add(1)
+			go func() {
+				defer shutdownWg.Done()
+				ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+				defer cancel()
+				if err := debugServer.Shutdown(ctx); err != nil {
+					logrus.Warnf("Debug server shutdown error: %v", err)
+					debugListener.Close()
+				}
+			}()
 		})
 	}
 
+	logrus.Info("Starting kafka-proxy services...")
 	err := g.Run()
-	logrus.Info("Exit ", err)
+	
+	// Enhanced graceful shutdown process
+	logrus.Info("Initiating graceful shutdown sequence...")
+	
+	// Wait for HTTP servers to shutdown gracefully
+	shutdownComplete := make(chan struct{})
+	go func() {
+		shutdownWg.Wait()
+		close(shutdownComplete)
+	}()
+	
+	// Wait for shutdown completion or timeout
+	select {
+	case <-shutdownComplete:
+		logrus.Info("All HTTP servers shut down gracefully")
+	case <-time.After(shutdownTimeout):
+		logrus.Warn("HTTP servers shutdown timeout exceeded")
+	}
+	
+	// Final connection cleanup with timeout
+	if connset != nil {
+		// Log connection counts before cleanup
+		connectionCounts := connset.Count()
+		totalConnections := 0
+		for broker, count := range connectionCounts {
+			totalConnections += count
+			logrus.Infof("Active connections to %s: %d", broker, count)
+		}
+		logrus.Infof("Total active connections: %d", totalConnections)
+		
+		if totalConnections > 0 {
+			logrus.Info("Closing remaining connections...")
+			connectionCleanupDone := make(chan struct{})
+			go func() {
+				defer close(connectionCleanupDone)
+				if err := connset.Close(); err != nil {
+					logrus.Warnf("Error closing connections: %v", err)
+				} else {
+					logrus.Info("All connections closed successfully")
+				}
+			}()
+			
+			select {
+			case <-connectionCleanupDone:
+				// Connections closed successfully
+			case <-time.After(10 * time.Second):
+				logrus.Warn("Connection cleanup timeout exceeded, forcing exit")
+			}
+		} else {
+			logrus.Info("No active connections to close")
+		}
+	}
+	
+	logrus.Info("Kafka-proxy shutdown complete")
+	if err != nil {
+		logrus.Infof("Exit reason: %v", err)
+	}
 }
 
 func NewHTTPHandler() http.Handler {
