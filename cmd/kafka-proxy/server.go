@@ -423,17 +423,19 @@ func Run(_ *cobra.Command, _ []string) {
 	}
 	{
 		cancelInterrupt := make(chan struct{})
+		signalChan := make(chan os.Signal, 1)
 		g.Add(func() error {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 			select {
-			case sig := <-c:
+			case sig := <-signalChan:
 				logrus.Infof("Received signal %s, initiating graceful shutdown", sig)
 				return fmt.Errorf("received signal %s", sig)
 			case <-cancelInterrupt:
 				return nil
 			}
 		}, func(error) {
+			logrus.Info("Stopping signal handler...")
+			signal.Stop(signalChan) // Stop receiving new signals
 			close(cancelInterrupt)
 		})
 	}
@@ -485,6 +487,12 @@ func Run(_ *cobra.Command, _ []string) {
 	}
 
 	logrus.Info("Starting kafka-proxy services...")
+	
+	// Setup a context with cancel for coordinating graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	
+	// Run the service group
 	err := g.Run()
 	
 	// Enhanced graceful shutdown process
@@ -498,10 +506,13 @@ func Run(_ *cobra.Command, _ []string) {
 	}()
 	
 	// Wait for shutdown completion or timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, shutdownTimeout)
+	defer shutdownCancel()
+	
 	select {
 	case <-shutdownComplete:
 		logrus.Info("All HTTP servers shut down gracefully")
-	case <-time.After(shutdownTimeout):
+	case <-shutdownCtx.Done():
 		logrus.Warn("HTTP servers shutdown timeout exceeded")
 	}
 	
@@ -518,9 +529,14 @@ func Run(_ *cobra.Command, _ []string) {
 		
 		if totalConnections > 0 {
 			logrus.Info("Closing remaining connections...")
+			// Create a context with timeout for connection cleanup
+			ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer cancel()
+			
 			connectionCleanupDone := make(chan struct{})
 			go func() {
 				defer close(connectionCleanupDone)
+				// Close all connections in the connection set
 				if err := connset.Close(); err != nil {
 					logrus.Warnf("Error closing connections: %v", err)
 				} else {
@@ -528,10 +544,11 @@ func Run(_ *cobra.Command, _ []string) {
 				}
 			}()
 			
+			// Wait for connection cleanup or timeout
 			select {
 			case <-connectionCleanupDone:
-				// Connections closed successfully
-			case <-time.After(10 * time.Second):
+				logrus.Info("Connection cleanup completed")
+			case <-ctx.Done():
 				logrus.Warn("Connection cleanup timeout exceeded, forcing exit")
 			}
 		} else {

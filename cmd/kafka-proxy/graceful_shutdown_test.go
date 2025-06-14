@@ -107,6 +107,77 @@ func TestGracefulShutdownWithTimeout(t *testing.T) {
 	}
 }
 
+func TestConnectionCleanupDuringShutdown(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Create test config
+	testConfig := createTestConfig(t)
+	
+	// Start kafka-proxy
+	cmd := startKafkaProxy(t, testConfig)
+	defer func() {
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+	}()
+
+	// Wait for the proxy to start
+	waitForProxyStart(t, testConfig.Http.ListenAddress)
+
+	// Create multiple mock connections to simulate active clients
+	conns := createMockConnections(t, testConfig.Proxy.BootstrapServers[0].ListenerAddress, 5)
+	defer func() {
+		for _, conn := range conns {
+			conn.Close()
+		}
+	}()
+
+	// Verify connections are established
+	if len(conns) == 0 {
+		t.Fatal("Failed to establish mock connections")
+	}
+
+	// Send SIGTERM to initiate graceful shutdown
+	err := cmd.Process.Signal(syscall.SIGTERM)
+	if err != nil {
+		t.Fatalf("Failed to send SIGTERM: %v", err)
+	}
+
+	// Wait for the process to exit gracefully
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		// Process should exit without error or with expected signal exit code
+		if err != nil {
+			if exitError, ok := err.(*exec.ExitError); ok {
+				// Exit code 1 is expected when shutting down via signal
+				if exitError.ExitCode() != 1 {
+					t.Errorf("Unexpected exit code: got %d, want 1", exitError.ExitCode())
+				}
+			} else {
+				t.Errorf("Unexpected error during shutdown: %v", err)
+			}
+		}
+		
+		// After shutdown, connections should be closed by the server
+		for i, conn := range conns {
+			// Try to write to connection - should fail if properly closed by server
+			_, err := conn.Write([]byte("test"))
+			if err == nil {
+				t.Errorf("Connection %d should be closed after shutdown", i)
+			}
+		}
+	case <-time.After(45 * time.Second):
+		t.Fatal("Connection cleanup test took too long")
+	}
+}
+
 func TestHTTPServerGracefulShutdown(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -296,6 +367,34 @@ func findAvailablePort(t *testing.T) int {
 	
 	addr := listener.Addr().(*net.TCPAddr)
 	return addr.Port
+}
+
+// createMockConnections creates a specified number of TCP connections to the given address
+func createMockConnections(t *testing.T, address string, count int) []net.Conn {
+	var connections []net.Conn
+	
+	for i := 0; i < count; i++ {
+		conn, err := net.Dial("tcp", address)
+		if err != nil {
+			t.Logf("Warning: Failed to create connection %d: %v", i, err)
+			continue
+		}
+		
+		// Set a longer timeout to keep connection alive during test
+		conn.SetDeadline(time.Now().Add(30 * time.Second))
+		
+		// Send some data to establish a real connection
+		_, err = conn.Write([]byte{0, 0, 0, 0})
+		if err != nil {
+			conn.Close()
+			t.Logf("Warning: Failed to write to connection %d: %v", i, err)
+			continue
+		}
+		
+		connections = append(connections, conn)
+	}
+	
+	return connections
 }
 
 // Benchmark graceful shutdown performance

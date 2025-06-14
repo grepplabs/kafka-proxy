@@ -207,6 +207,7 @@ You can launch a kafka-proxy container with auth-ldap plugin for trying it out w
             --sasl-plugin-param stringArray                        Authentication plugin parameter
             --sasl-plugin-timeout duration                         Authentication timeout (default 10s)
             --sasl-username string                                 SASL user name
+            --shutdown-timeout duration                            Maximum time to wait for graceful shutdown to complete (default 30s)
             --tls-ca-chain-cert-file string                        PEM encoded CA's certificate file
             --tls-client-cert-file string                          PEM encoded file with client certificate
             --tls-client-key-file string                           PEM encoded file with private key for the client certificate
@@ -447,7 +448,24 @@ By setting `--proxy-listener-tls-client-cert-validate-subject true`, Kafka Proxy
       --proxy-listener-tls-client-cert-validate-subject true \
       --proxy-listener-tls-required-client-subject-country DE \
       --proxy-listener-tls-required-client-subject-organization grepplabs
+
+### Graceful Shutdown
+
+Kafka-proxy implements graceful shutdown to ensure that active connections are properly closed when the proxy is terminated. When a termination signal (SIGINT or SIGTERM) is received, the proxy will:
+
+1. Stop accepting new connections
+2. Wait for existing connections to complete their current operations
+3. Close all connections cleanly before exiting
+
+You can configure the maximum time the proxy will wait during shutdown with the `--shutdown-timeout` parameter:
+
 ```
+    kafka-proxy server \
+      --bootstrap-server-mapping "kafka-0.example.com:9092,127.0.0.1:32500" \
+      --shutdown-timeout 60s
+```
+
+The default timeout is 30 seconds. If active connections take longer than the specified timeout to close, the proxy will force termination after the timeout period.
 
 ### Kubernetes sidecar container example
 

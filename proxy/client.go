@@ -271,6 +271,7 @@ STOP:
 
 func (c *Client) Close() {
 	c.stopOnce.Do(func() {
+		logrus.Info("Initiating graceful shutdown of proxy client...")
 		close(c.stopRun)
 	})
 }
