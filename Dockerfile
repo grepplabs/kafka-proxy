@@ -1,7 +1,9 @@
-FROM golang:1.23-alpine3.21 AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.23-alpine3.21 AS builder
 
 RUN apk add --no-cache alpine-sdk ca-certificates
 
+ARG TARGETARCH
+ARG TARGETOS
 ARG VERSION
 
 ENV CGO_ENABLED=0 \
@@ -12,6 +14,7 @@ WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
 
 RUN mkdir -p build && \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -mod=vendor -o build/kafka-proxy -ldflags "${LDFLAGS}" .
 
 FROM alpine:3.21

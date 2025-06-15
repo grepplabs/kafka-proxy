@@ -55,6 +55,9 @@ docker.build:
 docker.build.all:
 	docker build --build-arg VERSION=$(VERSION) -t local/kafka-proxy -f Dockerfile.all .
 
+docker.build.multiarch:
+	docker buildx build --build-arg VERSION=$(VERSION) -t local/kafka-proxy --platform linux/amd64,linux/arm64 .
+
 tag:
 	git tag $(TAG)
 
