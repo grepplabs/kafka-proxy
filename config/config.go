@@ -88,6 +88,7 @@ type Config struct {
 		ListenerReadBufferSize    int // SO_RCVBUF
 		ListenerWriteBufferSize   int // SO_SNDBUF
 		ListenerKeepAlive         time.Duration
+		ShutdownTimeout           time.Duration
 
 		TLS struct {
 			Enable                   bool
@@ -291,6 +292,7 @@ func NewConfig() *Config {
 	c.Proxy.RequestBufferSize = 4096
 	c.Proxy.ResponseBufferSize = 4096
 	c.Proxy.ListenerKeepAlive = 60 * time.Second
+	c.Proxy.ShutdownTimeout = 30 * time.Second
 
 	return c
 }
