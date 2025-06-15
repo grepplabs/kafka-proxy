@@ -11,6 +11,7 @@ GOPKGS         = $(shell go list ./... | grep -v /vendor/)
 BUILD_FLAGS   ?=
 LDFLAGS       ?= -X github.com/grepplabs/kafka-proxy/config.Version=$(VERSION) -w -s
 TAG           ?= "v0.4.3"
+REPO		  ?= "grepplabs/kafka-proxy"
 
 PROTOC_GO_VERSION ?= v1.33
 PROTOC_GRPC_VERSION ?= v1.2
@@ -56,7 +57,12 @@ docker.build.all:
 	docker build --build-arg VERSION=$(VERSION) -t local/kafka-proxy -f Dockerfile.all .
 
 docker.build.multiarch:
-	docker buildx build --build-arg VERSION=$(VERSION) -t local/kafka-proxy --platform linux/amd64,linux/arm64 .
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		--push \
+	    --build-arg VERSION=$(VERSION) \
+		-t $(REPO):$(TAG) \
+		.
 
 tag:
 	git tag $(TAG)
