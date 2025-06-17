@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Kafka DevContainer",
+            "type": "shell",
+            "command": "docker compose -f ${workspaceFolder}/.devcontainer/docker-compose.yml up -d",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Stop Kafka DevContainer",
+            "type": "shell",
+            "command": "docker compose -f ${workspaceFolder}/.devcontainer/docker-compose.yml down",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}

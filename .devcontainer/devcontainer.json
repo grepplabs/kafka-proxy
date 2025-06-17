@@ -1,0 +1,16 @@
+{
+    "name": "Kafka Proxy DevContainer",
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
+    "service": "dev",
+    "workspaceFolder": "/workspace",
+    "extensions": [
+        "golang.Go",
+        "ms-azuretools.vscode-docker"
+    ],
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "postCreateCommand": "go mod tidy"
+}
