@@ -29,9 +29,11 @@ type Listeners struct {
 	listenFunc ListenFunc
 	tlsConfig  *tls.Config
 
-	deterministicListeners   bool
-	disableDynamicListeners  bool
-	dynamicSequentialMinPort int
+	deterministicListeners    bool
+	disableDynamicListeners   bool
+	dynamicSequentialMinPort  uint16
+	currentDynamicPortCounter uint64
+	dynamicSequentialMaxPorts uint16
 
 	brokerToListenerConfig map[string]*ListenerConfig
 	lock                   sync.RWMutex
@@ -77,6 +79,8 @@ func NewListeners(cfg *config.Config) (*Listeners, error) {
 		deterministicListeners:    cfg.Proxy.DeterministicListeners,
 		disableDynamicListeners:   cfg.Proxy.DisableDynamicListeners,
 		dynamicSequentialMinPort:  cfg.Proxy.DynamicSequentialMinPort,
+		currentDynamicPortCounter: 0,
+		dynamicSequentialMaxPorts: cfg.Proxy.DynamicSequentialMaxPorts,
 	}, nil
 }
 
@@ -169,6 +173,19 @@ func (p *Listeners) findListenerConfig(brokerId int32) *ListenerConfig {
 	return nil
 }
 
+// Make sure all dynamically allocated ports are within the half open interval
+// [dynamicSequentialMinPort, dynamicSequentialMinPort + dynamicSequentialMaxPorts).
+func (p *Listeners) nextDynamicPort(portOffset uint64, brokerAddress string, brokerId int32) (uint16, error) {
+	if p.dynamicSequentialMaxPorts == 0 {
+		return 0, fmt.Errorf("dynamic sequential max ports is 0")
+	}
+	port := p.dynamicSequentialMinPort + uint16(portOffset%uint64(p.dynamicSequentialMaxPorts))
+	if port < p.dynamicSequentialMinPort {
+		return 0, fmt.Errorf("port assignment overflow %s %d: %d", brokerAddress, brokerId, port)
+	}
+	return port, nil
+}
+
 // ListenDynamicInstance creates a new listener for the upstream broker address and broker id.
 func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) (string, int32, error) {
 
@@ -185,11 +202,11 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) 
 		if brokerId < 0 {
 			return "", 0, fmt.Errorf("brokerId is negative %s %d", brokerAddress, brokerId)
 		}
-		deterministicPort := p.dynamicSequentialMinPort + int(brokerId)
-		if deterministicPort < p.dynamicSequentialMinPort {
-			return "", 0, fmt.Errorf("port assignment overflow %s %d: %d", brokerAddress, brokerId, deterministicPort)
+		deterministicPort, err := p.nextDynamicPort(uint64(brokerId), brokerAddress, brokerId)
+		if err != nil {
+			return "", 0, err
 		}
-		listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(deterministicPort))
+		listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(int(deterministicPort)))
 		cfg := p.findListenerConfig(brokerId)
 		if cfg != nil {
 			oldBrokerAddress := cfg.GetBrokerAddress()
@@ -202,9 +219,17 @@ func (p *Listeners) ListenDynamicInstance(brokerAddress string, brokerId int32) 
 			return util.SplitHostPort(cfg.AdvertisedAddress)
 		}
 	} else {
-		listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(p.dynamicSequentialMinPort))
-		if p.dynamicSequentialMinPort != 0 {
-			p.dynamicSequentialMinPort += 1
+		if p.dynamicSequentialMinPort == 0 {
+			// Use random (non sequential) ephemeral free port, allocated by OS.
+			listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(0))
+		} else {
+			// Use sequentially allocated port.
+			port, err := p.nextDynamicPort(p.currentDynamicPortCounter, brokerAddress, brokerId)
+			if err != nil {
+				return "", 0, err
+			}
+			listenerAddress = net.JoinHostPort(p.defaultListenerIP, strconv.Itoa(int(port)))
+			p.currentDynamicPortCounter += 1
 		}
 	}
 

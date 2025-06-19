@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"runtime"
 
 	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/grepplabs/kafka-proxy/proxy"
@@ -93,7 +94,8 @@ func initFlags() {
 	Server.Flags().StringArrayVar(&dialAddressMapping, "dial-address-mapping", []string{}, "Mapping of target broker address to new one (host:port,host:port). The mapping is performed during connection establishment")
 	Server.Flags().BoolVar(&c.Proxy.DeterministicListeners, "deterministic-listeners", false, "Enable deterministic listeners (listener port = min port + broker id).")
 	Server.Flags().BoolVar(&c.Proxy.DisableDynamicListeners, "dynamic-listeners-disable", false, "Disable dynamic listeners.")
-	Server.Flags().IntVar(&c.Proxy.DynamicSequentialMinPort, "dynamic-sequential-min-port", 0, "If set to non-zero, makes the dynamic listener use a sequential port starting with this value rather than a random port every time.")
+	Server.Flags().Uint16Var(&c.Proxy.DynamicSequentialMinPort, "dynamic-sequential-min-port", 0, "If set to non-zero, makes the dynamic listener use a sequential port starting with this value rather than a random port every time.")
+	Server.Flags().Uint16Var(&c.Proxy.DynamicSequentialMaxPorts, "dynamic-sequential-max-ports", 0, "If set to non-zero, ports are allocated sequentially from the half open interval [dynamic-sequential-min-port, dynamic-sequential-min-port + dynamic-sequential-max-ports)")
 
 	Server.Flags().IntVar(&c.Proxy.RequestBufferSize, "proxy-request-buffer-size", 4096, "Request buffer size pro tcp connection")
 	Server.Flags().IntVar(&c.Proxy.ResponseBufferSize, "proxy-response-buffer-size", 4096, "Response buffer size pro tcp connection")
@@ -223,7 +225,7 @@ func initFlags() {
 }
 
 func Run(_ *cobra.Command, _ []string) {
-	logrus.Infof("Starting kafka-proxy version %s", config.Version)
+	logrus.Infof("Starting kafka-proxy version %s on platform %s/%s", config.Version, runtime.GOOS, runtime.GOARCH)
 
 	var localPasswordAuthenticator apis.PasswordAuthenticator
 	var localTokenAuthenticator apis.TokenInfo

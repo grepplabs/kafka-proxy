@@ -81,7 +81,8 @@ type Config struct {
 		DialAddressMappings       []DialAddressMapping
 		DisableDynamicListeners   bool
 		DynamicAdvertisedListener string
-		DynamicSequentialMinPort  int
+		DynamicSequentialMinPort  uint16
+		DynamicSequentialMaxPorts uint16
 		RequestBufferSize         int
 		ResponseBufferSize        int
 		ListenerReadBufferSize    int // SO_RCVBUF
@@ -431,6 +432,24 @@ func (c *Config) Validate() error {
 			c.ForwardProxy.Password = password
 		}
 
+	}
+
+	if !c.Proxy.DisableDynamicListeners {
+		if c.Proxy.DynamicSequentialMinPort == 0 && c.Proxy.DeterministicListeners {
+			// dynamic-sequential-min-port must be set for deterministic-listeners to be enabled, as the latter
+			// does not work with random (OS allocated ephemeral) ports.
+			return errors.New("Proxy.DynamicSequentialMinPort must be set to a positive value between 1 and 65535 when Proxy.DeterministicListeners is enabled")
+		}
+		if c.Proxy.DynamicSequentialMinPort == 0 && c.Proxy.DynamicSequentialMaxPorts > 0 {
+			// dynamic-sequential-min-port must be set if dynamic-sequential-max-ports is set, as the latter
+			// does not work with random (OS allocated ephemeral) ports.
+			return errors.New("Proxy.DynamicSequentialMinPort must be set to a positive value between 1 and 65535 when Proxy.DynamicSequentialMaxPorts is set")
+		}
+		// Set default for DynamicSequentialMaxPorts if DynamicSequentialMinPort is set, to make sure
+		// ports never exceed the 16-bit max port number of 65535.
+		if c.Proxy.DynamicSequentialMaxPorts == 0 && c.Proxy.DynamicSequentialMinPort > 0 {
+			c.Proxy.DynamicSequentialMaxPorts = uint16(65536 - uint32(c.Proxy.DynamicSequentialMinPort))
+		}
 	}
 	return nil
 }

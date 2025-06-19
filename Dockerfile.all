@@ -1,23 +1,16 @@
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine3.21 AS builder
+FROM golang:1.23-alpine3.21 AS builder
 RUN apk add alpine-sdk ca-certificates
 
-ARG TARGETOS
-ARG TARGETARCH
-ARG TARGETVARIANT
 ARG VERSION
 
 ENV CGO_ENABLED=0 \
     GO111MODULE=on \
-    GOOS=${TARGETOS} \
-    GOARCH=${TARGETARCH} \
-    GOARM=${TARGETVARIANT} \
     LDFLAGS="-X github.com/grepplabs/kafka-proxy/config.Version=${VERSION} -w -s"
 
 WORKDIR /go/src/github.com/grepplabs/kafka-proxy
 COPY . .
 
 RUN mkdir -p build && \
-    export GOARM=$( echo "${GOARM}" | cut -c2-) && \
     go build -mod=vendor -o build/kafka-proxy -ldflags "${LDFLAGS}" . && \
     go build -mod=vendor -o build/auth-user -ldflags "${LDFLAGS}" cmd/plugin-auth-user/main.go && \
     go build -mod=vendor -o build/auth-ldap -ldflags "${LDFLAGS}" cmd/plugin-auth-ldap/main.go && \
@@ -27,7 +20,7 @@ RUN mkdir -p build && \
     go build -mod=vendor -o build/unsecured-jwt-provider -ldflags "${LDFLAGS}" cmd/plugin-unsecured-jwt-provider/main.go && \
     go build -mod=vendor -o build/oidc-provider -ldflags "${LDFLAGS}" cmd/plugin-oidc-provider/main.go
 
-FROM --platform=$BUILDPLATFORM alpine:3.21
+FROM alpine:3.21
 RUN apk add --no-cache ca-certificates libcap
 RUN adduser \
         --disabled-password \

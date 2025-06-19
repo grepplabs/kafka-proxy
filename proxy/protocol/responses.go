@@ -247,7 +247,32 @@ func createMetadataResponseSchemaVersions() []Schema {
 		&SchemaTaggedFields{Name: "response_tagged_fields"},
 	)
 
-	return []Schema{metadataResponseV0, metadataResponseV1, metadataResponseV2, metadataResponseV3, metadataResponseV4, metadataResponseV5, metadataResponseV6, metadataResponseV7, metadataResponseV8, metadataResponseV9, metadataResponseV10, metadataResponseV11, metadataResponseV12}
+	metadataResponseV13 := NewSchema("metadata_response_v13",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: metadataBrokerSchema9},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: "topic_metadata", Ty: topicMetadataSchema12},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+
+	return []Schema{
+		metadataResponseV0,
+		metadataResponseV1,
+		metadataResponseV2,
+		metadataResponseV3,
+		metadataResponseV4,
+		metadataResponseV5,
+		metadataResponseV6,
+		metadataResponseV7,
+		metadataResponseV8,
+		metadataResponseV9,
+		metadataResponseV10,
+		metadataResponseV11,
+		metadataResponseV12,
+		metadataResponseV13,
+	}
 }
 
 func createFindCoordinatorResponseSchemaVersions() []Schema {
