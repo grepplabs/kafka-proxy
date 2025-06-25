@@ -12,7 +12,25 @@ builds:
   ignore:
     - goos: windows
       goarch: arm64
-  ldflags: -s -w -X github.com/grepplabs/kafka-proxy/config.Version={{.Version}}
+  ldflags: -s -w -X github.com/limoges/kafka-proxy/config.Version={{.Version}}
+kos:
+  - repositories:
+      - ghcr.io/limoges/kafka-proxy
+    platforms:
+      - linux/arm64
+      - linux/amd64
+    tags:
+      - latest
+      - "{{.Tag}}"
+      - "{{.Version}}"
+    bare: true
+    preserve_import_paths: false
+    labels:
+      "org.opencontainers.image.source": "https://github.com/limoges/kafka-proxy"
+      "org.opencontainers.image.description": "Proxy connections to Kafka cluster. Connect through SOCKS Proxy, HTTP Proxy or to cluster running in Kubernetes."
+    annotations:
+      "org.opencontainers.image.source": "https://github.com/limoges/kafka-proxy"
+      "org.opencontainers.image.description": "Proxy connections to Kafka cluster. Connect through SOCKS Proxy, HTTP Proxy or to cluster running in Kubernetes."
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}"
     files:

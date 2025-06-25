@@ -296,6 +296,9 @@ github.com/oklog/run
 # github.com/pelletier/go-toml v1.2.0
 ## explicit
 github.com/pelletier/go-toml
+# github.com/pires/go-proxyproto v0.8.0
+## explicit; go 1.18
+github.com/pires/go-proxyproto
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
