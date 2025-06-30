@@ -112,6 +112,7 @@ type Int8 struct{}
 func (f *Int8) decode(pd packetDecoder) (interface{}, error) {
 	return pd.getInt8()
 }
+
 func (f *Int8) encode(pe packetEncoder, value interface{}) error {
 	in, ok := value.(int8)
 	if !ok {
