@@ -119,6 +119,7 @@ func TestTLSUnknownAuthorityNoCAChainCert(t *testing.T) {
 	c.Proxy.TLS.ListenerKeyFile = bundle.ServerKey.Name()
 
 	_, _, _, err := makeTLSPipe(c, nil)
+
 	// Can be
 	// - tls: failed to verify certificate: x509: “localhost” certificate is not standards compliant
 	// - tls: failed to verify certificate: x509: certificate signed by unknown authority

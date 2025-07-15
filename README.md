@@ -8,8 +8,7 @@ The Kafka Proxy is based on idea of [Cloud SQL Proxy](https://github.com/GoogleC
 It allows a service to connect to Kafka brokers without having to deal with SASL/PLAIN authentication and SSL certificates.  
 
 It works by opening tcp sockets on the local machine and proxying connections to the associated Kafka brokers
-when the sockets are used. The host and port in [Metadata](http://kafka.apache.org/protocol.html#The_Messages_Metadata)
-and [FindCoordinator](http://kafka.apache.org/protocol.html#The_Messages_FindCoordinator)
+when the sockets are used. The host and port in [Metadata](http://kafka.apache.org/protocol.html#The_Messages_Metadata), [FindCoordinator](http://kafka.apache.org/protocol.html#The_Messages_FindCoordinator) & [DescribeCluster](https://github.com/apache/kafka/blob/trunk/clients/src/main/resources/common/message/DescribeClusterResponse.json)
 responses received from the brokers are replaced by local counterparts.
 For discovered brokers (not configured as the boostrap servers), local listeners are started on random ports.
 The dynamic local listeners feature can be disabled and an additional list of external server mappings can be provided.

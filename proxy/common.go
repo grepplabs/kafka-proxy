@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type DeadlineReadWriteCloser interface {
@@ -112,8 +113,9 @@ func copyError(readDesc, writeDesc string, readErr bool, err error) {
 	logrus.Infof("%v had error: %s", desc, err.Error())
 }
 
-func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, brokerAddress string, remoteDesc, localDesc string) {
+func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, brokerAddress string, remoteAddr, localAddr net.Addr) {
 
+	localDesc := "local connection on " + localAddr.String() + " from " + remoteAddr.String() + " (" + brokerAddress + ")"
 	processor := newProcessor(cfg, brokerAddress)
 
 	firstErr := make(chan error, 1)
@@ -123,9 +125,9 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 		select {
 		case firstErr <- err:
 			if readErr && err == io.EOF {
-				logrus.Infof("Client closed %v", localDesc)
+				logrus.Infof("%s: Client(%s) closed connection for broker (%s)", localAddr, remoteAddr, brokerAddress)
 			} else {
-				copyError(localDesc, remoteDesc, readErr, err)
+				copyError(localDesc, remoteAddr.String(), readErr, err)
 			}
 			remote.Close()
 			local.Close()
@@ -137,9 +139,9 @@ func copyThenClose(cfg ProcessorConfig, remote, local DeadlineReadWriteCloser, b
 	select {
 	case firstErr <- err:
 		if readErr && err == io.EOF {
-			logrus.Infof("Server %v closed connection", remoteDesc)
+			logrus.Infof("Server %v closed connection", remoteAddr.String())
 		} else {
-			copyError(remoteDesc, localDesc, readErr, err)
+			copyError(remoteAddr.String(), localDesc, readErr, err)
 		}
 		remote.Close()
 		local.Close()

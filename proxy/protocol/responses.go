@@ -10,8 +10,10 @@ import (
 const (
 	apiKeyMetadata        = 3
 	apiKeyFindCoordinator = 10
+	apiKeyDescribeCluster = 60
 
 	brokersKeyName = "brokers"
+	brokerKeyName  = "broker_id"
 	hostKeyName    = "host"
 	portKeyName    = "port"
 	nodeKeyName    = "node_id"
@@ -23,6 +25,7 @@ const (
 var (
 	metadataResponseSchemaVersions        = createMetadataResponseSchemaVersions()
 	findCoordinatorResponseSchemaVersions = createFindCoordinatorResponseSchemaVersions()
+	describeClusterResponseSchemaVersions = createDescribeClusterResponseSchemaVersions()
 )
 
 func createMetadataResponseSchemaVersions() []Schema {
@@ -325,6 +328,58 @@ func createFindCoordinatorResponseSchemaVersions() []Schema {
 	return []Schema{findCoordinatorResponseV0, findCoordinatorResponseV1, findCoordinatorResponseV2, findCoordinatorResponseV3, findCoordinatorResponseV4, findCoordinatorResponseV5, findCoordinatorResponseV6}
 }
 
+func createDescribeClusterResponseSchemaVersions() []Schema {
+	describeClusterBrokerV0 := NewSchema("describe_cluster_broker_v0",
+		&Mfield{Name: brokerKeyName, Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
+		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	describeClusterBrokerV2 := NewSchema("describe_cluster_broker_v2",
+		&Mfield{Name: brokerKeyName, Ty: TypeInt32},
+		&Mfield{Name: hostKeyName, Ty: TypeCompactStr},
+		&Mfield{Name: portKeyName, Ty: TypeInt32},
+		&Mfield{Name: "rack", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "is_fenced", Ty: TypeBool},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+
+	describeClusterV0 := NewSchema("describe_cluster_response_v0",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	describeClusterV1 := NewSchema("describe_cluster_response_v1",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV0},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	describeClusterV2 := NewSchema("describe_cluster_response_v2",
+		&Mfield{Name: "throttle_time_ms", Ty: TypeInt32},
+		&Mfield{Name: "error_code", Ty: TypeInt16},
+		&Mfield{Name: "error_message", Ty: TypeCompactNullableStr},
+		&Mfield{Name: "endpoint_type", Ty: TypeInt8},
+		&Mfield{Name: "cluster_id", Ty: TypeCompactStr},
+		&Mfield{Name: "controller_id", Ty: TypeInt32},
+		&CompactArray{Name: brokersKeyName, Ty: describeClusterBrokerV2},
+		&Mfield{Name: "cluster_authorized_operations", Ty: TypeInt32},
+		&SchemaTaggedFields{Name: "response_tagged_fields"},
+	)
+	return []Schema{describeClusterV0, describeClusterV1, describeClusterV2}
+}
+
 func modifyMetadataResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
 	if decodedStruct == nil {
 		return errors.New("decoded struct must not be nil")
@@ -441,6 +496,56 @@ func modifyCoordinator(decodedStruct *Struct, fn config.NetAddressMappingFunc) e
 	return nil
 }
 
+func modifyDescribeClusterResponse(decodedStruct *Struct, fn config.NetAddressMappingFunc) error {
+	if decodedStruct == nil {
+		return errors.New("decoded struct must not be nil")
+	}
+	if fn == nil {
+		return errors.New("net address mapper must not be nil")
+	}
+	brokersArray, ok := decodedStruct.Get(brokersKeyName).([]interface{})
+	if !ok {
+		return errors.New("brokers list not found")
+	}
+	for _, brokerElement := range brokersArray {
+		broker := brokerElement.(*Struct)
+		host, ok := broker.Get(hostKeyName).(string)
+		if !ok {
+			return errors.New("broker.host not found")
+		}
+		port, ok := broker.Get(portKeyName).(int32)
+		if !ok {
+			return errors.New("broker.port not found")
+		}
+		brokerId, ok := broker.Get(brokerKeyName).(int32)
+		if !ok {
+			return errors.New("broker.broker_id not found")
+		}
+
+		if host == "" && port <= 0 {
+			continue
+		}
+
+		newHost, newPort, err := fn(host, port, brokerId)
+		if err != nil {
+			return err
+		}
+		if host != newHost {
+			err := broker.Replace(hostKeyName, newHost)
+			if err != nil {
+				return err
+			}
+		}
+		if port != newPort {
+			err = broker.Replace(portKeyName, newPort)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 type ResponseModifier interface {
 	Apply(resp []byte) ([]byte, error)
 }
@@ -471,6 +576,8 @@ func GetResponseModifier(apiKey int16, apiVersion int16, addressMappingFunc conf
 		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, metadataResponseSchemaVersions, modifyMetadataResponse)
 	case apiKeyFindCoordinator:
 		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, findCoordinatorResponseSchemaVersions, modifyFindCoordinatorResponse)
+	case apiKeyDescribeCluster:
+		return newResponseModifier(apiKey, apiVersion, addressMappingFunc, describeClusterResponseSchemaVersions, modifyDescribeClusterResponse)
 	default:
 		return nil, nil
 	}

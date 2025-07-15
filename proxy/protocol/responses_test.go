@@ -9,9 +9,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/grepplabs/kafka-proxy/config"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/grepplabs/kafka-proxy/config"
 )
 
 var (
@@ -2573,17 +2574,212 @@ func testMetadataResponse(t *testing.T, apiVersion int16, payload string, expect
 	if err != nil {
 		t.Fatal(err)
 	}
-	/*
-		for _, av := range dc.AttrValues() {
-			fmt.Printf("\"%s\",\n", av)
-		}
-	*/
 	a.Equal(expectedInput, dc.AttrValues())
 	resp, err := EncodeSchema(s, schema)
 	a.Nil(err)
 	a.Equal(bytes, resp)
 
 	modifier, err := GetResponseModifier(apiKeyMetadata, apiVersion, testResponseModifier2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Nil(err)
+	resp, err = modifier.Apply(resp)
+	a.Nil(err)
+	s, err = DecodeSchema(resp, schema)
+	a.Nil(err)
+	dc = newDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Equal(expectedModified, dc.AttrValues())
+}
+
+func TestDescribeClusterResponseV0(t *testing.T) {
+	payload := "000000000000000b6d795f636c75737465720000000003000000010a6c6f63616c686f737400004a940000000000020a6c6f63616c686f7374000071a400000000000000"
+
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+
+	testDescribeClusterResponse(t, 0, payload, expectedInput, expectedModified)
+}
+
+func TestDescribeClusterResponseV1(t *testing.T) {
+	payload := "00000000000000010b6d795f636c75737465720000000003000000010a6c6f63616c686f737400004a940000000000020a6c6f63616c686f7374000071a400000000000000"
+
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"endpoint_type int8 1",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"endpoint_type int8 1",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+
+	testDescribeClusterResponse(t, 1, payload, expectedInput, expectedModified)
+}
+
+func TestDescribeClusterResponseV2(t *testing.T) {
+	payload := "00000000000000010b6d795f636c75737465720000000003000000010a6c6f63616c686f737400004a94000000000000020a6c6f63616c686f7374000071a40000000000000000"
+
+	expectedInput := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"endpoint_type int8 1",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string localhost",
+		"port int32 19092",
+		"rack *string <nil>",
+		"is_fenced bool false",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string localhost",
+		"port int32 29092",
+		"rack *string <nil>",
+		"is_fenced bool false",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+	expectedModified := []string{
+		"throttle_time_ms int32 0",
+		"error_code int16 0",
+		"error_message *string <nil>",
+		"endpoint_type int8 1",
+		"cluster_id string my_cluster",
+		"controller_id int32 0",
+		"[brokers]",
+		"brokers struct",
+		"broker_id int32 1",
+		"host string myhost1", // replaced
+		"port int32 34001",    // replaced
+		"rack *string <nil>",
+		"is_fenced bool false",
+		"[response_tagged_fields]",
+		"brokers struct",
+		"broker_id int32 2",
+		"host string myhost2", // replaced
+		"port int32 34002",    // replaced
+		"rack *string <nil>",
+		"is_fenced bool false",
+		"[response_tagged_fields]",
+		"cluster_authorized_operations int32 0",
+		"[response_tagged_fields]",
+	}
+
+	testDescribeClusterResponse(t, 2, payload, expectedInput, expectedModified)
+}
+
+func testDescribeClusterResponse(t *testing.T, apiVersion int16, payload string, expectedInput, expectedModified []string) {
+	bytes, err := hex.DecodeString(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := assert.New(t)
+
+	schema := describeClusterResponseSchemaVersions[apiVersion]
+
+	s, err := DecodeSchema(bytes, schema)
+	a.Nil(err)
+
+	dc := newDecodeCheck()
+	err = dc.Traverse(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Equal(expectedInput, dc.AttrValues())
+	resp, err := EncodeSchema(s, schema)
+	a.Nil(err)
+	a.Equal(bytes, resp)
+
+	modifier, err := GetResponseModifier(apiKeyDescribeCluster, apiVersion, testResponseModifier2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3162,6 +3358,8 @@ func (t *decodeCheck) value(s *Struct, arg interface{}, sindex int) error {
 	switch v := arg.(type) {
 	case bool:
 		t.append(name, "bool", v)
+	case int8:
+		t.append(name, "int8", v)
 	case int16:
 		t.append(name, "int16", v)
 	case int32:

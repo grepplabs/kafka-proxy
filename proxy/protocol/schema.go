@@ -3,14 +3,16 @@ package protocol
 import (
 	"bytes"
 	"fmt"
-	"github.com/google/uuid"
 	"reflect"
+
+	"github.com/google/uuid"
 
 	"github.com/pkg/errors"
 )
 
 var (
 	TypeBool               = &Bool{}
+	TypeInt8               = &Int8{}
 	TypeInt16              = &Int16{}
 	TypeInt32              = &Int32{}
 	TypeStr                = &Str{}
@@ -101,6 +103,34 @@ func (f *Bool) GetFieldsByName() map[string]*boundField {
 
 func (f *Bool) GetName() string {
 	return "bool"
+}
+
+// Field int8
+
+type Int8 struct{}
+
+func (f *Int8) decode(pd packetDecoder) (interface{}, error) {
+	return pd.getInt8()
+}
+func (f *Int8) encode(pe packetEncoder, value interface{}) error {
+	in, ok := value.(int8)
+	if !ok {
+		return SchemaEncodingError{fmt.Sprintf("value %T not a int8", value)}
+	}
+	pe.putInt8(in)
+	return nil
+}
+
+func (f *Int8) GetFields() []boundField {
+	return nil
+}
+
+func (f *Int8) GetFieldsByName() map[string]*boundField {
+	return nil
+}
+
+func (f *Int8) GetName() string {
+	return "int8"
 }
 
 // Field int16
