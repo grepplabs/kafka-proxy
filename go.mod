@@ -1,6 +1,6 @@
 module github.com/grepplabs/kafka-proxy
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
@@ -30,7 +30,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/net v0.38.0
-	golang.org/x/oauth2 v0.24.0
+	golang.org/x/oauth2 v0.27.0
 	google.golang.org/api v0.126.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.4
