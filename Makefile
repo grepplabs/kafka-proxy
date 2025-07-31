@@ -99,6 +99,9 @@ plugin.auth-user:
 plugin.auth-ldap:
 	CGO_ENABLED=0 go build -o build/auth-ldap $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-auth-ldap/main.go
 
+plugin.aws-msk-iam-provider:
+	CGO_ENABLED=0 go build -o build/aws-msk-iam-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-aws-msk-iam-provider/main.go
+
 plugin.google-id-provider:
 	CGO_ENABLED=0 go build -o build/google-id-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-googleid-provider/main.go
 
@@ -114,7 +117,7 @@ plugin.unsecured-jwt-provider:
 plugin.oidc-provider:
 	CGO_ENABLED=0 go build -o build/oidc-provider $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" cmd/plugin-oidc-provider/main.go
 
-all: build plugin.auth-user plugin.auth-ldap plugin.google-id-provider plugin.google-id-info plugin.unsecured-jwt-info plugin.unsecured-jwt-provider plugin.oidc-provider
+all: build plugin.auth-user plugin.auth-ldap plugin.aws-msk-iam-provider plugin.google-id-provider plugin.google-id-info plugin.unsecured-jwt-info plugin.unsecured-jwt-provider plugin.oidc-provider
 
 clean:
 	rm -rf $(ROOT_DIR)/build

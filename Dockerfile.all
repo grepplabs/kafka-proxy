@@ -14,6 +14,7 @@ RUN mkdir -p build && \
     go build -mod=vendor -o build/kafka-proxy -ldflags "${LDFLAGS}" . && \
     go build -mod=vendor -o build/auth-user -ldflags "${LDFLAGS}" cmd/plugin-auth-user/main.go && \
     go build -mod=vendor -o build/auth-ldap -ldflags "${LDFLAGS}" cmd/plugin-auth-ldap/main.go && \
+    go build -mod=vendor -o build/aws-msk-iam-provider -ldflags "${LDFLAGS}" cmd/plugin-aws-msk-iam-provider/main.go && \
     go build -mod=vendor -o build/google-id-provider -ldflags "${LDFLAGS}" cmd/plugin-googleid-provider/main.go && \
     go build -mod=vendor -o build/google-id-info -ldflags "${LDFLAGS}" cmd/plugin-googleid-info/main.go && \
     go build -mod=vendor -o build/unsecured-jwt-info -ldflags "${LDFLAGS}" cmd/plugin-unsecured-jwt-info/main.go && \
@@ -34,6 +35,7 @@ COPY --from=builder /go/src/github.com/grepplabs/kafka-proxy/build /opt/kafka-pr
 RUN setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/kafka-proxy && \
     setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/auth-user && \
     setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/auth-ldap && \
+    setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/aws-msk-iam-provider && \
     setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/google-id-provider && \
     setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/google-id-info && \
     setcap 'cap_net_bind_service=+ep' /opt/kafka-proxy/bin/unsecured-jwt-info && \
